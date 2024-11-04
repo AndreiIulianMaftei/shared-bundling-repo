@@ -18,7 +18,6 @@ def main():
 
     arguments:
         --file: path to the file. disregard file ending
-        --metric: metric which we want to compute
         --algorithm: which algorithm do we want to evaluate. Default is all
     '''
 
@@ -29,16 +28,15 @@ def main():
 
     args = parser.parse_args()
 
-    if args.file and args.metric:
+    if args.file and args.algorithm:
         file = args.file
-        metric = args.metric
 
-        if not metric in metrics:
-            print("Error: metric does not exist")
-        if file.lower().endswith(".graphml"):
+        if not file.lower().endswith(".graphml"):
             print("Wrong file type. Graphml required")
+            return
         if not os.path.isfile(file):
             print("File does not exist")
+            return
         
         if args.algorithm in algorithms:
             algorithm = [args.algorithm]

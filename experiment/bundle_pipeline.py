@@ -2,7 +2,7 @@ import os
 import networkx as nx
 from other_code.EPB.epb import EPB_Biconn
 from other_code.EPB.reader import Reader
-from other_code.EPB.abstractBundling import GWIDTH
+from other_code.EPB.abstractBundling import GWIDTH, GraphLoader
 
 output = 'output'
 
@@ -17,6 +17,7 @@ def compute_sepb(file, out_path):
     return
 
 def compute_fd(file, out_path):
+    
     return
 
 def compute_cubu(file, out_path):
@@ -29,7 +30,6 @@ def compute_bundling(file, algorithm):
 
     name = file.split('/')[-1]
     name = name.replace('.graphml','')
-    name = name.trim()
 
     out_path = f'{output}/{name}/'
 
@@ -38,7 +38,7 @@ def compute_bundling(file, algorithm):
 
     match algorithm:
         case 'epb':
-            compute_epb(file, out_path)
+            compute_epb(file, out_path + "epb.graphml")
         case 'sepb':
             compute_sepb(file, out_path)
         case 'fd':
@@ -49,33 +49,42 @@ def compute_bundling(file, algorithm):
             compute_wr(file, out_path)
 
 
-def read_epb(file):
+def read_epb(folder):
+
+    path = folder + "/epb.graphml"
+    
+    bundling = GraphLoader(None)
+    bundling.is_graphml = True
+    bundling.filename = "epb"
+    bundling.filepath = folder
+    bundling.bundle()
+
+    return bundling
+
+def read_sepb(folder):
     return
 
-def read_sepb(file):
+def read_fd(folder):
     return
 
-def read_fd(file):
+def read_cubu(folder):
     return
 
-def read_cubu(file):
+def read_wr(folder):
     return
 
-def read_wr(file):
-    return
-
-def read_bundling(file, algorithm):
+def read_bundling(folder, algorithm):
     match algorithm:
         case 'epb':
-            G = read_epb(file)
+            G = read_epb(folder)
         case 'sepb':
-            G = read_sepb(file)
+            G = read_sepb(folder)
         case 'fd':
-            G = read_fd(file)
+            G = read_fd(folder)
         case 'cubu':
-            G = read_cubu(file)
+            G = read_cubu(folder)
         case 'wr':
-            G = read_wr(file)
+            G = read_wr(folder)
 
     return G
     

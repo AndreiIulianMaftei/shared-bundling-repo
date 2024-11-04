@@ -63,8 +63,31 @@ class AbstractBundling:
         return pos
 
     def store(self, path):
+        GG = nx.Graph()
+        GG.add_edges_from(self.G.edges())
+        GG.add_nodes_from(self.G.nodes())
+
         self.approximateCurve()
-        nx.write_graphml(self.G, path)
+
+        for u,v, data in self.G.edges(data=True):
+            if 'Spline' in data:
+                points =  data['Spline'].points
+
+                X = []
+                Y = []
+
+                for p in points:
+                    X.append(p[0])
+                    Y.append(p[1])
+
+                GG[u][v]['Spline_X'] = ' '.join(map(str, X))
+                GG[u][v]['Spline_Y'] = ' '.join(map(str, Y))
+                
+        for u, data in self.G.nodes(data=True):
+            GG.nodes[u]['X'] = data['X']
+            GG.nodes[u]['Y'] = data['Y']
+
+        nx.write_graphml(GG, path)
 
 
     def setPosDict(self, pos):
@@ -328,22 +351,95 @@ class AbstractBundling:
         for x in range(1, k + 1): coeff /= x
         return coeff
 
-
 class GraphLoader(AbstractBundling):
     def __init__(self, G):
         self.G = G
         self.reverse = False
         self.invertY = False
         self.invertX = False
+        self.is_graphml = False
             
     @property
     def name(self):
         return f'{self.filename}'
     
     def bundle(self):
-        self.G = self.readData(self.filepath, self.filename, self.invertY, self.invertX, self.reverse)
+        if self.is_graphml:
+            self.G = self.readData_graphml(self.filepath, self.filename, self.invertY, self.invertX, self.reverse)
+        else:
+            self.G = self.readData(self.filepath, self.filename, self.invertY, self.invertX, self.reverse)
         return 0
     
+    def readData_graphml(self, path, file, invertY, invertX, reverse):
+        '''
+        Read the graph in our custom file format from path/file. Expects .nodes and .edges file.
+
+        path - Path of the file
+        file - Name of the file. .edges or .nodes suffix is automatically added
+        invertY - Invert the y-axis
+        invertX - Invert the x-axis
+
+        return
+        G - The loaded input graph
+        '''
+
+        to_read = path + "/" + file + '.graphml'
+
+        G = nx.read_graphml(to_read)      
+
+        xmin = sys.maxsize
+        xmax = -sys.maxsize - 1
+        ymin = sys.maxsize
+        ymax = -sys.maxsize - 1
+
+        for u, data in G.nodes(data=True):
+            data['X'] = float(data['X'])
+            data['Y'] = float(data['Y'])
+
+            xmin = min(xmin, data['X'])
+            xmax = max(xmin, data['X'])
+            ymin = min(ymin, data['Y'])
+            ymax = max(ymax, data['Y'])
+
+        ## TODO fix the factor
+        factor = GWIDTH / (xmax - xmin)
+        factor = 1
+        width = GWIDTH
+        height = (ymax - ymin) * factor
+
+        for node, data in G.nodes().data():
+            G.nodes()[node]['X'] = (data['X'] - xmin) * factor
+            data['Y'] = (data['Y'] - ymin) * factor
+
+            if invertX: G.nodes()[node]['X'] = width - data['X']
+            if invertY: data['Y'] = height - data['Y']
+
+        G.graph['xmin'] = 0
+        G.graph['xmax'] = GWIDTH
+        G.graph['ymin'] = 0
+        G.graph['ymax'] = (ymax - ymin) * factor
+
+        for u,v,data in G.edges(data=True):
+
+            if "Spline_X" in data:
+                data["Xapprox"] = map(float, data['Spline_X'].split(" "))
+                data["Yapprox"] = map(float, data['Spline_Y'].split(" "))
+                data['X'] = data['Xapprox']
+                data['Y'] = data['Yapprox']
+            else:
+                data['X'] = []
+                data['Y'] = []
+
+
+            x1 = G.nodes[u]['X']
+            y1 = G.nodes[u]['Y']
+            x2 = G.nodes[v]['X']
+            y2 = G.nodes[v]['Y']
+
+            data['weight'] = np.sqrt((x1-x2)**2 + (y1 - y2)**2)
+
+        return G
+
     def readData(self, path, file, invertY, invertX, reverse):
         '''
         Read the graph in our custom file format from path/file. Expects .nodes and .edges file.

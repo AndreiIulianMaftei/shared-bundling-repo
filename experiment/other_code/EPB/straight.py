@@ -1,4 +1,4 @@
-from bundling.abstractBundling import AbstractBundling
+from other_code.EPB.abstractBundling import AbstractBundling
 import networkx as nx
 import numpy as np
 

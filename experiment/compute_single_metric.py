@@ -2,19 +2,29 @@ import argparse
 import glob
 import os.path
 from bundle_pipeline import read_bundling
+from other_code.EPB.experiments import Experiment
+from other_code.EPB.straight import StraightLine
+import networkx as nx
 
 metrics = ["distortion", "ink", "ambiguity"]
 algorithms = ["epb", "sepb", "fd", "cubu", "wr", "straight"]
 
 def process_single_metric(file, metric, algorithms):
 
+    ## TODO this needs to be changed to not rely on epb. Maybe also have the original input in the output?
+    G = nx.read_graphml(file + "/epb.graphml")
+    straight = StraightLine(G)
+
     for algorithm in algorithms:
-        G = read_bundling(file, algorithm)
+        bundling = read_bundling(file, algorithm)
+        experiment = Experiment(bundling, straight)
 
         match metric:
             case "distortion":
                 break
             case "ink":
+                ## TODO should crash here as the ink requires a drawing.
+                ink = experiment.calcInk()
                 break
             case "ambiguity":
                 break
@@ -33,23 +43,23 @@ def main():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--file", help="path to the file. File extension irrelevant")
+    parser.add_argument("--folder", help="path to the file. File extension irrelevant")
     parser.add_argument("--metric", help="which metric should be evaluated")
     parser.add_argument("--algorithm", help="Which algorithm should be evaluated. Default 'all'", default='all')
 
     args = parser.parse_args()
 
-    if args.file and args.metric:
-        file = args.file
+    if args.folder and args.metric:
+        folder = args.folder
         metric = args.metric
 
         if not metric in metrics:
             print("Error: metric does not exist")
-        if file.lower().endswith(".graphml"):
-            print("Wrong file type. Graphml required")
-        if not os.path.isfile(file):
-            print("File does not exist")
-        
+            return
+        if not os.path.isdir(folder):
+            print("Folder does not exist")
+            return
+
         if args.algorithm in algorithms:
             algorithm = [args.algorithm]
         elif args.algorithm == "all":
@@ -60,7 +70,7 @@ def main():
         
         if algorithm:
 
-            process_single_metric(file, metric, algorithm)
+            process_single_metric(folder, metric, algorithm)
 
 
     else:
