@@ -5,6 +5,10 @@ import numpy as np
 from scipy import signal
 from PIL import Image
 import pickle
+import seaborn as sbn
+import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('qt5Agg')
 
 GREY_THRESH = 255                       #Threshold when a pixel is considered as 'occupied'
 ANGLE_THRESHOLD = 2 * np.pi * 7.5 / 360  #Angle threshold when two edges crossing are considered ambiguous
@@ -57,6 +61,10 @@ class Experiment:
 
         return inkratio
 
+    def plotHistogram(self, values):
+        sbn.displot(x=values)
+        plt.show()
+
     def calcDistortion(self):
         '''
         Calculate the distortion by summing up the polyline segments of the Bezier approximation.
@@ -94,7 +102,7 @@ class Experiment:
 
             distortions.append(distortion)
 
-        return (np.min(distortions), np.mean(distortions), np.std(distortions), np.var(distortions), np.median(distortions))
+        return (np.min(distortions), np.mean(distortions), np.std(distortions), np.var(distortions), np.median(distortions), distortions)
 
     def calcAmbiguity(self, path):
         '''

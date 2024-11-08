@@ -422,8 +422,11 @@ class GraphLoader(AbstractBundling):
         for u,v,data in G.edges(data=True):
 
             if "Spline_X" in data:
-                data["Xapprox"] = map(float, data['Spline_X'].split(" "))
-                data["Yapprox"] = map(float, data['Spline_Y'].split(" "))
+                X = [float(x) for x in data['Spline_X'].split(" ")]
+                Y = [float(x) for x in data['Spline_Y'].split(" ")]
+
+                data["Xapprox"] = X
+                data["Yapprox"] = Y
                 data['X'] = data['Xapprox']
                 data['Y'] = data['Yapprox']
             else:

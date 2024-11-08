@@ -6,7 +6,7 @@ from other_code.EPB.experiments import Experiment
 from other_code.EPB.straight import StraightLine
 import networkx as nx
 
-metrics = ["distortion", "ink", "ambiguity"]
+metrics = ["drawing", "distortion", "ink", "ambiguity"]
 algorithms = ["epb", "sepb", "fd", "cubu", "wr", "straight"]
 
 def process_single_metric(file, metric, algorithms):
@@ -21,6 +21,9 @@ def process_single_metric(file, metric, algorithms):
 
         match metric:
             case "distortion":
+                _,_,_,_,_,distortions = experiment.calcDistortion()
+                experiment.plotHistogram(distortions)
+                
                 break
             case "ink":
                 ## TODO should crash here as the ink requires a drawing.
