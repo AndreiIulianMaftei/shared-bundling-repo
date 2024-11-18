@@ -1,3 +1,4 @@
 *.pyc
 *.o
 *.so
+experiment/other_code/FD/node_modules

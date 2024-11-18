@@ -8,6 +8,8 @@ import pickle
 import seaborn as sbn
 import matplotlib.pyplot as plt
 import matplotlib
+from frechetdist import frdist
+
 matplotlib.use('qt5Agg')
 
 GREY_THRESH = 255                       #Threshold when a pixel is considered as 'occupied'
@@ -60,7 +62,76 @@ class Experiment:
         inkratio = greyscalepixel / inkratioG
 
         return inkratio
+    def calcFrechet(self):
 
+        ma = -999999999999
+        mi = 999999999999
+
+        
+        #print(G.edges(data = True))
+        
+
+        frechet = []
+        polylines = []
+        list_edges = list(self.G.edges(data = True))
+
+        for index, (u,v,data) in enumerate(list_edges):
+            
+            if(index == 500):
+                break
+
+            if(data.get('X') is None):
+                continue
+            
+            numbers_x = [float(num) for num in data.get('X')]
+
+            numbers_y = [float(num) for num in data.get('Y')]
+
+            polyline = [(numbers_x[i], numbers_y[i]) for i in range(0, len(numbers_x))]
+            polylines.append(polyline)
+
+            x0 = self.G.nodes[u]['X']
+            y0 = self.G.nodes[u]['Y']
+
+            x1 = self.G.nodes[v]['X']
+            y1 = self.G.nodes[v]['Y']
+            
+            t_values = np.linspace(0, 1, num=len(polyline))
+
+            x_values = x0 + t_values * (x1 - x0)
+            y_values = y0 + t_values * (y1 - y0)
+
+            interpolated_points = [(float(x), float(y)) for x, y in zip(x_values, y_values)]
+            
+            if(len(polyline) == 0):
+                continue
+            
+            x = frdist(interpolated_points, polyline)
+            
+            frechet.append(x)
+            ma = max(ma, x)
+            mi = min(mi, x)
+        
+        
+        return frechet
+    
+    def plotFrechet(self, frechet1, MIN, MAX):
+        '''
+        Plot the normalised Frechet distance of two algorithms. a histogram, withn x axis as the frechet distance and y axis as the number of edges .
+        '''
+        frechet1 = [(x - MIN) / (MAX - MIN) for x in frechet1]
+
+        plt.hist(frechet1, bins=100, alpha=0.5, label='Algorithm 1')
+        plt.legend(loc='upper right')
+        plt.xlabel('Frechet Distance')
+        plt.ylabel('Number of Edges')        
+        plt.savefig(f'min-max normalisation {self.G.name}.png')
+
+        
+       
+
+
+        
     def plotHistogram(self, values):
         sbn.displot(x=values)
         plt.show()

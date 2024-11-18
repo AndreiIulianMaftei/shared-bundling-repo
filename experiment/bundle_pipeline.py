@@ -18,7 +18,11 @@ def compute_sepb(file, out_path):
     return
 
 def compute_fd(file, out_path):
+    G = Reader.readGraphML(f'{file}', G_width=GWIDTH, invertY=False, directed=False)
+    #tell python to run my app.js file here 
+    #and my convert from xml to graphml file
     
+
     return
 
 def compute_cubu(file, out_path):
@@ -81,7 +85,7 @@ def compute_bundling(file, algorithm):
         case 'sepb':
             compute_sepb(file, out_path)
         case 'fd':
-            compute_fd(file, out_path)
+            compute_fd(file, out_path + "fd.graphml")
         case 'cubu':
             compute_cubu(file, out_path)
         case 'wr':
@@ -104,7 +108,14 @@ def read_sepb(folder):
     return
 
 def read_fd(folder):
-    return
+    path = folder + "/fd.graphml"
+    bundling = GraphLoader(None)
+    bundling.is_graphml = True
+    bundling.filename = "fd"
+    bundling.filepath = folder
+    bundling.bundle()
+
+    return bundling
 
 def read_cubu(folder):
     return
