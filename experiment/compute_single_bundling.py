@@ -35,7 +35,7 @@ def main():
             print("Wrong file type. Graphml required")
             return
         if not os.path.isfile(file):
-            print("File does not exist")
+            print(file + "File does not exist")
             return
         
         if args.algorithm in algorithms:

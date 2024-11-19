@@ -5,20 +5,30 @@ from bundle_pipeline import read_bundling
 from other_code.EPB.experiments import Experiment
 from other_code.EPB.straight import StraightLine
 import networkx as nx
+import numpy as np
 
-metrics = ["drawing", "distortion", "ink", "ambiguity"]
-algorithms = ["epb", "sepb", "fd", "cubu", "wr", "straight"]
+metrics = ["drawing", "distortion", "ink", "frechet"]
+#algorithms = ["epb", "sepb", "fd", "cubu", "wr", "straight"]
+algorithms = ["epb", "fd", "wr"]
 
 def process_single_metric(file, metric, algorithms):
 
     ## TODO this needs to be changed to not rely on epb. Maybe also have the original input in the output?
+    #test if the file is accesible
+
     G = nx.read_graphml(file + "/epb.graphml")
+    G = nx.Graph(G)
+    #print(G)
+ 
     straight = StraightLine(G)
+    frok = 0
+    rez_all = []
 
     for algorithm in algorithms:
         bundling = read_bundling(file, algorithm)
-        experiment = Experiment(bundling, straight)
 
+        experiment = Experiment(bundling, straight)
+        bundling.draw(f"./")
         match metric:
             case "distortion":
                 _,_,_,_,_,distortions = experiment.calcDistortion()
@@ -29,9 +39,20 @@ def process_single_metric(file, metric, algorithms):
                 ## TODO should crash here as the ink requires a drawing.
                 ink = experiment.calcInk()
                 break
-            case "ambiguity":
-                break
+            case "frechet":
+                #print("Calculating Frechet")
+                frok = 1
+                
+                rez = experiment.calcFrechet(algorithm)
+                print(rez.__len__())
+                rez_all.append((rez, algorithm))
+                #MIN = min(min(rez_EPB), min(rez_FD))
+                #print(np.mean(rez_EPB))
 
+    if(frok):
+        print(rez_all.__len__())
+        experiment.plotFrechet(rez_all)      
+         
     return
 
 def main():

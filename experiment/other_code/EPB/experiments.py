@@ -8,6 +8,10 @@ import pickle
 import seaborn as sbn
 import matplotlib.pyplot as plt
 import matplotlib
+from frechetdist import frdist
+import re
+from PIL import Image
+
 matplotlib.use('qt5Agg')
 
 GREY_THRESH = 255                       #Threshold when a pixel is considered as 'occupied'
@@ -21,6 +25,7 @@ class Experiment:
         self.Straight = Straight.G
         self.G = G.G
         self.name = G.name
+        
 
 
     def run(self, path):
@@ -60,7 +65,182 @@ class Experiment:
         inkratio = greyscalepixel / inkratioG
 
         return inkratio
+    def calcFrechet(self, algorithm):
 
+        ma = -999999999999
+        mi = 999999999999
+        frechet = []
+        polylines = []
+        x= 0
+        #print(G.edges(data = True))
+        
+        if(algorithm != "wr"):
+            
+            list_edges = list(self.G.edges(data = True))
+
+            for index, (u,v,data) in enumerate(list_edges):
+                
+                if(index == 500):
+                    break
+
+                numbers_y = []
+                numbers_x = []
+
+                numbers_x = [float(num) for num in data.get('X')]
+            
+                numbers_y = [float(num) for num in data.get('Y')]
+                
+                polyline = [(numbers_x[i], numbers_y[i]) for i in range(0, len(numbers_x))]
+                polylines.append(polyline)
+
+                x0 = self.G.nodes[u]['X']
+                y0 = self.G.nodes[u]['Y']
+
+                x1 = self.G.nodes[v]['X']
+                y1 = self.G.nodes[v]['Y']
+                
+                t_values = np.linspace(0, 1, num=len(polyline))
+
+                x_values = x0 + t_values * (x1 - x0)
+                y_values = y0 + t_values * (y1 - y0)
+
+                interpolated_points = [(float(x), float(y)) for x, y in zip(x_values, y_values)]
+                
+                if(len(polyline) == 0):
+                    x = 0
+                else:
+                    x = frdist(interpolated_points, polyline)
+                
+                
+                frechet.append(x)
+                ma = max(ma, x)
+                mi = min(mi, x)
+        else:
+            list_edges = list(self.G.edges(data = True))
+            G = nx.Graph()
+            G = self.G
+
+            for index, (u,v,data) in enumerate(list_edges):
+                
+                if(index == 500):
+                    break
+                
+                #x_spline_value = G[data.get('X')][data.get('Y')]['X_Spline']
+                
+                numbers_y = []
+                numbers_x = []
+
+                numbers_x = re.findall(r'-?\d+\.\d+', G[list_edges[index][0]][list_edges[index][1]]["X_Spline"])
+                numbers_x = [float(num) for num in numbers_x]
+                numbers_y = re.findall(r'-?\d+\.\d+', G[list_edges[index][0]][list_edges[index][1]]["Y_Spline"])
+                numbers_y = [float(num) for num in numbers_y]
+                
+                polyline = [(numbers_x[i], numbers_y[i]) for i in range(0, len(numbers_x))]
+
+                #print(numbers_x)
+                polylines.append(polyline)
+
+                x0 = self.G.nodes[u]['X']
+                y0 = self.G.nodes[u]['Y']
+
+                x1 = self.G.nodes[v]['X']
+                y1 = self.G.nodes[v]['Y']
+                
+                t_values = np.linspace(0, 1, num=len(polyline))
+
+                x_values = x0 + t_values * (x1 - x0)
+                y_values = y0 + t_values * (y1 - y0)
+
+                interpolated_points = [(float(x), float(y)) for x, y in zip(x_values, y_values)]
+                
+                if(len(polyline) == 0):
+                    continue
+                
+                
+                x = frdist(interpolated_points, polyline) 
+                
+                frechet.append(x)
+                ma = max(ma, x)
+                mi = min(mi, x)
+
+                #polylines.append(polyline)
+
+        
+        return frechet
+    
+    def plotFrechet(self, rezults):
+        '''
+        Plot the normalised Frechet distance of two algorithms. a histogram, withn x axis as the frechet distance and y axis as the number of edges .
+        '''
+        Max = -999999999999
+        Min = 999999999999
+        mean = 0
+        number = 0
+        print(mean)
+        for rez in rezults: 
+            Max = max(np.max(rez[0]), Max)
+            Min = min(np.min(rez[0]), Min)
+            mean += np.sum(rez[0])
+            number = number+ rez[0].__len__()
+        mean = mean/number
+            
+        print (rezults.__len__())
+        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+        list_normalised_min_max = [None]*rezults.__len__()
+        list_normalised_z_score = [None]*rezults.__len__()
+        list = [None]*rezults.__len__()
+        for index, rez in enumerate(rezults):
+            #normalise rez[0] (a list ) using min/max
+            list[index] = rez[0]
+            #print(rez[0])
+            list_normalised_min_max[index] = [(x - Min) / (Max - Min) for x in [list[index]]]
+            #list_normalised_z_score[index] = [(x - mean) / np.std(list[index]) for x in list[index]]
+        #print single histogram
+        png_file_min_max = []
+        png_file_z_score = []
+        for index, rez in enumerate(rezults):
+            plt.figure()
+            plt.hist(list_normalised_min_max[index], bins=100, alpha=0.5, label=f'Algorithm {rez[1]}')
+            plt.legend(loc='upper right')
+            plt.xlabel('Frechet Distance')
+            plt.ylabel('Number of Edges')
+            plt.savefig('min-max_normalisation.png')    
+            plt.savefig(f'min-max normalisation {rez[1]}.png')
+            png_file_min_max.append(f'min-max normalisation {rez[1]}.png')
+            plt.figure()
+            
+        #print cumulative min-max histogram
+        base_image = Image.open(png_file_min_max[0]).convert("RGB")
+
+        # Open the rest of the images and convert them to RGB
+        other_images = [Image.open(png).convert("RGB") for png in png_file_min_max[1:]]
+
+        # Save all images as a PDF
+        output_pdf_path = "output_min_max.pdf"
+        base_image.save(output_pdf_path, save_all=True, append_images=other_images)
+
+        print(f"PDF created successfully: {output_pdf_path}")
+        plt.figure()
+        for index, rez in enumerate(rezults):
+            plt.hist(list_normalised_min_max[index], bins=100, alpha=0.5, label=f'Algorithm {rez[1]}')
+            plt.legend(loc='upper right')
+            plt.xlabel('Frechet Distance')
+            plt.ylabel('Number of Edges')    
+        
+        plt.savefig(f'min-max normalisation cumulative.png')
+        #print cumulative z-score histogram
+        
+  
+
+
+        
+        
+
+        
+       
+
+
+        
     def plotHistogram(self, values):
         sbn.displot(x=values)
         plt.show()
