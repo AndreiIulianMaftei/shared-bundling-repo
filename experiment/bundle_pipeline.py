@@ -121,7 +121,14 @@ def read_cubu(folder):
     return
 
 def read_wr(folder):
-    return
+    path = folder + "/wr.graphml"
+    bundling = GraphLoader(None)
+    bundling.is_graphml = True
+    bundling.filename = "wr"
+    bundling.filepath = folder
+    bundling.bundle()
+    
+    return bundling
 
 def read_bundling(folder, algorithm):
     match algorithm:

@@ -9,7 +9,9 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
-            "args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "frechet"],
+            "args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "frechet"], /// run frechet on all algorithm 
+            //"args": ["--algorithm", "epb", "--file", "input_data/airlines.graphml"],  ///run epb algorithm
+            //"args": ["--algorithm", "wr", "--file", "input_data/airlines.graphml"],  ///run wr algorithm
             "console": "integratedTerminal"
         }
     ]

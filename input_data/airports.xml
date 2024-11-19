@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<graphml xmlns="http://graphml.graphdrawing.org/xmlns"
+<xml xmlns="http://graphml.graphdrawing.org/xmlns"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
   http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
@@ -3900,4 +3900,4 @@
     <edge id="640" source="360" target="298">
     </edge>
   </graph>
-</graphml>
+</xml>
