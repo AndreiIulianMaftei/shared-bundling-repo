@@ -44,6 +44,7 @@ def compute_wr(file, out_path):
     params2 = tlp.getDefaultPluginParameters("Curve edges", G)
     viewLayout = G.getLayoutProperty("viewLayout")
 
+    G.applyAlgorithm("Edge bundling", params1)
     G.applyAlgorithm("Curve edges", params2)
     G.applyAlgorithm("Edge bundling", params1)
 
@@ -52,6 +53,9 @@ def compute_wr(file, out_path):
 
     for e in G.getEdges():
         controlPoints = viewLayout.getEdgeValue(e)
+
+        controlPoints.insert(0, (x.getNodeValue(G.source(e)), y.getNodeValue(G.source(e))))
+        controlPoints.append((x.getNodeValue(G.target(e)), y.getNodeValue(G.target(e))))
 
         src = G.source(e).id
         tgt = G.target(e).id
@@ -67,7 +71,7 @@ def compute_wr(file, out_path):
         X = ' '.join(map(str, X))
         Y = ' '.join(map(str, Y))
 
-        G_out.add_edge(src, tgt, X_Spline=X, Y_Spline=Y)
+        G_out.add_edge(src, tgt, Spline_X=X, Spline_Y=Y)
 
     nx.write_graphml(G_out, out_path)
 
