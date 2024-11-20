@@ -170,7 +170,8 @@ class EPB_Biconn(EPB):
 
         with ThreadPoolExecutor(max_workers=self.numWorkers) as executor:
             for g in toProcess:
-                executor.submit(self.process, (g))
+                self.process(g)
+                #executor.submit(self.process, (g))
 
         if self.s_tighten >= 2:
             self.tighten_bundles()
@@ -226,6 +227,7 @@ class EPB_Biconn(EPB):
             #print(Path, Path[-1])
 
             current = Path[0]
+
             for node in Path[1:-1]:
                 x = component.nodes[node]['X']
                 y = component.nodes[node]['Y']

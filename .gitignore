@@ -4,4 +4,7 @@
 experiment/other_code/FD/node_modules
 
 .vscode
+.png
+.pdf
 
+output/*

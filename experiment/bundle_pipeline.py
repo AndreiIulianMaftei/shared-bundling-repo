@@ -4,6 +4,7 @@ from other_code.EPB.epb import EPB_Biconn
 from other_code.EPB.reader import Reader
 from other_code.EPB.abstractBundling import GWIDTH, GraphLoader
 from tulip import tlp
+from other_code.EPB.sepb import SpannerBundlingFG
 
 output = 'output'
 
@@ -15,6 +16,10 @@ def compute_epb(file, out_path):
     return
 
 def compute_sepb(file, out_path):
+    G = Reader.readGraphML(f'{file}', G_width=GWIDTH, invertY=False, directed=False)
+    bundling = SpannerBundlingFG(G)
+    bundling.bundle()
+    bundling.store(out_path)
     return
 
 def compute_fd(file, out_path):
@@ -83,7 +88,7 @@ def compute_bundling(file, algorithm):
         case 'epb':
             compute_epb(file, out_path + "epb.graphml")
         case 'sepb':
-            compute_sepb(file, out_path)
+            compute_sepb(file, out_path + "sepb.graphml")
         case 'fd':
             compute_fd(file, out_path + "fd.graphml")
         case 'cubu':
@@ -93,9 +98,6 @@ def compute_bundling(file, algorithm):
 
 
 def read_epb(folder):
-
-    path = folder + "/epb.graphml"
-    
     bundling = GraphLoader(None)
     bundling.is_graphml = True
     bundling.filename = "epb"
@@ -105,7 +107,13 @@ def read_epb(folder):
     return bundling
 
 def read_sepb(folder):
-    return
+    bundling = GraphLoader(None)
+    bundling.is_graphml = True
+    bundling.filename = "sepb"
+    bundling.filepath = folder
+    bundling.bundle()
+
+    return bundling
 
 def read_fd(folder):
     path = folder + "/fd.graphml"

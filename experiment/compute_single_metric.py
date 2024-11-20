@@ -2,43 +2,52 @@ import argparse
 import glob
 import os.path
 from bundle_pipeline import read_bundling
+from other_code.EPB.abstractBundling import GWIDTH
 from other_code.EPB.experiments import Experiment
 from other_code.EPB.straight import StraightLine
 import networkx as nx
 import numpy as np
 
 metrics = ["drawing", "distortion", "ink", "frechet"]
-#algorithms = ["epb", "sepb", "fd", "cubu", "wr", "straight"]
-algorithms = ["epb", "fd", "wr"]
+algorithms = ["epb", "sepb", "fd", "cubu", "wr", "straight"]
+#algorithms = ["epb", "fd", "wr"]
 
-def process_single_metric(file, metric, algorithms):
+def process_single_metric(file, metric, algorithms, draw):
 
     ## TODO this needs to be changed to not rely on epb. Maybe also have the original input in the output?
     #test if the file is accesible
 
-    G = nx.read_graphml(file + "/epb.graphml")
+    G = nx.read_graphml(file + "/sepb.graphml")
     G = nx.Graph(G)
     #print(G)
  
     straight = StraightLine(G)
+    straight.scaleToWidth(GWIDTH)
+    straight.bundle()
     frok = 0
     rez_all = []
+
+    if draw:
+        if not os.path.exists(f"{file}/images"):
+            os.makedirs(f"{file}/images")
+
+        straight.draw(f"{file}/images/")
 
     for algorithm in algorithms:
         bundling = read_bundling(file, algorithm)
 
+        if draw:
+            bundling.draw(f"{file}/images/")
+
         experiment = Experiment(bundling, straight)
-        bundling.draw(f"./")
         match metric:
             case "distortion":
                 _,_,_,_,_,distortions = experiment.calcDistortion()
-                experiment.plotHistogram(distortions)
+                #experiment.plotHistogram(distortions)
                 
-                break
             case "ink":
                 ## TODO should crash here as the ink requires a drawing.
                 ink = experiment.calcInk()
-                break
             case "frechet":
                 #print("Calculating Frechet")
                 frok = 1
@@ -60,7 +69,7 @@ def main():
     Process a single dataset item by computing a specific metric. Perform this for all or a specific algorithm
 
     arguments:
-        --file: path to the file. disregard file ending
+        --folder: path to the file. disregard file ending
         --metric: metric which we want to compute
         --algorithm: which algorithm do we want to evaluate. Default is all
     '''
@@ -70,6 +79,7 @@ def main():
     parser.add_argument("--folder", help="path to the file. File extension irrelevant")
     parser.add_argument("--metric", help="which metric should be evaluated")
     parser.add_argument("--algorithm", help="Which algorithm should be evaluated. Default 'all'", default='all')
+    parser.add_argument("--draw", help="Should the bundling be drawn and saved as an image. {0,1}, Default '1'", default='1')
 
     args = parser.parse_args()
 
@@ -90,11 +100,15 @@ def main():
             algorithm = algorithms
         else:
             print("Unknown algorithm")
+            return
 
+        draw = False
+        if args.draw == '1':
+            draw = True
         
         if algorithm:
 
-            process_single_metric(folder, metric, algorithm)
+            process_single_metric(folder, metric, algorithm, draw)
 
 
     else:

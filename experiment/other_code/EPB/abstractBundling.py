@@ -34,7 +34,7 @@ CIRCLE_COLOR_LIGHT = '#181716'
 BACKGROUND_COLOR = 'white'
 DPI = 192
 NUM_POINTS_BEZIER = 50
-GWIDTH = 1000
+GWIDTH = 1600
 #GWIDTH = 6921
 
 class AbstractBundling:
@@ -70,18 +70,9 @@ class AbstractBundling:
         self.approximateCurve()
 
         for u,v, data in self.G.edges(data=True):
-            if 'Spline' in data:
-                points =  data['Spline'].points
-
-                X = []
-                Y = []
-
-                for p in points:
-                    X.append(p[0])
-                    Y.append(p[1])
-
-                GG[u][v]['Spline_X'] = ' '.join(map(str, X))
-                GG[u][v]['Spline_Y'] = ' '.join(map(str, Y))
+            if 'X_CP' in data:
+                GG[u][v]['Spline_X'] = ' '.join(map(str, data['X_CP']))
+                GG[u][v]['Spline_Y'] = ' '.join(map(str, data['Y_CP']))
                 
         for u, data in self.G.nodes(data=True):
             GG.nodes[u]['X'] = data['X']
@@ -140,9 +131,12 @@ class AbstractBundling:
         self.G.graph['ymax'] = (ymax - ymin) * factor
 
     def approximateCurve(self):
-        for source, target, data in self.G.edges().data():
+        for source, target, data in self.G.edges(data=True):
             if 'Spline' in data:
                 points = [(self.G.nodes[source]['X'], self.G.nodes[source]['Y'])] + data['Spline'].points + [(self.G.nodes[target]['X'], self.G.nodes[target]['Y'])]
+
+                # if abs(self.G.nodes[source]['X'] - points[1][0]) > 50 and abs(self.G.nodes[source]['Y'] - points[1][1]) > 50:
+                #     print()
 
                 X, Y = self.approxBezier(points, NUM_POINTS_BEZIER)
             else:
@@ -252,9 +246,6 @@ class AbstractBundling:
             else:
                 X = [self.G.nodes[source]['X'], self.G.nodes[target]['X']]
                 Y = [self.G.nodes[source]['Y'], self.G.nodes[target]['Y']]
-
-            data['X'] = X
-            data['Y'] = Y
 
             if color:
                 ax.plot(X, Y, color=cmap(data['Angle']), alpha=ALPHA, lw = LINEWIDTH)
@@ -397,15 +388,19 @@ class GraphLoader(AbstractBundling):
             data['Y'] = float(data['Y'])
 
             xmin = min(xmin, data['X'])
-            xmax = max(xmin, data['X'])
+            xmax = max(xmax, data['X'])
             ymin = min(ymin, data['Y'])
             ymax = max(ymax, data['Y'])
 
         ## TODO fix the factor
         factor = GWIDTH / (xmax - xmin)
-        factor = 1
         width = GWIDTH
         height = (ymax - ymin) * factor
+
+        G.graph['xmin'] = 0
+        G.graph['xmax'] = GWIDTH
+        G.graph['ymin'] = 0
+        G.graph['ymax'] = height
 
         for node, data in G.nodes().data():
             G.nodes()[node]['X'] = (data['X'] - xmin) * factor
@@ -414,21 +409,23 @@ class GraphLoader(AbstractBundling):
             if invertX: G.nodes()[node]['X'] = width - data['X']
             if invertY: data['Y'] = height - data['Y']
 
-        G.graph['xmin'] = 0
-        G.graph['xmax'] = GWIDTH
-        G.graph['ymin'] = 0
-        G.graph['ymax'] = (ymax - ymin) * factor
-
         for u,v,data in G.edges(data=True):
 
             if "Spline_X" in data:
-                X = [float(x) for x in data['Spline_X'].split(" ")]
-                Y = [float(x) for x in data['Spline_Y'].split(" ")]
+                X = [(float(x) - xmin) * factor for x in data['Spline_X'].split(" ")]
+                Y = [(float(x) - ymin) * factor for x in data['Spline_Y'].split(" ")]
+
+                if abs(G.nodes[u]['X'] - X[0]) > 0.001:
+                    X.reverse()
+
+                if abs(G.nodes[u]['Y'] - Y[0]) > 0.001:
+                    Y.reverse()
 
                 data["Xapprox"] = X
                 data["Yapprox"] = Y
                 data['X'] = data['Xapprox']
                 data['Y'] = data['Yapprox']
+
             else:
                 data['X'] = []
                 data['Y'] = []

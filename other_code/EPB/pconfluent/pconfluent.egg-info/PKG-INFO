@@ -1,9 +1,0 @@
-Metadata-Version: 2.1
-Name: pconfluent
-Version: 0.4
-Summary: A package for producing power-confluent drawings (arXiv:1810.09948)
-Home-page: https://www.github.com/jxz12/pconfluent
-Author: Jonathan Zheng
-Author-email: jxz12@ic.ac.uk
-License-File: LICENSE
-Requires-Dist: numpy
