@@ -9,7 +9,11 @@
             "type": "debugpy",
             "request": "launch",
             "program": "${file}",
-            "args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "frechet"], /// run frechet on all algorithm 
+            "args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "all"],// run all algorithm
+            
+            //"args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "monotonicity"],// run monotonicity on all algorithm
+            //"args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "distortion"],// run distortion on all algorithm
+            //"args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "frechet"], /// run frechet on all algorithm 
             //"args": ["--algorithm", "epb", "--file", "input_data/airlines.graphml"],  ///run epb algorithm
             //"args": ["--algorithm", "wr", "--file", "input_data/airlines.graphml"],  ///run wr algorithm
             "console": "integratedTerminal"

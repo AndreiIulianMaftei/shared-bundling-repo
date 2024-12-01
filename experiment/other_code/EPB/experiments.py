@@ -11,6 +11,10 @@ import matplotlib
 from frechetdist import frdist
 import re
 from PIL import Image
+from matplotlib.backends.backend_pdf import PdfPages
+from pdf2image import convert_from_path
+import requests
+from wand.image import Image
 
 matplotlib.use('qt5Agg')
 
@@ -26,7 +30,7 @@ class Experiment:
         self.G = G.G
         self.name = G.name
         
-
+    
 
     def run(self, path):
         '''
@@ -65,6 +69,191 @@ class Experiment:
         inkratio = greyscalepixel / inkratioG
 
         return inkratio
+    def calcMonotonicity(self, algorithm):
+
+        monotonicitys = []
+        polylines = []
+        x = 0
+        if(algorithm != "wr"):
+            
+            list_edges = list(self.G.edges(data = True))
+
+            for index, (u,v,data) in enumerate(list_edges):
+                
+                if(index == 500):
+                    break
+
+                Y = []
+                X = []
+
+                X = [float(num) for num in data.get('X')]
+            
+                Y = [float(num) for num in data.get('Y')]
+                if len(X) < 3:
+                    # With less than 3 points, there are no turns
+                    return 0, []
+
+                direction_changes = []
+                monotonicity = 0
+                previous_sign = None
+
+                for i in range(len(X) - 2):
+                    # Points
+                    x0, y0 = X[i], Y[i]
+                    x1, y1 = X[i+1], Y[i+1]
+                    x2, y2 = X[i+2], Y[i+2]
+
+                    # Vectors
+                    v1_x = x1 - x0
+                    v1_y = y1 - y0
+                    v2_x = x2 - x1
+                    v2_y = y2 - y1
+
+                    # Cross product
+                    cross = v1_x * v2_y - v1_y * v2_x
+
+                    # Determine the sign
+                    if cross > 0:
+                        current_sign = 1  # Left turn
+                    elif cross < 0:
+                        current_sign = -1  # Right turn
+                    else:
+                        current_sign = 0  # Straight line or colinear
+
+                    # Check if the direction has changed (excluding zero crossings)
+                    if previous_sign is not None and current_sign != 0:
+                        if current_sign != previous_sign:
+                            monotonicity += 1
+                            direction_changes.append(i+1)  # Index where the change occurs
+
+                    # Update previous_sign if current_sign is non-zero
+                    if current_sign != 0:
+                        previous_sign = current_sign
+                    
+                monotonicitys.append(monotonicity)
+                x0 = self.G.nodes[u]['X']
+                y0 = self.G.nodes[u]['Y']
+
+                x1 = self.G.nodes[v]['X']
+                y1 = self.G.nodes[v]['Y']
+
+            return monotonicitys
+                
+        else:
+            list_edges = list(self.G.edges(data = True))
+            G = nx.Graph()
+            G = self.G
+
+            for index, (u,v,data) in enumerate(list_edges):
+                
+                if(index == 500):
+                    break
+                
+                #x_spline_value = G[data.get('X')][data.get('Y')]['X_Spline']
+                
+                Y = []
+                X = []
+
+                X = re.findall(r'-?\d+\.\d+', G[list_edges[index][0]][list_edges[index][1]]["X_Spline"])
+                X = [float(num) for num in X]
+                Y = re.findall(r'-?\d+\.\d+', G[list_edges[index][0]][list_edges[index][1]]["Y_Spline"])
+                Y = [float(num) for num in Y]
+                if len(X) < 3:
+                    # With less than 3 points, there are no turns
+                    return 0, []
+
+                direction_changes = []
+                monotonicity = 0
+                previous_sign = None
+
+                for i in range(len(X) - 2):
+                    # Points
+                    x0, y0 = X[i], Y[i]
+                    x1, y1 = X[i+1], Y[i+1]
+                    x2, y2 = X[i+2], Y[i+2]
+
+                    # Vectors
+                    v1_x = x1 - x0
+                    v1_y = y1 - y0
+                    v2_x = x2 - x1
+                    v2_y = y2 - y1
+
+                    # Cross product
+                    cross = v1_x * v2_y - v1_y * v2_x
+
+                    # Determine the sign
+                    if cross > 0:
+                        current_sign = 1  # Left turn
+                    elif cross < 0:
+                        current_sign = -1  # Right turn
+                    else:
+                        current_sign = 0  # Straight line or colinear
+
+                    # Check if the direction has changed (excluding zero crossings)
+                    if previous_sign is not None and current_sign != 0:
+                        if current_sign != previous_sign:
+                            monotonicity += 1
+                            direction_changes.append(i+1)  # Index where the change occurs
+
+                    # Update previous_sign if current_sign is non-zero
+                    if current_sign != 0:
+                        previous_sign = current_sign
+                    
+                monotonicitys.append(monotonicity)
+                x0 = self.G.nodes[u]['X']
+                y0 = self.G.nodes[u]['Y']
+
+                x1 = self.G.nodes[v]['X']
+                y1 = self.G.nodes[v]['Y']
+
+            return monotonicitys
+    def plotMonotonicity(self, rezults):
+        Max = -999999999999
+        Min = 999999999999
+        mean = 0
+        number = 0
+        print(mean)
+        for rez in rezults: 
+            if(rez[1] == "epb"):
+                Max = Max
+                Min = Min
+                continue
+            Max = max(np.max(rez[0]), Max)
+            Min = min(np.min(rez[0]), Min)
+            mean += np.sum(rez[0])
+            number = number+ rez[0].__len__()
+        mean = mean/number
+            
+        print (rezults.__len__())
+        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+        list_normalised_min_max = [None]*rezults.__len__()
+        list_normalised_z_score = [None]*rezults.__len__()
+        list = [None]*rezults.__len__()
+        for index, rez in enumerate(rezults):
+            if(rez[1] == "epb"):
+                list_normalised_min_max[index] = []
+                continue
+            #normalise rez[0] (a list ) using min/max
+            list[index] = rez[0]
+            #print(rez[0])
+            list_normalised_min_max[index] = [(x - Min) / (Max - Min) for x in [list[index]]]
+            #list_normalised_z_score[index] = [(x - mean) / np.std(list[index]) for x in list[index]]
+        #print single histogram
+        png_file_min_max = []
+        png_file_z_score = []
+        for index, rez in enumerate(rezults):
+            plt.figure()
+            plt.hist(list_normalised_min_max[index], bins=100, alpha=0.5, label=f'Algorithm {rez[1]}')
+            plt.legend(loc='upper right')
+            plt.xlabel('Frechet Distance')
+            plt.ylabel('Number of Edges')
+            plt.savefig(f'monotonicity_normalisation_{rez[1]}.png')
+            png_file_min_max.append(f'min-max normalisation {rez[1]}.png')
+            plt.figure()
+        return
+                
+                
+        
     def calcFrechet(self, algorithm):
 
         ma = -999999999999
@@ -72,6 +261,7 @@ class Experiment:
         frechet = []
         polylines = []
         x= 0
+        
         #print(G.edges(data = True))
         
         if(algorithm != "wr"):
@@ -137,7 +327,6 @@ class Experiment:
                 
                 polyline = [(numbers_x[i], numbers_y[i]) for i in range(0, len(numbers_x))]
 
-                #print(numbers_x)
                 polylines.append(polyline)
 
                 x0 = self.G.nodes[u]['X']
@@ -190,12 +379,10 @@ class Experiment:
         list_normalised_z_score = [None]*rezults.__len__()
         list = [None]*rezults.__len__()
         for index, rez in enumerate(rezults):
-            #normalise rez[0] (a list ) using min/max
             list[index] = rez[0]
-            #print(rez[0])
+            
             list_normalised_min_max[index] = [(x - Min) / (Max - Min) for x in [list[index]]]
-            #list_normalised_z_score[index] = [(x - mean) / np.std(list[index]) for x in list[index]]
-        #print single histogram
+            
         png_file_min_max = []
         png_file_z_score = []
         for index, rez in enumerate(rezults):
@@ -204,22 +391,21 @@ class Experiment:
             plt.legend(loc='upper right')
             plt.xlabel('Frechet Distance')
             plt.ylabel('Number of Edges')
-            plt.savefig('min-max_normalisation.png')    
-            plt.savefig(f'min-max normalisation {rez[1]}.png')
-            png_file_min_max.append(f'min-max normalisation {rez[1]}.png')
+            plt.savefig(f'frechet_normalisation_{rez[1]}.png')
+            png_file_min_max.append(f'frechet_normalisation_{rez[1]}.png')
             plt.figure()
             
         #print cumulative min-max histogram
-        base_image = Image.open(png_file_min_max[0]).convert("RGB")
+        #base_image = Image.open(png_file_min_max[0]).convert("RGB")
 
         # Open the rest of the images and convert them to RGB
-        other_images = [Image.open(png).convert("RGB") for png in png_file_min_max[1:]]
+        #other_images = [Image.open(png).convert("RGB") for png in png_file_min_max[1:]]
 
         # Save all images as a PDF
-        output_pdf_path = "output_min_max.pdf"
-        base_image.save(output_pdf_path, save_all=True, append_images=other_images)
+        #output_pdf_path = "output_min_max.pdf"
+        #base_image.save(output_pdf_path, save_all=True, append_images=other_images)
 
-        print(f"PDF created successfully: {output_pdf_path}")
+        #print(f"PDF created successfully: {output_pdf_path}")
         plt.figure()
         for index, rez in enumerate(rezults):
             plt.hist(list_normalised_min_max[index], bins=100, alpha=0.5, label=f'Algorithm {rez[1]}')
@@ -228,7 +414,93 @@ class Experiment:
             plt.ylabel('Number of Edges')    
         
         plt.savefig(f'min-max normalisation cumulative.png')
-        #print cumulative z-score histogram
+
+    def plotMegaGraph(self,algorithms ,metric, histogram_image_paths):
+        def embed_image(ax, image_path, title):
+            try:
+                img = plt.imread(image_path)
+                ax.imshow(img)
+                ax.axis('off')  
+                ax.set_title(title, fontsize=10)
+            except Exception as e:
+                print(f"Error processing {image_path}: {e}")
+                ax.text(0.5, 0.5, "Error loading image", ha="center", va="center", fontsize=12)
+                ax.axis('off')
+
+        pdf_path = f"output_comparison_{metric}.pdf"
+        with PdfPages(pdf_path) as pdf:
+            # Create a figure with the desired layout
+            fig = plt.figure(figsize=(12, 8))
+
+            # Top row: Graphs
+            for i, graph_path in enumerate(algorithms):
+                ax = plt.subplot2grid((2, 3), (0, i))  # Top row, 3 columns
+                embed_image(ax, f'output/airlines/images/{graph_path}.png', f"Graph {algorithms[i]}")
+
+            # Bottom row: Histograms
+            for i, hist_path in enumerate(histogram_image_paths):
+                ax = plt.subplot2grid((2, 3), (1, i))  # Bottom row, 3 columns
+                embed_image(ax, hist_path, f" {metric}")
+
+            plt.tight_layout()
+            pdf.savefig(fig)
+            plt.close()
+
+        print(f"PDF created at: {pdf_path}")
+    def plotAll(self, algorithms, metrics):
+        for index, rez in enumerate(algorithms):
+
+            main_graph_image_path = f'output/airlines/images/{rez}.png'  
+            histogram_pdf_paths = []
+            for metric in metrics:
+                histogram_pdf_paths.append(f"{metric}_normalisation_{rez}.png")
+
+            def create_histogram(ax, data, title):
+                ax.hist(data, bins=10, alpha=0.7, color='blue')
+                ax.set_title(title)
+                ax.grid(True)
+
+            
+            def convert_pdf_to_image(pdf_path, dpi=300):
+                with Image(filename=pdf_path, resolution=dpi) as img:
+                    img.format = 'png'
+                    img.alpha_channel = 'remove'  
+                    return img.clone()
+
+            def embed_image(ax, image_path, title):
+                img = plt.imread(image_path) 
+                ax.imshow(img)  
+                ax.axis('off')  
+                ax.set_title(title)
+            
+            pdf_path = f'output_layout_with_image_{rez}.pdf'
+            
+
+            with PdfPages(pdf_path) as pdf:
+                # Create a figure with the desired layout
+                fig = plt.figure(figsize=(8, 10))
+
+                main_graph_ax = plt.subplot2grid((3, 1), (0, 0), rowspan=2)
+                main_graph_img = plt.imread(main_graph_image_path)
+                main_graph_ax.imshow(main_graph_img)
+                main_graph_ax.axis('off')  # Turn off the axis for the image
+                main_graph_ax.set_title("Main Graph (Image)")
+
+                for i, hist_pdf_path in enumerate(histogram_pdf_paths):
+                    ax = plt.subplot2grid((3, 3), (2, i))
+                    try:
+                        embed_image(ax, hist_pdf_path, f"Histogram {metrics[i]}")
+                    except Exception as e:
+                        print(f"Error processing {hist_pdf_path}: {e}")
+                        ax.text(0.5, 0.5, "Error loading PDF", ha="center", va="center", fontsize=12)
+                        ax.axis('off')
+
+                plt.tight_layout()
+                pdf.savefig(fig)
+                plt.close()
+
+            print(f"PDF created at: {pdf_path}")
+
         
   
 
@@ -283,6 +555,44 @@ class Experiment:
             distortions.append(distortion)
 
         return (np.min(distortions), np.mean(distortions), np.std(distortions), np.var(distortions), np.median(distortions), distortions)
+    def plotDistortionHistogram(self, rezults):
+        
+        Max = -999999999999
+        Min = 999999999999
+        mean = 0
+        number = 0
+        print(mean)
+        for rez in rezults: 
+            Max = max(np.max(rez[0]), Max)
+            Min = min(np.min(rez[0]), Min)
+            mean += np.sum(rez[0])
+            number = number+ rez[0].__len__()
+        mean = mean/number
+            
+        print (rezults.__len__())
+        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
+        list_normalised_min_max = [None]*rezults.__len__()
+        list_normalised_z_score = [None]*rezults.__len__()
+        list = [None]*rezults.__len__()
+        for index, rez in enumerate(rezults):
+            #normalise rez[0] (a list ) using min/max
+            list[index] = rez[0]
+            #print(rez[0])
+            list_normalised_min_max[index] = [(x - Min) / (Max - Min) for x in [list[index]]]
+            #list_normalised_z_score[index] = [(x - mean) / np.std(list[index]) for x in list[index]]
+        #print single histogram
+        png_file_min_max = []
+        png_file_z_score = []
+        for index, rez in enumerate(rezults):
+            plt.figure()
+            plt.hist(list_normalised_min_max[index], bins=100, alpha=0.5, label=f'Algorithm {rez[1]}')
+            plt.legend(loc='upper right')
+            plt.xlabel('Frechet Distance')
+            plt.ylabel('Number of Edges')
+            plt.savefig(f'distortion_normalisation_{rez[1]}.png')
+            png_file_min_max.append(f'min-max normalisation {rez[1]}.png')
+            plt.figure()
+            
 
     def calcAmbiguity(self, path):
         '''

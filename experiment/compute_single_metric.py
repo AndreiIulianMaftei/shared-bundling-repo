@@ -8,23 +8,24 @@ from other_code.EPB.straight import StraightLine
 import networkx as nx
 import numpy as np
 
-metrics = ["drawing", "distortion", "ink", "frechet"]
-algorithms = ["epb", "sepb", "fd", "cubu", "wr", "straight"]
-#algorithms = ["epb", "fd", "wr"]
+metrics = ["drawing", "distortion", "ink", "frechet", "monotonicity", "all"]
+#algorithms = ["epb", "sepb", "fd", "cubu", "wr", "straight"]
+algorithms = ["epb", "fd", "wr"]
 
 def process_single_metric(file, metric, algorithms, draw):
 
     ## TODO this needs to be changed to not rely on epb. Maybe also have the original input in the output?
     #test if the file is accesible
 
-    G = nx.read_graphml(file + "/sepb.graphml")
+    G = nx.read_graphml(file + "/epb.graphml")
     G = nx.Graph(G)
     #print(G)
  
     straight = StraightLine(G)
     straight.scaleToWidth(GWIDTH)
     straight.bundle()
-    frok = 0
+ 
+    
     rez_all = []
 
     if draw:
@@ -36,31 +37,52 @@ def process_single_metric(file, metric, algorithms, draw):
     for algorithm in algorithms:
         bundling = read_bundling(file, algorithm)
 
-        if draw:
-            bundling.draw(f"{file}/images/")
-
+        #if draw:
+         #   bundling.draw(f"{file}/images/")
+        bundling.draw(f"{file}/images/")
         experiment = Experiment(bundling, straight)
         match metric:
             case "distortion":
-                _,_,_,_,_,distortions = experiment.calcDistortion()
-                #experiment.plotHistogram(distortions)
                 
+                _,_,_,_,_,distortions = experiment.calcDistortion()
+                rez_all.append((distortions, algorithm))
+                #print(algorithm)
+                #print(distortions)
+                #experiment.plotHistogram(distortions)
+            case "monotonicity":
+                mono = experiment.calcMonotonicity(algorithm)
+                print(algorithm)
+                print(mono)
+                rez_all.append((mono, algorithm))
             case "ink":
                 ## TODO should crash here as the ink requires a drawing.
                 ink = experiment.calcInk()
             case "frechet":
-                #print("Calculating Frechet")
                 frok = 1
                 
                 rez = experiment.calcFrechet(algorithm)
                 print(rez.__len__())
                 rez_all.append((rez, algorithm))
-                #MIN = min(min(rez_EPB), min(rez_FD))
-                #print(np.mean(rez_EPB))
 
-    if(frok):
+
+    if(metric == "monotonicity"):
         print(rez_all.__len__())
-        experiment.plotFrechet(rez_all)      
+        experiment.plotMonotonicity(rez_all)
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["monotonicity_normalisation_fd.png", "monotonicity_normalisation_epb.png", "monotonicity_normalisation_wr.png"])
+
+    if(metric == "distortion"):
+        print(rez_all.__len__())
+        experiment.plotDistortionHistogram(rez_all)
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["distortion_normalisation_fd.png", "distortion_normalisation_epb.png", "distortion_normalisation_wr.png"])
+
+    if(metric == "frechet"):
+        print(rez_all.__len__())
+        experiment.plotFrechet(rez_all)   
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["frechet_normalisation_fd.png", "frechet_normalisation_epb.png", "frechet_normalisation_wr.png"])
+ 
+    if(metric == "all"):
+        print(rez_all.__len__())
+        experiment.plotAll(["fd", "epb", "wr"], ["distortion", "monotonicity", "frechet"])  
          
     return
 
