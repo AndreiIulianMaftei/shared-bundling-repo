@@ -5,12 +5,16 @@ from bundle_pipeline import read_bundling
 from other_code.EPB.abstractBundling import GWIDTH
 from other_code.EPB.experiments import Experiment
 from other_code.EPB.straight import StraightLine
+from other_code.EPB.plot import Plot
+from other_code.EPB.plotTest import PlotTest
 import networkx as nx
 import numpy as np
 
-metrics = ["drawing", "distortion", "ink", "frechet", "monotonicity", "all"]
+metrics = ["drawing", "distortion", "ink", "frechet", "monotonicity", "monotonicity_projection", "all", "intersect_all", "self_intersect"]
 #algorithms = ["epb", "sepb", "fd", "cubu", "wr", "straight"]
-algorithms = ["epb", "fd", "wr"]
+algorithms = ["fd", "epb", "wr"]
+
+
 
 def process_single_metric(file, metric, algorithms, draw):
 
@@ -27,6 +31,7 @@ def process_single_metric(file, metric, algorithms, draw):
  
     
     rez_all = []
+    ink_ratios = []
 
     if draw:
         if not os.path.exists(f"{file}/images"):
@@ -34,13 +39,24 @@ def process_single_metric(file, metric, algorithms, draw):
 
         straight.draw(f"{file}/images/")
 
+    all_edges = []
     for algorithm in algorithms:
+
         bundling = read_bundling(file, algorithm)
 
-        #if draw:
-         #   bundling.draw(f"{file}/images/")
+        if draw:
+           bundling.draw(f"{file}/images/")
+
+        G = nx.Graph()
         bundling.draw(f"{file}/images/")
         experiment = Experiment(bundling, straight)
+        all_edges= experiment.all_edges()
+        if(metric == "intersect_all"):
+            print(experiment.all_intersection(all_edges))
+
+        int_aux = experiment.calcInkRatio('/home/andrei/c++/shared-bundling-repo/output/airlines/images/')
+        ink_ratios.append((int_aux, algorithm))
+        
         match metric:
             case "distortion":
                 
@@ -56,34 +72,64 @@ def process_single_metric(file, metric, algorithms, draw):
                 rez_all.append((mono, algorithm))
             case "ink":
                 ## TODO should crash here as the ink requires a drawing.
-                ink = experiment.calcInk()
+                ink = experiment.calcInk(f'/home/andrei/c++/shared-bundling-repo/output/airlines/images/')
+                print(experiment.calcInkRatio('/home/andrei/c++/shared-bundling-repo/output/airlines/images/'))
             case "frechet":
                 frok = 1
                 
-                rez = experiment.calcFrechet(algorithm)
+                rez = experiment.fastFrechet(algorithm)
+                
                 print(rez.__len__())
                 rez_all.append((rez, algorithm))
+            case "monotonicity_projection":
+                mono = experiment.projection_Monotonicty(algorithm)
+                print(mono)
+                rez_all.append((mono, algorithm))
+            case "self_intersect":
+                list_edges, intersect = experiment.count_self_intersections()
+                for edge in list_edges:
+                    G.add_edge(edge[0], edge[1])
 
+                fig = plt.figure()
+                networkx.draw(g, ax=fig.add_subplot())
+                if True: 
+                    # Save plot to file
+                    matplotlib.use("Agg") 
+                    fig.savefig("graph.png")
+                else:
+                    # Display interactive viewer
+                    matplotlib.pyplot.show()
+                rez_all.append((intersect, algorithm))
 
+    #print(rez_all)
+    #print(rez__all_aux)
+    #return
+    plotter = PlotTest()
+    if(metric == "monotonicity_projection"):
+        print(rez_all.__len__())
+        plotter.plotProjectedMonotonicity(rez_all)
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["monotonicity_projected_fd.png", "monotonicity_projected_epb.png", "monotonicity_projected_wr.png"], ink_ratios)
     if(metric == "monotonicity"):
         print(rez_all.__len__())
-        experiment.plotMonotonicity(rez_all)
-        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["monotonicity_normalisation_fd.png", "monotonicity_normalisation_epb.png", "monotonicity_normalisation_wr.png"])
+        plotter.plotMonotonicity(rez_all)
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["monotonicity_fd.png", "monotonicity_epb.png", "monotonicity_wr.png"], ink_ratios)
 
     if(metric == "distortion"):
         print(rez_all.__len__())
-        experiment.plotDistortionHistogram(rez_all)
-        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["distortion_normalisation_fd.png", "distortion_normalisation_epb.png", "distortion_normalisation_wr.png"])
+        plotter.plotDistortionHistogram(rez_all)
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["distortion_fd.png", "distortion_epb.png", "distortion_wr.png"], ink_ratios)
 
     if(metric == "frechet"):
         print(rez_all.__len__())
-        experiment.plotFrechet(rez_all)   
-        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["frechet_normalisation_fd.png", "frechet_normalisation_epb.png", "frechet_normalisation_wr.png"])
+        plotter.plotFrechet(rez_all)   
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["frechet_fd.png", "frechet_epb.png", "frechet_wr.png"], ink_ratios)
  
     if(metric == "all"):
         print(rez_all.__len__())
         experiment.plotAll(["fd", "epb", "wr"], ["distortion", "monotonicity", "frechet"])  
-         
+
+
+            
     return
 
 def main():

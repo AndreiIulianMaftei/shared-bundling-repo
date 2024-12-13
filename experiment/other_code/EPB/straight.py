@@ -58,7 +58,7 @@ class StraightLine(AbstractBundling):
         print(f'Graph has {n} nodes and {m} edges', flush=True)
         print(f'Graph has {i} components of size > two', flush=True)
         print(f'Components of size two {s2}', flush=True)
-        print(f'Largest component has {max(s)} nodes', flush=True)
+        #print(f'Largest component has {max(s)} nodes', flush=True)
         print(f'Median size of component of size > two is {np.median(s)}', flush=True)
         
         #print(f'Other components are of size {{{s}}} with {{{ss}}} edges', flush=True)

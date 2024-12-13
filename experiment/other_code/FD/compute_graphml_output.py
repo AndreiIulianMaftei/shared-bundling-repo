@@ -26,7 +26,7 @@ def main():
             parts = line.strip().split()
             if len(parts) >= 3:
                 node_id = parts[0]
-                x = float(parts[1])
+                x = - float(parts[1])
                 y = float(parts[2])
                 nodes[node_id] = {'x': x, 'y': y}
 
@@ -38,7 +38,7 @@ def main():
                 src = parts[0]
                 dest = parts[1]
                 coords = list(map(float, parts[2:]))
-                x_coords = coords[::2]
+                x_coords = [-x for x in coords[::2]]
                 y_coords = coords[1::2]
                 edges.append({
                     'src': src,
@@ -112,6 +112,7 @@ def main():
     # Write to result.graphml
     tree = ET.ElementTree(graphml)
     tree.write('output/airlines/fd.graphml', encoding='utf-8', xml_declaration=True)
+    print("GraphML output written to output/airlines/fd.graphml")
 
 if __name__ == '__main__':
     main()

@@ -5,7 +5,7 @@ def escape_xml(text):
     Escape special characters in text for XML.
     """
     return (text.replace("&", "&amp;")
-                .replace("\"", "&quot;")
+                .replace('"', "&quot;")
                 .replace("'", "&apos;")
                 .replace("<", "&lt;")
                 .replace(">", "&gt;"))
@@ -19,17 +19,12 @@ def main():
                      "Destination airport", "Destination airport ID", "Codeshare",
                      "Stops", "Equipment"]
     
-    source_countries = ["China", ]  # source countries
-    destination_countries = ["China"]  # destination countries
-    
     airport_id_to_node_id = {}
     node_id = 0  
 
-    source_airport_ids = set()
-    destination_airport_ids = set()
+    country_airport_ids = set()
     
-    with open('airports.xml', 'w', encoding='UTF-8') as xmlfile:
-
+    with open('airports2.xml', 'w', encoding='UTF-8') as xmlfile:
         xml_header = '''<?xml version="1.0" encoding="UTF-8"?>
 <xml xmlns="http://graphml.graphdrawing.org/xmlns"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -45,9 +40,9 @@ def main():
 '''
         xmlfile.write(xml_header)
 
-
-        with open('airport_data.csv', 'r', encoding='utf-8') as csvfile:
-            reader = csv.reader(csvfile, delimiter=',')
+        # Step 1: Process airports and generate nodes
+        with open('./databasemaker/airport_data.csv', 'r', encoding='utf-8') as csvfile_airport:
+            reader = csv.reader(csvfile_airport, delimiter=',')
             
             for row in reader:
                 if not row or len(row) < len(airport_headers):
@@ -61,30 +56,24 @@ def main():
                 iata = airport_data['IATA'].strip().strip('"')
                 country = airport_data['Country'].strip().strip('"')
                 
-                country_lower = country.lower()
-
-                if country in source_countries:
-                    source_airport_ids.add(airport_id)
-                if country in destination_countries:
-                    destination_airport_ids.add(airport_id)
-
-                if country != "China":   # Filter: Only include airports in certain countries (better for testing)
+                # Filter: Only include airports in the specified country
+                if country != 'Japan':
                     continue
 
-                # Skip if longitude, latitude, or IATA code is missing
                 if not airport_id or not longitude or not latitude or not iata or iata == '\\N':
                     continue
-                
                 
                 try:
                     longitude = float(longitude)
                     latitude = float(latitude)
                 except ValueError:
-                    continue 
+                    continue  # Skip rows with invalid data
 
-                x = -longitude * 10  # Flipped x-value
-                y = latitude * -10    # Flipped y-value
+                # Compute x and y coordinates
+                x = -longitude * 10
+                y = latitude * 10
 
+                # Prepare tooltip
                 tooltip = f"{iata}(lngx={longitude},laty={latitude})"
                 tooltip = escape_xml(tooltip)
 
@@ -99,18 +88,20 @@ def main():
 
                 # Map airport ID to node ID
                 airport_id_to_node_id[airport_id] = node_id
+                country_airport_ids.add(airport_id)
                 node_id += 1  
 
+        # Step 2: Process routes and generate edges
         xmlfile.write('\n    <!-- edges -->\n')
-        edge_id = 0  # Edge ID counter
+        edge_id = 0 
 
+        # Set to keep track of added edges to avoid duplicates
         added_edges = set()
 
-        with open('routes_data.csv', 'r', encoding='utf-8') as csvfile:
-            reader = csv.reader(csvfile, delimiter=',')
+        with open('./databasemaker/routes_data.csv', 'r', encoding='utf-8') as csvfile_routes:
+            reader = csv.reader(csvfile_routes, delimiter=',')
             
             for row in reader:
-
                 if not row or len(row) < len(route_headers):
                     continue
 
@@ -122,29 +113,31 @@ def main():
                 if not source_airport_id or not dest_airport_id:
                     continue
 
-                # Include edge only if source airport is in source_countries and destination airport is in destination_countries
-                if (source_airport_id in source_airport_ids and
-                    dest_airport_id in destination_airport_ids):
+                # Include edge only if both airports are in the specified country
+                if (source_airport_id in country_airport_ids and 
+                    dest_airport_id in country_airport_ids):
+                    
+                    source_node_id = airport_id_to_node_id[source_airport_id]
+                    dest_node_id = airport_id_to_node_id[dest_airport_id]
 
-                    if (source_airport_id in airport_id_to_node_id and 
-                        dest_airport_id in airport_id_to_node_id):
-                        
-                        source_node_id = airport_id_to_node_id[source_airport_id]
-                        dest_node_id = airport_id_to_node_id[dest_airport_id]
+                    # Create a frozenset of node IDs to represent the edge
+                    edge_nodes = frozenset([source_node_id, dest_node_id])
 
-                        edge_nodes = frozenset([source_node_id, dest_node_id])
+                    # Check if the edge has already been added
+                    if edge_nodes in added_edges:
+                        continue  # Skip adding this edge again
 
-                        if edge_nodes in added_edges:
-                            continue 
+                    # Add the edge to the set of added edges
+                    added_edges.add(edge_nodes)
 
-                        added_edges.add(edge_nodes)
-
-                        edge_xml = f'''    <edge id="{edge_id}" source="{source_node_id}" target="{dest_node_id}">
+                    # Create edge element
+                    edge_xml = f'''    <edge id="{edge_id}" source="{source_node_id}" target="{dest_node_id}">
     </edge>
 '''
-                        xmlfile.write(edge_xml)
-                        edge_id += 1  
+                    xmlfile.write(edge_xml)
+                    edge_id += 1  
 
+        # Write footer
         xml_footer = '''  </graph>
 </xml>
 '''

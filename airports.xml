@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<xml xmlns="http://graphml.graphdrawing.org/xmlns"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
+  http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
+
+  <key id="x" for="node" attr.name="x" attr.type="double"/>
+  <key id="tooltip" for="node" attr.name="tooltip" attr.type="string"/>
+  <key id="y" for="node" attr.name="y" attr.type="double"/>
+
+  <graph edgedefault="undirected">
+    <!-- nodes -->
+    <node id="0">
+      <data key="x">0</data>
+      <data key="tooltip">NRT(lngx=140.386001587,laty=35.7647018433)</data>
+      <data key="y">0</data>
+    </node>
+    <node id="1">
+      <data key="x">100</data>
+      <data key="tooltip">MMJ(lngx=137.92300415039062,laty=36.16680145263672)</data>
+      <data key="y">100</data>
+    </node>
+    <node id="2">
+      <data key="x">0</data>
+      <data key="tooltip">IBR(lngx=140.414993286,laty=36.181098938)</data>
+      <data key="y">100</data>
+    </node>
+    <node id="3">
+      <data key="x">100</data>
+      <data key="tooltip">MUS(lngx=153.979003906,laty=24.2896995544)</data>
+      <data key="y"></data>
+    </node>
+  
+   
+    <!-- edges -->
+    <edge id="0" source="0" target="2">
+    </edge>
+    <edge id="1" source="0" target="3">
+    </edge>
+    <edge id="2" source="2" target="1">
+    </edge>
+    <edge id="3" source="3" target="1">
+    </edge>
+    
+    
+  </graph>
+</xml>

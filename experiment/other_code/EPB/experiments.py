@@ -3,18 +3,21 @@ import os
 import networkx as nx
 import numpy as np
 from scipy import signal
-from PIL import Image
+from PIL import Image as PILImage
 import pickle
 import seaborn as sbn
 import matplotlib.pyplot as plt
 import matplotlib
 from frechetdist import frdist
 import re
-from PIL import Image
 from matplotlib.backends.backend_pdf import PdfPages
 from pdf2image import convert_from_path
 import requests
 from wand.image import Image
+import pandas as pd
+import numpy as np
+from plotnine import ggplot, aes, geom_violin, geom_boxplot, theme, element_text, labs, element_blank
+
 
 matplotlib.use('qt5Agg')
 
@@ -44,7 +47,7 @@ class Experiment:
 
     def calcInk(self, path):
         imPath = path + self.name + '.png'
-        imGray = np.array(Image.open(imPath).convert('L'))
+        imGray = np.array(PILImage.open(imPath).convert('L'))
 
         allPixels = imGray.size
 
@@ -58,12 +61,12 @@ class Experiment:
         '''
 
         imPath = path + 'straight' + '.png'
-        imGray = np.array(Image.open(imPath).convert('L'))
+        imGray = np.array(PILImage.open(imPath).convert('L'))
 
         inkratioG = (imGray < GREY_THRESH).sum()
 
         imPath = path + self.name + '.png'
-        imGray = np.array(Image.open(imPath).convert('L'))
+        imGray = np.array(PILImage.open(imPath).convert('L'))
 
         greyscalepixel = (imGray < GREY_THRESH).sum()
         inkratio = greyscalepixel / inkratioG
@@ -74,186 +77,91 @@ class Experiment:
         monotonicitys = []
         polylines = []
         x = 0
-        if(algorithm != "wr"):
-            
-            list_edges = list(self.G.edges(data = True))
-
-            for index, (u,v,data) in enumerate(list_edges):
-                
-                if(index == 500):
-                    break
-
-                Y = []
-                X = []
-
-                X = [float(num) for num in data.get('X')]
-            
-                Y = [float(num) for num in data.get('Y')]
-                if len(X) < 3:
-                    # With less than 3 points, there are no turns
-                    return 0, []
-
-                direction_changes = []
-                monotonicity = 0
-                previous_sign = None
-
-                for i in range(len(X) - 2):
-                    # Points
-                    x0, y0 = X[i], Y[i]
-                    x1, y1 = X[i+1], Y[i+1]
-                    x2, y2 = X[i+2], Y[i+2]
-
-                    # Vectors
-                    v1_x = x1 - x0
-                    v1_y = y1 - y0
-                    v2_x = x2 - x1
-                    v2_y = y2 - y1
-
-                    # Cross product
-                    cross = v1_x * v2_y - v1_y * v2_x
-
-                    # Determine the sign
-                    if cross > 0:
-                        current_sign = 1  # Left turn
-                    elif cross < 0:
-                        current_sign = -1  # Right turn
-                    else:
-                        current_sign = 0  # Straight line or colinear
-
-                    # Check if the direction has changed (excluding zero crossings)
-                    if previous_sign is not None and current_sign != 0:
-                        if current_sign != previous_sign:
-                            monotonicity += 1
-                            direction_changes.append(i+1)  # Index where the change occurs
-
-                    # Update previous_sign if current_sign is non-zero
-                    if current_sign != 0:
-                        previous_sign = current_sign
-                    
-                monotonicitys.append(monotonicity)
-                x0 = self.G.nodes[u]['X']
-                y0 = self.G.nodes[u]['Y']
-
-                x1 = self.G.nodes[v]['X']
-                y1 = self.G.nodes[v]['Y']
-
-            return monotonicitys
-                
-        else:
-            list_edges = list(self.G.edges(data = True))
-            G = nx.Graph()
-            G = self.G
-
-            for index, (u,v,data) in enumerate(list_edges):
-                
-                if(index == 500):
-                    break
-                
-                #x_spline_value = G[data.get('X')][data.get('Y')]['X_Spline']
-                
-                Y = []
-                X = []
-
-                X = re.findall(r'-?\d+\.\d+', G[list_edges[index][0]][list_edges[index][1]]["X_Spline"])
-                X = [float(num) for num in X]
-                Y = re.findall(r'-?\d+\.\d+', G[list_edges[index][0]][list_edges[index][1]]["Y_Spline"])
-                Y = [float(num) for num in Y]
-                if len(X) < 3:
-                    # With less than 3 points, there are no turns
-                    return 0, []
-
-                direction_changes = []
-                monotonicity = 0
-                previous_sign = None
-
-                for i in range(len(X) - 2):
-                    # Points
-                    x0, y0 = X[i], Y[i]
-                    x1, y1 = X[i+1], Y[i+1]
-                    x2, y2 = X[i+2], Y[i+2]
-
-                    # Vectors
-                    v1_x = x1 - x0
-                    v1_y = y1 - y0
-                    v2_x = x2 - x1
-                    v2_y = y2 - y1
-
-                    # Cross product
-                    cross = v1_x * v2_y - v1_y * v2_x
-
-                    # Determine the sign
-                    if cross > 0:
-                        current_sign = 1  # Left turn
-                    elif cross < 0:
-                        current_sign = -1  # Right turn
-                    else:
-                        current_sign = 0  # Straight line or colinear
-
-                    # Check if the direction has changed (excluding zero crossings)
-                    if previous_sign is not None and current_sign != 0:
-                        if current_sign != previous_sign:
-                            monotonicity += 1
-                            direction_changes.append(i+1)  # Index where the change occurs
-
-                    # Update previous_sign if current_sign is non-zero
-                    if current_sign != 0:
-                        previous_sign = current_sign
-                    
-                monotonicitys.append(monotonicity)
-                x0 = self.G.nodes[u]['X']
-                y0 = self.G.nodes[u]['Y']
-
-                x1 = self.G.nodes[v]['X']
-                y1 = self.G.nodes[v]['Y']
-
-            return monotonicitys
-    def plotMonotonicity(self, rezults):
-        Max = -999999999999
-        Min = 999999999999
-        mean = 0
-        number = 0
-        print(mean)
-        for rez in rezults: 
-            if(rez[1] == "epb"):
-                Max = Max
-                Min = Min
-                continue
-            Max = max(np.max(rez[0]), Max)
-            Min = min(np.min(rez[0]), Min)
-            mean += np.sum(rez[0])
-            number = number+ rez[0].__len__()
-        mean = mean/number
-            
-        print (rezults.__len__())
-        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
-        list_normalised_min_max = [None]*rezults.__len__()
-        list_normalised_z_score = [None]*rezults.__len__()
-        list = [None]*rezults.__len__()
-        for index, rez in enumerate(rezults):
-            if(rez[1] == "epb"):
-                list_normalised_min_max[index] = []
-                continue
-            #normalise rez[0] (a list ) using min/max
-            list[index] = rez[0]
-            #print(rez[0])
-            list_normalised_min_max[index] = [(x - Min) / (Max - Min) for x in [list[index]]]
-            #list_normalised_z_score[index] = [(x - mean) / np.std(list[index]) for x in list[index]]
-        #print single histogram
-        png_file_min_max = []
-        png_file_z_score = []
-        for index, rez in enumerate(rezults):
-            plt.figure()
-            plt.hist(list_normalised_min_max[index], bins=100, alpha=0.5, label=f'Algorithm {rez[1]}')
-            plt.legend(loc='upper right')
-            plt.xlabel('Frechet Distance')
-            plt.ylabel('Number of Edges')
-            plt.savefig(f'monotonicity_normalisation_{rez[1]}.png')
-            png_file_min_max.append(f'min-max normalisation {rez[1]}.png')
-            plt.figure()
-        return
-                
-                
+       
         
+        list_edges = list(self.G.edges(data = True))
+
+        for index, (u,v,data) in enumerate(list_edges):
+            
+
+            if index == 19:
+                yes = 1
+            Y = []
+            X = []
+            polyline = []
+            X = [num for num in data.get('X')]
+            Y = [num for num in data.get('Y')]
+
+            x0 = self.G.nodes[u]['X']
+            y0 = self.G.nodes[u]['Y']
+
+            x1 = self.G.nodes[v]['X']
+            y1 = self.G.nodes[v]['Y']
+            
+            
+            monotonicity = 0
+            previous_sign = None
+
+            polyline.append((x0, y0))
+            for i in range(0, len(X)):
+                polyline.append((X[i], Y[i]))
+            polyline.append((x1, y1))
+            index2 = 0
+            for point in polyline:
+                
+                    
+                point1x = point[0]
+                point1y = point[1]
+                A = Experiment.Point(point1x, point1y)
+
+                projection = Experiment.project_point_onto_line((point1x, point1y), (x0, y0), (x1, y1))
+                distance = np.linalg.norm(np.array((point1x, point1y)) - np.array(projection))
+                distanceFromSource = np.linalg.norm(projection - np.array((x0, y0)))
+                newPoint = (distanceFromSource, distance)
+                polyline[index2] = newPoint
+                index2 += 1
+            #print(index, len(polyline))
+            xDirection = None
+            yDirection = None
+            index2 = 0
+            for point in polyline:
+                #compute the monocity by checking if the xOrientation or y orientation changes
+                if index2 == 1:
+                    if point[0] >= polyline[index2 - 1][0] and xDirection == None:
+                        xDirection = 1                    
+                    if point[0] < polyline[index2 - 1][0] and xDirection == None:
+                        xDirection = -1
+                    if point[1] >= polyline[index2 - 1][1] and yDirection == None:
+                        yDirection = 1
+                    if point[1] < polyline[index2 - 1][1] and yDirection == None:
+                        yDirection = -1
+                checked = 0 
+                if index2 > 1:
+                    if point[0]> polyline[index2 - 1][0] and xDirection == -1:
+                        checked += 1
+                        xDirection = 1
+                        
+                    if point[0] < polyline[index2 - 1][0] and xDirection == 1:
+                        checked += 1
+                        xDirection = -1
+                        
+                    if point[1] > polyline[index2 - 1][1] and yDirection == -1:
+                        checked += 1
+                        yDirection = 1
+
+                    if point[1] < polyline[index2 - 1][1] and yDirection == 1:
+                        checked += 1
+                        yDirection = -1
+                if checked != 0:
+                    monotonicity += 1
+                index2 += 1
+            monotonicitys.append(monotonicity)
+
+        return monotonicitys
+
+
+                
+    
     def calcFrechet(self, algorithm):
 
         ma = -999999999999
@@ -264,14 +172,13 @@ class Experiment:
         
         #print(G.edges(data = True))
         
-        if(algorithm != "wr"):
+        if(algorithm != "wt"):
             
             list_edges = list(self.G.edges(data = True))
 
             for index, (u,v,data) in enumerate(list_edges):
                 
-                if(index == 500):
-                    break
+               
 
                 numbers_y = []
                 numbers_x = []
@@ -305,123 +212,300 @@ class Experiment:
                 frechet.append(x)
                 ma = max(ma, x)
                 mi = min(mi, x)
-        else:
+
+        
+        return frechet
+    def all_edges(self):
+        
+        polylines = []
+        x= 0
+        list_edges = list(self.G.edges(data = True))
+        '''for index, (u,v,data) in enumerate(list_edges):
+            numbers_y = []
+            numbers_x = []
+
+            numbers_x = [float(num) for num in data.get('X')]
+            
+            numbers_y = [float(num) for num in data.get('Y')]
+                
+            polyline = [(numbers_x[i], numbers_y[i]) for i in range(0, len(numbers_x))]
+            polylines.append(polyline)'''
+        return list_edges
+    class Point: 
+        def __init__(self, x, y): 
+            self.x = x 
+            self.y = y 
+    def all_intersection(self, list_edges):
+        intersections = 0
+        
+        for index, (u,v,data) in enumerate(list_edges):
+            numbers_y = []
+            numbers_x = []
+            numbers_x = [float(num) for num in data.get('X')]
+            numbers_y = [float(num) for num in data.get('Y')]
+            polyline1 = [(numbers_x[i], numbers_y[i]) for i in range(0, len(numbers_x))]
+            for index2, (u2,v2,data2) in enumerate(list_edges):
+                if index != index2:
+                    numbers_y2 = []
+                    numbers_x2 = []
+                    numbers_x2 = [float(num) for num in data2.get('X')]
+                    numbers_y2 = [float(num) for num in data2.get('Y')]
+                    polyline2 = [(numbers_x2[i], numbers_y2[i]) for i in range(0, len(numbers_x2))]
+                    for point1 in polyline1:
+                        for point2 in polyline2:
+                            
+                            if point1 != polyline1[-1] and point2 != polyline2[-1]:
+                                A = Experiment.Point(point1[0], point1[1])
+                                B = Experiment.Point(polyline1[polyline1.index(point1) + 1][0], polyline1[polyline1.index(point1) + 1][1])
+                                C = Experiment.Point(point2[0], point2[1])
+                                D = Experiment.Point(polyline2[polyline2.index(point2) + 1][0], polyline2[polyline2.index(point2) + 1][1])
+                            if Experiment.doIntersect(A, B, C, D):
+                                intersections += 1
+
+        return intersections
+
+            
+                
+                
+    def project_point_onto_line(point, line_start, line_end):
+        
+        line_vec = np.array(line_end) - np.array(line_start)
+        point_vec = np.array(point) - np.array(line_start)
+        line_len_squared = np.dot(line_vec, line_vec)
+        t = max(0, min(1, np.dot(point_vec, line_vec) / line_len_squared))
+        projection = np.array(line_start) + t * line_vec
+        return projection
+    
+    def fastFrechet(self, algorithm):
+        frechet = []
+        polylines = []
+        x= 0
+        if(algorithm != "zz"):
             list_edges = list(self.G.edges(data = True))
-            G = nx.Graph()
-            G = self.G
 
             for index, (u,v,data) in enumerate(list_edges):
                 
-                if(index == 500):
-                    break
                 
-                #x_spline_value = G[data.get('X')][data.get('Y')]['X_Spline']
-                
+
                 numbers_y = []
                 numbers_x = []
 
-                numbers_x = re.findall(r'-?\d+\.\d+', G[list_edges[index][0]][list_edges[index][1]]["X_Spline"])
-                numbers_x = [float(num) for num in numbers_x]
-                numbers_y = re.findall(r'-?\d+\.\d+', G[list_edges[index][0]][list_edges[index][1]]["Y_Spline"])
-                numbers_y = [float(num) for num in numbers_y]
+                numbers_x = [float(num) for num in data.get('X')]
+            
+                numbers_y = [float(num) for num in data.get('Y')]
                 
                 polyline = [(numbers_x[i], numbers_y[i]) for i in range(0, len(numbers_x))]
-
                 polylines.append(polyline)
+
 
                 x0 = self.G.nodes[u]['X']
                 y0 = self.G.nodes[u]['Y']
 
                 x1 = self.G.nodes[v]['X']
                 y1 = self.G.nodes[v]['Y']
-                
-                t_values = np.linspace(0, 1, num=len(polyline))
 
-                x_values = x0 + t_values * (x1 - x0)
-                y_values = y0 + t_values * (y1 - y0)
+                distances = []
+                for i in range(0, len(polyline)):
+                    point = polyline[i]
+                    projection  = Experiment.project_point_onto_line(point, (x0, y0), (x1, y1))
+                    #if the projection is outside the line segment, calculate the distance to the closest endpoint
+                    if np.dot(np.array(projection) - np.array((x0, y0)), np.array((x1, y1)) - np.array((x0, y0))) < 0:
+                        distance = np.linalg.norm(np.array(point) - np.array((x0, y0)))
+                    elif np.dot(np.array(projection) - np.array((x1, y1)), np.array((x0, y0)) - np.array((x1, y1))) < 0:
+                        distance = np.linalg.norm(np.array(point) - np.array((x1, y1)))
+                    
+                    distance = np.linalg.norm(np.array(point) - np.array(projection))
 
-                interpolated_points = [(float(x), float(y)) for x, y in zip(x_values, y_values)]
-                
-                if(len(polyline) == 0):
-                    continue
-                
-                
-                x = frdist(interpolated_points, polyline) 
-                
+                    distances.append(distance)
+                    #print(projection)
+
+                x = max(distances)
                 frechet.append(x)
-                ma = max(ma, x)
-                mi = min(mi, x)
 
-                #polylines.append(polyline)
 
         
         return frechet
     
-    def plotFrechet(self, rezults):
-        '''
-        Plot the normalised Frechet distance of two algorithms. a histogram, withn x axis as the frechet distance and y axis as the number of edges .
-        '''
-        Max = -999999999999
-        Min = 999999999999
-        mean = 0
-        number = 0
-        print(mean)
-        for rez in rezults: 
-            Max = max(np.max(rez[0]), Max)
-            Min = min(np.min(rez[0]), Min)
-            mean += np.sum(rez[0])
-            number = number+ rez[0].__len__()
-        mean = mean/number
-            
-        print (rezults.__len__())
-        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
-        list_normalised_min_max = [None]*rezults.__len__()
-        list_normalised_z_score = [None]*rezults.__len__()
-        list = [None]*rezults.__len__()
-        for index, rez in enumerate(rezults):
-            list[index] = rez[0]
-            
-            list_normalised_min_max[index] = [(x - Min) / (Max - Min) for x in [list[index]]]
-            
-        png_file_min_max = []
-        png_file_z_score = []
-        for index, rez in enumerate(rezults):
-            plt.figure()
-            plt.hist(list_normalised_min_max[index], bins=100, alpha=0.5, label=f'Algorithm {rez[1]}')
-            plt.legend(loc='upper right')
-            plt.xlabel('Frechet Distance')
-            plt.ylabel('Number of Edges')
-            plt.savefig(f'frechet_normalisation_{rez[1]}.png')
-            png_file_min_max.append(f'frechet_normalisation_{rez[1]}.png')
-            plt.figure()
-            
-        #print cumulative min-max histogram
-        #base_image = Image.open(png_file_min_max[0]).convert("RGB")
+    def projection_Monotonicty(self, algorithm):
+        monotonicities = []
 
-        # Open the rest of the images and convert them to RGB
-        #other_images = [Image.open(png).convert("RGB") for png in png_file_min_max[1:]]
+        list_edges = list(self.G.edges(data=True))
 
-        # Save all images as a PDF
-        #output_pdf_path = "output_min_max.pdf"
-        #base_image.save(output_pdf_path, save_all=True, append_images=other_images)
+        for index, (u, v, data) in enumerate(list_edges):
 
-        #print(f"PDF created successfully: {output_pdf_path}")
-        plt.figure()
-        for index, rez in enumerate(rezults):
-            plt.hist(list_normalised_min_max[index], bins=100, alpha=0.5, label=f'Algorithm {rez[1]}')
-            plt.legend(loc='upper right')
-            plt.xlabel('Frechet Distance')
-            plt.ylabel('Number of Edges')    
+            numbers_x = [float(num) for num in data.get('X')]
+            numbers_y = [float(num) for num in data.get('Y')]
+            polyline = [(numbers_x[i], numbers_y[i]) for i in range(len(numbers_x))]
+            projections = []
+            mono = 0
+            orientation = 0
+            x0 = self.G.nodes[u]['X']
+            y0 = self.G.nodes[u]['Y']
+            projections.append((x0, y0))
+
+            for point in polyline:
+                x0 = self.G.nodes[u]['X']
+                y0 = self.G.nodes[u]['Y']
+                x1 = self.G.nodes[v]['X']
+                y1 = self.G.nodes[v]['Y']
+                projection = Experiment.project_point_onto_line(point, (x0, y0), (x1, y1))
+                projections.append(projection)
+
+                for index in range(len(projections) -1):
+                    
+                    if(index > 0):
+                        x0 = projections[index - 1][0]
+                        y0 = projections[index - 1][1]
+                        x1 = projections[index][0]
+                        y1 = projections[index][1]
+                        A = Experiment.Point(x0, y0)
+                        B = Experiment.Point(x1, y1)
+                        
+                        if(orientation == 0):
+                            if A.x > B.x: 
+                                orientation = -1
+                            elif A.x < B.x:
+                                orientation = 1
+                        
+                        if A.x > B.x and orientation == 1:
+                            mono += 1
+                            orientation = -1
+                        elif A.x < B.x and orientation == -1:
+                            mono += 1
+                            orientation = 1
+                    
+            monotonicities.append(mono)
+
+        return monotonicities
+
+    def onSegment(p, q, r): 
+        if ( (q.x <= max(p.x, r.x)) and (q.x >= min(p.x, r.x)) and 
+            (q.y <= max(p.y, r.y)) and (q.y >= min(p.y, r.y))): 
+            return True
+        return False
+    def orientation(p, q, r): 
         
-        plt.savefig(f'min-max normalisation cumulative.png')
+        
+        val = (float(q.y - p.y) * (r.x - q.x)) - (float(q.x - p.x) * (r.y - q.y)) 
+        if (val > 0): 
+            
+            # Clockwise orientation 
+            return 1
+        elif (val < 0): 
+            
+            # Counterclockwise orientation 
+            return 2
+        else: 
+            
+            # Collinear orientation 
+            return 0
+    def doIntersect(p1,q1,p2,q2): 
+        
+        
+        o1 = Experiment.orientation(p1, q1, p2) 
+        o2 = Experiment.orientation(p1, q1, q2) 
+        o3 = Experiment.orientation(p2, q2, p1) 
+        o4 = Experiment.orientation(p2, q2, q1) 
+    
+        # General case 
+        if ((o1 != o2) and (o3 != o4)): 
+            return True
+    
+        # Special Cases 
+    
+        if ((o1 == 0) and Experiment.onSegment(p1, p2, q1)): 
+            return True
+    
+        if ((o2 == 0) and Experiment.onSegment(p1, q2, q1)): 
+            return True
+    
+        if ((o3 == 0) and Experiment.onSegment(p2, p1, q2)): 
+            return True
+    
+        if ((o4 == 0) and Experiment.onSegment(p2, q1, q2)): 
+            return True
+    
+        return False
+    def line_intersection(A, B, C, D):
+        
+        a1 = B[1] - A[1]
+        b1 = A[0] - B[0]
+        c1 = a1 * A[0] + b1 * A[1]
 
-    def plotMegaGraph(self,algorithms ,metric, histogram_image_paths):
-        def embed_image(ax, image_path, title):
+        a2 = D[1] - C[1]
+        b2 = C[0] - D[0]
+        c2 = a2 * C[0] + b2 * C[1]
+
+        determinant = a1 * b2 - a2 * b1
+
+        if determinant == 0:
+            return None   
+        else:
+            x = (b2 * c1 - b1 * c2) / determinant
+            y = (a1 * c2 - a2 * c1) / determinant
+
+            if (
+                min(A[0], B[0]) <= x <= max(A[0], B[0]) and
+                min(A[1], B[1]) <= y <= max(A[1], B[1]) and
+                min(C[0], D[0]) <= x <= max(C[0], D[0]) and
+                min(C[1], D[1]) <= y <= max(C[1], D[1])
+            ):
+                return (x, y)
+            else:
+                return None
+
+    def count_self_intersections(self):
+        """Count the number of self-intersections in a polyline defined by a list of points."""
+        all_intersections = []
+        monotonicities = []
+        number_of_intersections = 0
+
+        list_edges = list(self.G.edges(data=True))
+        self_intersected = []
+        for index, (u, v, data) in enumerate(list_edges):
+            if index >100:
+                break
+            numbers_y = []
+            numbers_x = []
+
+            numbers_x = data['X']
+
+            numbers_y = data['Y']
+
+            intersections = 0
+            ok = 0
+            polyline = [(numbers_x[i], numbers_y[i]) for i in range(0, len(numbers_x))]
+            for i in range(len(polyline) - 1):
+                for j in range(i + 2, len(polyline) - 1):
+                    if i == 0 and j == len(polyline) - 1:
+                        continue
+                    
+                    A = Experiment.Point(polyline[i][0], polyline[i][1])
+                    B = Experiment.Point(polyline[i + 1][0], polyline[i + 1][1])
+                    C = Experiment.Point(polyline[j][0], polyline[j][1])
+                    D = Experiment.Point(polyline[j + 1][0], polyline[j + 1][1])
+                    if(Experiment.doIntersect(A, B, C, D)):
+                        intersections += 1
+                        ok = 1
+            if ok == 1:
+                self_intersected.append(polyline)
+
+            number_of_intersections += intersections
+            all_intersections.append(intersections)
+        return self_intersected, number_of_intersections
+
+
+    def plotMegaGraph(self, algorithms, metric, histogram_image_paths, ink_ratios):
+
+
+        def embed_image(ax, image_path, title, subtitle=None):
             try:
                 img = plt.imread(image_path)
                 ax.imshow(img)
-                ax.axis('off')  
+                ax.axis('off')
                 ax.set_title(title, fontsize=10)
+                if subtitle:
+                    ax.text(0.5, -0.1, subtitle, fontsize=9, ha='center', va='top', transform=ax.transAxes)
             except Exception as e:
                 print(f"Error processing {image_path}: {e}")
                 ax.text(0.5, 0.5, "Error loading image", ha="center", va="center", fontsize=12)
@@ -429,24 +513,28 @@ class Experiment:
 
         pdf_path = f"output_comparison_{metric}.pdf"
         with PdfPages(pdf_path) as pdf:
-            # Create a figure with the desired layout
-            fig = plt.figure(figsize=(12, 8))
-
-            # Top row: Graphs
+            fig = plt.figure(figsize=(12, 12))
+ 
             for i, graph_path in enumerate(algorithms):
-                ax = plt.subplot2grid((2, 3), (0, i))  # Top row, 3 columns
-                embed_image(ax, f'output/airlines/images/{graph_path}.png', f"Graph {algorithms[i]}")
+                ax = plt.subplot2grid((3, 3), (0, i))
+                ink_ratio = ink_ratios[i]
+                subtitle = f"Ink Ratio: {ink_ratio}"
+                embed_image(ax, f'output/airlines/images/{graph_path}.png', f"Graph {algorithms[i]}", subtitle=subtitle)
 
-            # Bottom row: Histograms
             for i, hist_path in enumerate(histogram_image_paths):
-                ax = plt.subplot2grid((2, 3), (1, i))  # Bottom row, 3 columns
-                embed_image(ax, hist_path, f" {metric}")
+                ax = plt.subplot2grid((3, 3), (1, i))
+                embed_image(ax, hist_path, f"{metric} Histogram {i+1}")
+
+            violin_plot_path = f"violin_plot_{metric}.png"
+            ax = plt.subplot2grid((3, 3), (2, 0), colspan=3)
+            embed_image(ax, violin_plot_path, f"{metric} Violin Plot")
 
             plt.tight_layout()
             pdf.savefig(fig)
             plt.close()
 
         print(f"PDF created at: {pdf_path}")
+
     def plotAll(self, algorithms, metrics):
         for index, rez in enumerate(algorithms):
 
@@ -477,13 +565,12 @@ class Experiment:
             
 
             with PdfPages(pdf_path) as pdf:
-                # Create a figure with the desired layout
                 fig = plt.figure(figsize=(8, 10))
 
                 main_graph_ax = plt.subplot2grid((3, 1), (0, 0), rowspan=2)
                 main_graph_img = plt.imread(main_graph_image_path)
                 main_graph_ax.imshow(main_graph_img)
-                main_graph_ax.axis('off')  # Turn off the axis for the image
+                main_graph_ax.axis('off')  
                 main_graph_ax.set_title("Main Graph (Image)")
 
                 for i, hist_pdf_path in enumerate(histogram_pdf_paths):
@@ -555,44 +642,8 @@ class Experiment:
             distortions.append(distortion)
 
         return (np.min(distortions), np.mean(distortions), np.std(distortions), np.var(distortions), np.median(distortions), distortions)
-    def plotDistortionHistogram(self, rezults):
-        
-        Max = -999999999999
-        Min = 999999999999
-        mean = 0
-        number = 0
-        print(mean)
-        for rez in rezults: 
-            Max = max(np.max(rez[0]), Max)
-            Min = min(np.min(rez[0]), Min)
-            mean += np.sum(rez[0])
-            number = number+ rez[0].__len__()
-        mean = mean/number
-            
-        print (rezults.__len__())
-        colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
-        list_normalised_min_max = [None]*rezults.__len__()
-        list_normalised_z_score = [None]*rezults.__len__()
-        list = [None]*rezults.__len__()
-        for index, rez in enumerate(rezults):
-            #normalise rez[0] (a list ) using min/max
-            list[index] = rez[0]
-            #print(rez[0])
-            list_normalised_min_max[index] = [(x - Min) / (Max - Min) for x in [list[index]]]
-            #list_normalised_z_score[index] = [(x - mean) / np.std(list[index]) for x in list[index]]
-        #print single histogram
-        png_file_min_max = []
-        png_file_z_score = []
-        for index, rez in enumerate(rezults):
-            plt.figure()
-            plt.hist(list_normalised_min_max[index], bins=100, alpha=0.5, label=f'Algorithm {rez[1]}')
-            plt.legend(loc='upper right')
-            plt.xlabel('Frechet Distance')
-            plt.ylabel('Number of Edges')
-            plt.savefig(f'distortion_normalisation_{rez[1]}.png')
-            png_file_min_max.append(f'min-max normalisation {rez[1]}.png')
-            plt.figure()
-            
+    
+                    
 
     def calcAmbiguity(self, path):
         '''

@@ -235,7 +235,7 @@ class AbstractBundling:
 
                 ax.plot(X, Y, color='red', alpha=ALPHA, lw = LINEWIDTH)
 
-        for source, target, data in self.G.edges().data():
+        for source, target, data in self.G.edges(data = True):
             if 'Xapprox' in data and 'Yapprox' in data:
                 X = data['Xapprox']
                 Y = data['Yapprox']
@@ -272,8 +272,6 @@ class AbstractBundling:
                 C.append(CIRCLE_COLOR_LIGHT)
 
         ax.scatter(X, Y, color=C, marker='.', s = CIRCLE, zorder=2)
-
-
 
 
         plt.savefig(f'{path}{self.name}{fileAddition}.png')
