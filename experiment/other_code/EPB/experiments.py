@@ -105,7 +105,6 @@ class Experiment:
             polyline.append((x0, y0))
             for i in range(0, len(X)):
                 polyline.append((X[i], Y[i]))
-            polyline.append((x1, y1))
             index2 = 0
             for point in polyline:
                 
@@ -516,7 +515,7 @@ class Experiment:
             else:
                 return None
 
-    def count_self_intersections(self):
+    def count_self_intersections(self, algorithm):
         """Count the number of self-intersections in a polyline defined by a list of points."""
         all_intersections = []
         monotonicities = []
@@ -551,10 +550,11 @@ class Experiment:
                         ok = 1
             if ok == 1:
                 self_intersected.append(polyline)
-
+            if intersections == 3:
+                test = 1
             number_of_intersections += intersections
             all_intersections.append(intersections)
-        return self_intersected, number_of_intersections
+        return all_intersections, number_of_intersections
 
 
     def plotMegaGraph(self, algorithms, metric, histogram_image_paths, ink_ratios):

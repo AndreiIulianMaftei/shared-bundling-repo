@@ -42,6 +42,8 @@ class PlotTest:
     
     def plotAngles(self, results):
         self.plot_metrics(results, 'Angle')
+    def plotSelfIntersect(self, results):
+        self.plot_metrics(results, 'Self Intersect')
 
     @staticmethod
     def adjacent_values(vals, q1, q3):

@@ -90,20 +90,11 @@ def process_single_metric(file, metric, algorithms, draw):
                 print(angles)
                 rez_all.append((angles, algorithm))
             case "self_intersect":
-                list_edges, intersect = experiment.count_self_intersections()
-                for edge in list_edges:
-                    G.add_edge(edge[0], edge[1])
-
-                fig = plt.figure()
-                networkx.draw(g, ax=fig.add_subplot())
-                if True: 
-                    # Save plot to file
-                    matplotlib.use("Agg") 
-                    fig.savefig("graph.png")
-                else:
-                    # Display interactive viewer
-                    matplotlib.pyplot.show()
-                rez_all.append((intersect, algorithm))
+                all_intersections, intersect = experiment.count_self_intersections(algorithm)
+                
+                print(all_intersections)
+                
+                rez_all.append((all_intersections, algorithm))
 
     #print(rez_all)
     #print(rez__all_aux)
@@ -137,7 +128,11 @@ def process_single_metric(file, metric, algorithms, draw):
         plotter.plotAngles(rez_all)
         experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["angle_fd.png", "angle_epb.png", "angle_wr.png"], ink_ratios)
 
-            
+    if(metric == "self_intersect"):
+        print(rez_all.__len__())
+        plotter.plotSelfIntersect(rez_all)
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["self_intersect_fd.png", "self_intersect_epb.png", "self_intersect_wr.png"], ink_ratios)
+        
     return
 
 def main():
