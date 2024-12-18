@@ -10,7 +10,7 @@ from other_code.EPB.plotTest import PlotTest
 import networkx as nx
 import numpy as np
 
-metrics = ["drawing", "distortion", "ink", "frechet", "monotonicity", "monotonicity_projection", "all", "intersect_all", "self_intersect"]
+metrics = ["angle", "drawing", "distortion", "ink", "frechet", "monotonicity", "monotonicity_projection", "all", "intersect_all", "self_intersect"]
 #algorithms = ["epb", "sepb", "fd", "cubu", "wr", "straight"]
 algorithms = ["fd", "epb", "wr"]
 
@@ -85,6 +85,10 @@ def process_single_metric(file, metric, algorithms, draw):
                 mono = experiment.projection_Monotonicty(algorithm)
                 print(mono)
                 rez_all.append((mono, algorithm))
+            case "angle":
+                angles = experiment.calcAngle(algorithm)
+                print(angles)
+                rez_all.append((angles, algorithm))
             case "self_intersect":
                 list_edges, intersect = experiment.count_self_intersections()
                 for edge in list_edges:
@@ -128,6 +132,10 @@ def process_single_metric(file, metric, algorithms, draw):
         print(rez_all.__len__())
         experiment.plotAll(["fd", "epb", "wr"], ["distortion", "monotonicity", "frechet"])  
 
+    if(metric == "angle"):
+        print(rez_all.__len__())
+        plotter.plotAngles(rez_all)
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["angle_fd.png", "angle_epb.png", "angle_wr.png"], ink_ratios)
 
             
     return

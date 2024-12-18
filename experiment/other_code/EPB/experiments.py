@@ -17,7 +17,7 @@ from wand.image import Image
 import pandas as pd
 import numpy as np
 from plotnine import ggplot, aes, geom_violin, geom_boxplot, theme, element_text, labs, element_blank
-
+import math
 
 matplotlib.use('qt5Agg')
 
@@ -159,7 +159,72 @@ class Experiment:
 
         return monotonicitys
 
+    def calcAngle(self, algorithm):
+        angles = []
+        list_edges = list(self.G.edges(data = True))
+        for index, (u,v,data) in enumerate(list_edges):
+            
 
+            if index == 19:
+                yes = 1
+            Y = []
+            X = []
+            polyline = []
+            X = [num for num in data.get('X')]
+            Y = [num for num in data.get('Y')]
+
+            x0 = self.G.nodes[u]['X']
+            y0 = self.G.nodes[u]['Y']
+
+            x1 = self.G.nodes[v]['X']
+            y1 = self.G.nodes[v]['Y']
+            
+            
+            monotonicity = 0
+            previous_sign = None
+
+            polyline.append((x0, y0))
+            for i in range(0, len(X)):
+                polyline.append((X[i], Y[i]))
+            polyline.append((x1, y1))
+            
+            index = 0
+            for point in polyline:
+                if index > 0 and index < len(polyline) - 1:
+                    A = Experiment.Point(polyline[index - 1][0], polyline[index - 1][1])
+                    B = Experiment.Point(polyline[index][0], polyline[index][1])
+                    C = Experiment.Point(polyline[index + 1][0], polyline[index + 1][1])
+                    
+                    BA = (A.x - B.x, A.y - B.y)
+                    BC = (C.x - B.x, C.y - B.y)
+                    
+                    # Dot product of BA and BC
+                    dot_product = BA[0]*BC[0] + BA[1]*BC[1]
+                    
+                    # Magnitudes of BA and BC
+                    mag_BA = math.sqrt(BA[0]**2 + BA[1]**2)
+                    mag_BC = math.sqrt(BC[0]**2 + BC[1]**2)
+                    
+                    # Handle the case where one of the magnitudes is zero to avoid division by zero
+                    if mag_BA == 0 or mag_BC == 0:
+                        angles.append(0)
+                        index += 1
+                        continue                    
+                    # Compute the cosine of the angle
+                    cos_theta = dot_product / (mag_BA * mag_BC)
+                    
+                    # Numerical issues can cause cos_theta to slightly exceed [-1, 1]
+                    cos_theta = max(min(cos_theta, 1.0), -1.0)
+                    
+                    # Compute the angle in radians
+                    theta_radians = math.acos(cos_theta)
+                    
+                    # Convert to degrees
+                    theta_degrees = math.degrees(theta_radians)
+                    angles.append(theta_degrees)
+                index += 1
+
+        return angles
                 
     
     def calcFrechet(self, algorithm):
@@ -341,41 +406,38 @@ class Experiment:
             orientation = 0
             x0 = self.G.nodes[u]['X']
             y0 = self.G.nodes[u]['Y']
-            projections.append((x0, y0))
-
+            x1 = self.G.nodes[v]['X']
+            y1 = self.G.nodes[v]['Y']
+            
+            index = 0 
             for point in polyline:
-                x0 = self.G.nodes[u]['X']
-                y0 = self.G.nodes[u]['Y']
-                x1 = self.G.nodes[v]['X']
-                y1 = self.G.nodes[v]['Y']
+                
                 projection = Experiment.project_point_onto_line(point, (x0, y0), (x1, y1))
                 projections.append(projection)
 
-                for index in range(len(projections) -1):
+                index += 1
+            index = 0
+            order = 0
+            for point in projections:
+                if index > 0:
+                    A = Experiment.Point(projections[index - 1][0], projections[index - 1][1])
+                    B = Experiment.Point(point[0], point[1])
                     
-                    if(index > 0):
-                        x0 = projections[index - 1][0]
-                        y0 = projections[index - 1][1]
-                        x1 = projections[index][0]
-                        y1 = projections[index][1]
-                        A = Experiment.Point(x0, y0)
-                        B = Experiment.Point(x1, y1)
-                        
-                        if(orientation == 0):
-                            if A.x > B.x: 
-                                orientation = -1
-                            elif A.x < B.x:
-                                orientation = 1
-                        
-                        if A.x > B.x and orientation == 1:
+                    if index == 1:
+                        if A.x < B.x:
+                            order = 1
+                        else:
+                            order = -1
+                    else:
+                        if A.x < B.x and order != 1:
                             mono += 1
-                            orientation = -1
-                        elif A.x < B.x and orientation == -1:
+                            order = 1
+                        if A.x > B.x and order != -1:
                             mono += 1
-                            orientation = 1
-                    
+                            order = -1
+            
+                index += 1
             monotonicities.append(mono)
-
         return monotonicities
 
     def onSegment(p, q, r): 

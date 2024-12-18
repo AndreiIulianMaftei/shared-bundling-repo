@@ -39,6 +39,9 @@ class PlotTest:
 
     def plotProjectedMonotonicity(self, results):
         self.plot_metrics(results, 'Monotonicity Projection')
+    
+    def plotAngles(self, results):
+        self.plot_metrics(results, 'Angle')
 
     @staticmethod
     def adjacent_values(vals, q1, q3):
@@ -187,7 +190,7 @@ class PlotTest:
                 loc='upper right'
             )
 
-            if title_prefix != 'Distortion':
+            if title_prefix != 'Distortion' and title_prefix != 'Angle':
                 plt.xlim(-0.2, 1.2)
                 plt.xlabel('Normalized Value')
             else:
@@ -271,7 +274,7 @@ class PlotTest:
         if not data_list:
             raise ValueError("No valid data to plot.")
 
-        if metric_name != 'Distortion':
+        if metric_name != 'Distortion' and metric_name != 'Angle':
             normalized_data = self.normalize_data(data_list, method='min-max')
             is_normalized = True
         else:
