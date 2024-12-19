@@ -192,10 +192,9 @@ class Experiment:
             monotonicity = 0
             previous_sign = None
 
-            polyline.append((x0, y0))
+            
             for i in range(0, len(X)):
                 polyline.append((X[i], Y[i]))
-            polyline.append((x1, y1))
             
             index = 0
             for point in polyline:
@@ -204,18 +203,18 @@ class Experiment:
                     B = Experiment.Point(polyline[index][0], polyline[index][1])
                     C = Experiment.Point(polyline[index + 1][0], polyline[index + 1][1])
                     
-                    BA = (A.x - B.x, A.y - B.y)
+                    BA = (B.x - A.x, B.y - A.y)
                     BC = (C.x - B.x, C.y - B.y)
                     
                     dot_product = BA[0]*BC[0] + BA[1]*BC[1]
 
                     cross = BA[0]*BC[1] - BA[1]*BC[0]
 
-                    angle_radians = math.atan2(abs(cross), dot_product)
+                    angle_radians = abs(math.atan2(cross, dot_product))
 
                     angle= math.degrees(angle_radians)
-                    if angle == 0 :
-                        angle = 180
+                    if angle > 90:
+                        test = 1
                     '''                    
                     mag_BA = math.sqrt(BA[0]**2 + BA[1]**2)
                     mag_BC = math.sqrt(BC[0]**2 + BC[1]**2)

@@ -76,9 +76,7 @@ def process_single_metric(file, metric, algorithms, draw):
                 print(experiment.calcInkRatio('/home/andrei/c++/shared-bundling-repo/output/airlines/images/'))
             case "frechet":
                 frok = 1
-                
                 rez = experiment.fastFrechet(algorithm)
-                
                 print(rez.__len__())
                 rez_all.append((rez, algorithm))
             case "monotonicity_projection":
