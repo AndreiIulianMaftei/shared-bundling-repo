@@ -103,7 +103,7 @@ def process_single_metric(file, metric, algorithms, draw):
     if(metric == "monotonicity_projection"):
         print(rez_all.__len__())
         plotter.plotProjectedMonotonicity(rez_all)
-        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["monotonicity_projected_fd.png", "monotonicity_projected_epb.png", "monotonicity_projected_wr.png"], ink_ratios)
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["monotonicity_projection_fd.png", "monotonicity_projection_epb.png", "monotonicity_projection_wr.png"], ink_ratios)
     if(metric == "monotonicity"):
         print(rez_all.__len__())
         plotter.plotMonotonicity(rez_all)

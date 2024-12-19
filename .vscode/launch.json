@@ -10,9 +10,9 @@
             "request": "launch",
             "program": "${file}",
             //"args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "all"],// run all algorithm
-            "args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "self_intersect"],// projected monotonicity
+            //"args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "self_intersect"],// projected monotonicity
             
-            //"args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "monotonicity_projection"],// projected monotonicity
+            "args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "monotonicity_projection"],// projected monotonicity
             //"args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "intersect_all"],// projected monotonicity
             //"args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "monotonicity"],// run monotonicity on all algorithm
             //"args": ["--algorithm", "all", "--folder", "output/airlines", "--metric", "angle"],// run monotonicity on all algorithm

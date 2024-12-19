@@ -197,29 +197,24 @@ class Experiment:
                     BA = (A.x - B.x, A.y - B.y)
                     BC = (C.x - B.x, C.y - B.y)
                     
-                    # Dot product of BA and BC
                     dot_product = BA[0]*BC[0] + BA[1]*BC[1]
                     
-                    # Magnitudes of BA and BC
                     mag_BA = math.sqrt(BA[0]**2 + BA[1]**2)
                     mag_BC = math.sqrt(BC[0]**2 + BC[1]**2)
                     
-                    # Handle the case where one of the magnitudes is zero to avoid division by zero
                     if mag_BA == 0 or mag_BC == 0:
                         angles.append(0)
                         index += 1
-                        continue                    
-                    # Compute the cosine of the angle
+                        continue           
+                             
                     cos_theta = dot_product / (mag_BA * mag_BC)
                     
-                    # Numerical issues can cause cos_theta to slightly exceed [-1, 1]
                     cos_theta = max(min(cos_theta, 1.0), -1.0)
                     
-                    # Compute the angle in radians
                     theta_radians = math.acos(cos_theta)
                     
-                    # Convert to degrees
                     theta_degrees = math.degrees(theta_radians)
+                    
                     angles.append(theta_degrees)
                 index += 1
 
@@ -436,6 +431,8 @@ class Experiment:
                             order = -1
             
                 index += 1
+            if mono == 5:
+                test = 1
             monotonicities.append(mono)
         return monotonicities
 
