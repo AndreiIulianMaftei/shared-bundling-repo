@@ -157,7 +157,17 @@ class Experiment:
             monotonicitys.append(monotonicity)
 
         return monotonicitys
-
+    def calcNumberOfSegments(self, algorithm):
+        segments = []
+        list_edges = list(self.G.edges(data = True))
+        for index, (u,v,data) in enumerate(list_edges):
+            numbers_y = []
+            numbers_x = []
+            numbers_x = [float(num) for num in data.get('X')]
+            numbers_y = [float(num) for num in data.get('Y')]
+            polyline = [(numbers_x[i], numbers_y[i]) for i in range(0, len(numbers_x))]
+            segments = segments + [len(polyline)]
+        return segments
     def calcAngle(self, algorithm):
         angles = []
         list_edges = list(self.G.edges(data = True))
@@ -198,7 +208,15 @@ class Experiment:
                     BC = (C.x - B.x, C.y - B.y)
                     
                     dot_product = BA[0]*BC[0] + BA[1]*BC[1]
-                    
+
+                    cross = BA[0]*BC[1] - BA[1]*BC[0]
+
+                    angle_radians = math.atan2(abs(cross), dot_product)
+
+                    angle= math.degrees(angle_radians)
+                    if angle == 0 :
+                        angle = 180
+                    '''                    
                     mag_BA = math.sqrt(BA[0]**2 + BA[1]**2)
                     mag_BC = math.sqrt(BC[0]**2 + BC[1]**2)
                     
@@ -214,8 +232,8 @@ class Experiment:
                     theta_radians = math.acos(cos_theta)
                     
                     theta_degrees = math.degrees(theta_radians)
-                    
-                    angles.append(theta_degrees)
+                    '''
+                    angles.append(angle)
                 index += 1
 
         return angles

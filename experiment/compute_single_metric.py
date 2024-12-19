@@ -56,7 +56,7 @@ def process_single_metric(file, metric, algorithms, draw):
 
         int_aux = experiment.calcInkRatio('/home/andrei/c++/shared-bundling-repo/output/airlines/images/')
         ink_ratios.append((int_aux, algorithm))
-        
+        print(experiment.calcNumberOfSegments(algorithm))
         match metric:
             case "distortion":
                 
@@ -87,7 +87,7 @@ def process_single_metric(file, metric, algorithms, draw):
                 rez_all.append((mono, algorithm))
             case "angle":
                 angles = experiment.calcAngle(algorithm)
-                print(angles)
+                print(angles.__len__())
                 rez_all.append((angles, algorithm))
             case "self_intersect":
                 all_intersections, intersect = experiment.count_self_intersections(algorithm)
@@ -96,6 +96,7 @@ def process_single_metric(file, metric, algorithms, draw):
                 
                 rez_all.append((all_intersections, algorithm))
 
+    
     #print(rez_all)
     #print(rez__all_aux)
     #return
