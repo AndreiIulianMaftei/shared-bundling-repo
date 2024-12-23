@@ -83,14 +83,14 @@ class Experiment:
 
         for index, (u,v,data) in enumerate(list_edges):
             
-
-            if index == 19:
+            
+            if index == 1 and algorithm == "wr":
                 yes = 1
             Y = []
             X = []
             polyline = []
-            X = [num for num in data.get('X')]
-            Y = [num for num in data.get('Y')]
+            X = [float(num) for num in data.get('X')]
+            Y = [float(num) for num in data.get('Y')]
 
             x0 = self.G.nodes[u]['X']
             y0 = self.G.nodes[u]['Y']
@@ -102,19 +102,30 @@ class Experiment:
             monotonicity = 0
             previous_sign = None
 
-            polyline.append((x0, y0))
             for i in range(0, len(X)):
                 polyline.append((X[i], Y[i]))
             index2 = 0
+            A = Experiment.Point(x0,y0)
+            B = Experiment.Point(polyline[1][0],polyline[1][1])
+            C = Experiment.Point(x1,y1)
+            orientation = Experiment.orientation(A, B, C)
             for point in polyline:
                 
                     
                 point1x = point[0]
                 point1y = point[1]
-                A = Experiment.Point(point1x, point1y)
+                A = Experiment.Point(x0,y0)
+                B = Experiment.Point(point1x, point1y)
+                C = Experiment.Point(x1, y1)
+                orientation2 = Experiment.orientation(A, B, C)
 
                 projection = Experiment.project_point_onto_line((point1x, point1y), (x0, y0), (x1, y1))
+                
                 distance = np.linalg.norm(np.array((point1x, point1y)) - np.array(projection))
+                if math.isclose(distance, 0, abs_tol=1e-5):
+                    distance = 0
+                if orientation!= orientation2 and distance != 0:
+                    distance = distance * -1
                 distanceFromSource = np.linalg.norm(projection - np.array((x0, y0)))
                 newPoint = (distanceFromSource, distance)
                 polyline[index2] = newPoint
