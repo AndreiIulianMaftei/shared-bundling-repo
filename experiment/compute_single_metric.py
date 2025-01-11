@@ -5,6 +5,7 @@ from bundle_pipeline import read_bundling
 from other_code.EPB.abstractBundling import GWIDTH
 from other_code.EPB.experiments import Experiment
 from other_code.EPB.straight import StraightLine
+from other_code.EPB.clustering import Clustering
 from other_code.EPB.plot import Plot
 from other_code.EPB.plotTest import PlotTest
 import networkx as nx
@@ -50,7 +51,15 @@ def process_single_metric(file, metric, algorithms, draw):
         G = nx.Graph()
         bundling.draw(f"{file}/images/")
         experiment = Experiment(bundling, straight)
+        clustering = Clustering(bundling, straight)
+
+        
         all_edges= experiment.all_edges()
+
+        all_edges2 = clustering.all_edges()
+        mat = clustering.init_matrix(all_edges2)
+        clustering.calcMatrix(mat)
+        print(all_edges2)
         if(metric == "intersect_all"):
             print(experiment.all_intersection(all_edges))
 
