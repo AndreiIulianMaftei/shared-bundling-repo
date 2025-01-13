@@ -58,7 +58,12 @@ def process_single_metric(file, metric, algorithms, draw):
 
         all_edges2 = clustering.all_edges()
         mat = clustering.init_matrix(all_edges2)
-        clustering.calcMatrix(mat)
+        mat = clustering.calcMatrix(mat)
+        vertices = clustering.init_Points()
+
+        clustering = clustering.get_clusters(all_edges2, mat, vertices)
+
+
         print(all_edges2)
         if(metric == "intersect_all"):
             print(experiment.all_intersection(all_edges))

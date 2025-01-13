@@ -46,9 +46,47 @@ class Clustering:
         y: int
         depth: int
 
-    def get_clusters(self, algorithm):
+    class node:
+        x: int
+        y: int
+        depth: int
+    class Cluster:
         
-        clusters = 1
+        
+
+    def get_clusters(self, polilines, matrix, vertices):
+        
+        #initialize the clusters
+        clusters = []
+        max_depth = 0
+        ver_matrix = np.zeros((IMG_REZ,IMG_REZ))
+
+        #max depth in matrix
+        for i in range(0, len(matrix)):
+            for j in range(0, len(matrix[i])):
+                max_depth = max(max_depth, matrix[i][j])
+        
+        Cluster = nx.Graph()
+
+        for node in vertices:
+            Cluster.add_node(node)
+
+            ver_matrix[node[0]][node[1]] = 1
+
+        
+        
+        for depth in range (max_depth, 0):
+            
+            for i in range (0, len(matrix)):
+                for j in range (0, len(matrix[i])):
+                    checked_matrix = np.zeros((IMG_REZ,IMG_REZ))
+                    if(matrix[i][j] == depth):
+                        
+
+            
+
+                    
+
         return clusters
 
     def all_edges(self):
@@ -102,7 +140,17 @@ class Clustering:
         plt.show()
         return matrix
     
-
-    
+    def init_Points(self):
+        list_edges = list(self.G.edges(data = True))
+        vetices = []
+        for index, (u,v,data) in enumerate(list_edges):
+            numbers_y = []
+            numbers_x = []
+            numbers_x = [float(num) for num in data.get('X')]
+            numbers_y = [float(num) for num in data.get('Y')]
+            for i in range(0, len(numbers_x)):
+                #append the integere value of the coordonates
+                vetices.append((int(numbers_x[i]), int(numbers_y[i])))
+        return vetices
         
     
