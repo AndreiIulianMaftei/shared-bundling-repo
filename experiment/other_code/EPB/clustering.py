@@ -51,43 +51,78 @@ class Clustering:
         y: int
         depth: int
     class Cluster:
-        
-        
+        depth: int
+        x: int
+        y: int
+        children: []
+        parent: []
+        contains: int
+
+    
 
     def get_clusters(self, polilines, matrix, vertices):
         
         #initialize the clusters
-        clusters = []
+        overall_clusters = []
+        current_clusters = []
         max_depth = 0
-        ver_matrix = np.zeros((IMG_REZ,IMG_REZ))
 
         #max depth in matrix
         for i in range(0, len(matrix)):
             for j in range(0, len(matrix[i])):
                 max_depth = max(max_depth, matrix[i][j])
         
-        Cluster = nx.Graph()
+        #initialize the clusters
+        for i in range(0, len(vertices)):
+            cluster = self.Cluster()
+            cluster.x = vertices[i][0]
+            cluster.y = vertices[i][1]
+            cluster.depth = matrix[vertices[i][0]][vertices[i][1]]
+            cluster.children = []
+            cluster.parent = []
+            cluster.contains = 1
+            current_clusters.append(cluster)
 
-        for node in vertices:
-            Cluster.add_node(node)
+        current_clusters = sorted(current_clusters, key=lambda x: x.depth, reverse=True)
 
-            ver_matrix[node[0]][node[1]] = 1
-
-        
-        
-        for depth in range (max_depth, 0):
+        for depth in range(max_depth, 0):
             
-            for i in range (0, len(matrix)):
-                for j in range (0, len(matrix[i])):
-                    checked_matrix = np.zeros((IMG_REZ,IMG_REZ))
-                    if(matrix[i][j] == depth):
-                        
+            checkMatrix = np.zeros((IMG_REZ,IMG_REZ))
+            if current_clusters.top().depth == depth:
+                brother_clusters = []
+                brother_clusters.append((current_clusters.top().x, current_clusters.top().y))
+                brother_clusters.append(Clustering.getBrotherClusters(current_clusters.top().x, current_clusters.top().y, current_clusters.top().depth, matrix, checkMatrix))
 
-            
+                if(len(brother_clusters)!=1):
+                    cluster = self.Cluster()
+                    cluster.x = current_clusters.top().x
+                    cluster.y = current_clusters.top().y
+                    cluster.depth = current_clusters.top().depth
+                    cluster.children = []
+                    cluster.parent = []
+                    cluster.contains = 0 
+                    for i in range(0, len(brother_clusters)):
+                        for j in range(0, len(current_clusters)):
+                            if(brother_clusters[i][0] == current_clusters[j].x and brother_clusters[i][1] == current_clusters[j].y):
+                                cluster.children.append(current_clusters[j])
+                                cluster.contains += current_clusters[j].contains
+                                current_clusters.pop(j)
+                    overall_clusters.append(cluster) 
 
-                    
+        return overall_clusters
 
-        return clusters
+    def getBrotherClusters(self, x, y, depth, matrix, checkMatrix):
+        brother_clusters = []
+        checkMatrix[x][y] = 1
+        for i in range(-1, 2):
+            for j in range(-1, 2):
+                if(x + i >= 0 and x + i < IMG_REZ and y + j >= 0 and y + j < IMG_REZ and checkMatrix[x + i][y + j] == 0):
+                    if(matrix[x + i][y + j] >= depth):
+                        brother_clusters.append((x + i, y + j))
+                        checkMatrix[x + i][y + j] = 1
+                        brother_clusters.append( Clustering.getBrotherClusters(x + i, y + j, depth, matrix, checkMatrix))
+
+        return brother_clusters
 
     def all_edges(self):
         list_edges = list(self.G.edges(data = True))
