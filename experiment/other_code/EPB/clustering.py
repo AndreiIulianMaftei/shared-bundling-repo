@@ -19,6 +19,7 @@ import numpy as np
 from plotnine import ggplot, aes, geom_violin, geom_boxplot, theme, element_text, labs, element_blank
 import math
 from other_code.EPB.experiments import Experiment
+from typing import List
 
 matplotlib.use('qt5Agg')
 
@@ -53,8 +54,8 @@ class Clustering:
     class Cluster:
         depth: int
         x: int
-        y: int
-        children: []
+        children: List['Clustering.Cluster']
+        parent: List['Clustering.Cluster']
         parent: []
         contains: int
 
@@ -93,7 +94,7 @@ class Clustering:
             if current_clusters.__len__() and current_clusters[0].depth == depth:
                 brother_clusters = []
                 brother_clusters.append((current_clusters[0].x, current_clusters[0].y))
-                brother_clusters.append(Clustering.getBrotherClusters(current_clusters[0]().x, current_clusters[0].y, current_clusters[0].depth, matrix, checkMatrix))
+                brother_clusters.append(self.getBrotherClusters(current_clusters[0].x, current_clusters[0].y, current_clusters[0].depth, matrix, checkMatrix))
 
                 if(len(brother_clusters)!=1):
                     cluster = self.Cluster()
@@ -103,8 +104,8 @@ class Clustering:
                     cluster.children = []
                     cluster.parent = []
                     cluster.contains = 0 
-                    for i in range(0, len(brother_clusters)):
-                        for j in range(0, len(current_clusters)):
+                    for i in range(0, len(brother_clusters)-1):
+                        for j in range(0, len(current_clusters)-1):
                             if(brother_clusters[i][0] == current_clusters[j].x and brother_clusters[i][1] == current_clusters[j].y):
                                 cluster.children.append(current_clusters[j])
                                 cluster.contains += current_clusters[j].contains
@@ -122,7 +123,7 @@ class Clustering:
                     if(matrix[x + i][y + j] >= depth):
                         brother_clusters.append((x + i, y + j))
                         checkMatrix[x + i][y + j] = 1
-                        brother_clusters.append( Clustering.getBrotherClusters(x + i, y + j, depth, matrix, checkMatrix))
+                        brother_clusters.append(self.getBrotherClusters(x + i, y + j, depth, matrix, checkMatrix))
 
         return brother_clusters
 
