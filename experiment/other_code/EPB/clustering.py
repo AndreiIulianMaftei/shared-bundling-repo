@@ -70,6 +70,7 @@ class Clustering:
         #max depth in matrix
         for i in range(0, len(matrix)):
             for j in range(0, len(matrix[i])):
+                matrix[i][j] = int(matrix[i][j])
                 max_depth = max(max_depth, matrix[i][j])
         
         #initialize the clusters
@@ -84,20 +85,21 @@ class Clustering:
             current_clusters.append(cluster)
 
         current_clusters = sorted(current_clusters, key=lambda x: x.depth, reverse=True)
-
-        for depth in range(max_depth, 0):
+        overall_clusters = current_clusters
+        
+        for depth in range(int(max_depth), -1, -1):
             
             checkMatrix = np.zeros((IMG_REZ,IMG_REZ))
-            if current_clusters.top().depth == depth:
+            if current_clusters.__len__() and current_clusters[0].depth == depth:
                 brother_clusters = []
-                brother_clusters.append((current_clusters.top().x, current_clusters.top().y))
-                brother_clusters.append(Clustering.getBrotherClusters(current_clusters.top().x, current_clusters.top().y, current_clusters.top().depth, matrix, checkMatrix))
+                brother_clusters.append((current_clusters[0].x, current_clusters[0].y))
+                brother_clusters.append(Clustering.getBrotherClusters(current_clusters[0]().x, current_clusters[0].y, current_clusters[0].depth, matrix, checkMatrix))
 
                 if(len(brother_clusters)!=1):
                     cluster = self.Cluster()
-                    cluster.x = current_clusters.top().x
-                    cluster.y = current_clusters.top().y
-                    cluster.depth = current_clusters.top().depth
+                    cluster.x = current_clusters[0].x
+                    cluster.y = current_clusters[0].y
+                    cluster.depth = current_clusters[0].depth
                     cluster.children = []
                     cluster.parent = []
                     cluster.contains = 0 
