@@ -59,7 +59,25 @@ class Clustering:
         parent: []
         contains: int
 
-    
+    def draw_clusters(self, clusters):
+        drawing = nx.Graph()
+        cluster_map = {}
+
+        # Assign each cluster a unique ID and add to the graph
+        for i, cluster in enumerate(clusters):
+            cluster_map[cluster] = i
+            drawing.add_node(i)
+
+        # Add edges between cluster IDs
+        for cluster in clusters:
+            for child in cluster.children:
+                if child in cluster_map:
+                    drawing.add_edge(cluster_map[cluster], cluster_map[child])
+
+        pos = nx.spring_layout(drawing)
+        nx.draw_networkx_nodes(drawing, pos)
+        nx.draw_networkx_edges(drawing, pos)
+        plt.show()
 
     def get_clusters(self, polilines, matrix, vertices):
         
@@ -106,13 +124,15 @@ class Clustering:
                     cluster.contains = 0 
                     for i in range(0, len(brother_clusters)-1):
                         for j in range(0, len(current_clusters)-1):
-                            if(brother_clusters[i][0] == current_clusters[j].x and brother_clusters[i][1] == current_clusters[j].y):
+                            if(i < len(overall_clusters)-1 and  j<(len(current_clusters)-1) and brother_clusters[i][0] == current_clusters[j].x and brother_clusters[i][1] == current_clusters[j].y):
                                 cluster.children.append(current_clusters[j])
                                 cluster.contains += current_clusters[j].contains
                                 current_clusters.pop(j)
                     overall_clusters.append(cluster) 
 
         return overall_clusters
+
+    
 
     def getBrotherClusters(self, x, y, depth, matrix, checkMatrix):
         brother_clusters = []
@@ -126,6 +146,9 @@ class Clustering:
                         brother_clusters.append(self.getBrotherClusters(x + i, y + j, depth, matrix, checkMatrix))
 
         return brother_clusters
+
+
+    
 
     def all_edges(self):
         list_edges = list(self.G.edges(data = True))
