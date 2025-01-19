@@ -20,6 +20,8 @@ from plotnine import ggplot, aes, geom_violin, geom_boxplot, theme, element_text
 import math
 from other_code.EPB.experiments import Experiment
 from typing import List
+import pylab
+from networkx.drawing.nx_pydot import graphviz_layout
 
 matplotlib.use('qt5Agg')
 
@@ -60,25 +62,125 @@ class Clustering:
         contains: int
 
     def draw_clusters(self, clusters):
-        drawing = nx.Graph()
+        drawing1 = nx.Graph()
         cluster_map = {}
 
         # Assign each cluster a unique ID and add to the graph
         for i, cluster in enumerate(clusters):
             cluster_map[cluster] = i
-            drawing.add_node(i)
+            drawing1.add_node(i, pos=(cluster.x, cluster.y))
 
         # Add edges between cluster IDs
         for cluster in clusters:
             for child in cluster.children:
                 if child in cluster_map:
-                    drawing.add_edge(cluster_map[cluster], cluster_map[child])
+                    drawing1.add_edge(cluster_map[cluster], cluster_map[child])
 
-        pos = nx.spring_layout(drawing)
-        nx.draw_networkx_nodes(drawing, pos)
-        nx.draw_networkx_edges(drawing, pos)
-        plt.show()
+        pos = graphviz_layout(drawing1, prog="dot", root=0)
 
+        pos = nx.spring_layout(drawing1)
+        nx.draw_networkx_nodes(drawing1, pos)
+        nx.draw_networkx_edges(drawing1, pos)
+        plt.savefig(f"cluster.png")
+
+    def get_clusters(self, polilines, matrix, vertices):
+        
+        overall_clusters = []
+        current_clusters = []
+        matrix_with_clusters = np.zeros((IMG_REZ,IMG_REZ), dtype=object)
+        max_depth = 0
+
+        for i in range(0, len(matrix)):
+            for j in range(0, len(matrix[i])):
+                matrix[i][j] = int(matrix[i][j])
+                max_depth = max(max_depth, matrix[i][j])
+        
+        for i in range(0, len(vertices)):
+            cluster = self.Cluster()
+            cluster.x = vertices[i][0]
+            cluster.y = vertices[i][1]
+            cluster.depth = matrix[vertices[i][0]][vertices[i][1]]
+            cluster.children = []
+            matrix_with_clusters[vertices[i][0]][vertices[i][1]] = cluster
+            cluster.parent = []
+            cluster.contains = 1
+            current_clusters.append(cluster)
+            overall_clusters.append(cluster)
+
+        for depth in range(int(max_depth), -1, -1):
+            
+            checkMatrix = np.zeros((IMG_REZ,IMG_REZ))
+            for i in range(0, IMG_REZ):
+                for j in range(0, IMG_REZ):
+                    if(matrix[i][j] == depth):
+                        searchedPos = []
+                        searchedPos.append((i,j))
+                        searchStack = []
+                        searchStack.append((i,j))
+                        brother_clusters = []
+                        if(matrix_with_clusters[i][j] != 0):
+                            brother_clusters.append(matrix_with_clusters[i][j])
+                        
+                        while(len(searchStack) != 0):
+                            currentPos = searchStack.pop()
+                            I = currentPos[0]
+                            J = currentPos[1]
+                            
+                            for x in range (-1, 2):
+                                for y in range (-1, 2):
+                                    if(I + x >= 0 and I + x < IMG_REZ and J + y >= 0 and J + y < IMG_REZ and checkMatrix[I + x][J + y] == 0):
+                                        if(matrix[I + x][J + y] >= depth):
+                                            searchedPos.append((I + x, J + y))
+                                            searchStack.append((I + x, J + y))
+                                            checkMatrix[I + x][J + y] = 1
+                                            if(matrix_with_clusters[I + x][J + y] != 0):
+                                                brother_clusters.append(matrix_with_clusters[I + x][J + y])
+                                                checkMatrix[I + x][J + y] = 1
+                                    checkMatrix[I][J] = 1
+            
+                        for x in range(0, len(searchedPos)):
+                            matrix[searchedPos[x][0]][searchedPos[x][1]] = -1
+                        cluster = self.Cluster()
+                        if(len(brother_clusters) != 0):
+                            
+                            cluster.x = brother_clusters[0].x
+                            cluster.y = brother_clusters[0].y
+                            cluster.depth = brother_clusters[0].depth
+                            cluster.children = []
+                            cluster.parent = []
+                            cluster.contains = 0
+                            for x in range(0, len(brother_clusters)):
+                                cluster.children.append(brother_clusters[x])
+                                cluster.contains += brother_clusters[x].contains
+                                for j in range(0, len(brother_clusters[x].children)):
+                                    brother_clusters[x].children[x].parent = cluster
+                            overall_clusters.append(cluster)
+
+                            for x in range(0, len(brother_clusters)):
+                                if (x == 0):
+                                    matrix_with_clusters[brother_clusters[x].x][brother_clusters[x].y] = cluster
+                                current_clusters.remove(brother_clusters[x])
+                            current_clusters.append(cluster)
+
+        return overall_clusters
+                            
+
+
+                        
+                    
+                       
+                        
+
+
+
+
+
+
+
+        
+        return overall_clusters
+
+    """
     def get_clusters(self, polilines, matrix, vertices):
         
         #initialize the clusters
@@ -146,7 +248,7 @@ class Clustering:
                         brother_clusters.append(self.getBrotherClusters(x + i, y + j, depth, matrix, checkMatrix))
 
         return brother_clusters
-
+    """
 
     
 
