@@ -7,7 +7,7 @@ from PIL import Image as PILImage
 import pickle
 import seaborn as sbn
 import matplotlib.pyplot as plt
-import matplotlib
+import matplotlib 
 from frechetdist import frdist
 import re
 from matplotlib.backends.backend_pdf import PdfPages
@@ -61,40 +61,110 @@ class Clustering:
         parent: []
         contains: int
 
+    
     def draw_clusters(self, clusters):
-        drawing1 = nx.Graph()
-        cluster_map = {}
+        """
+        Draws all clusters as nodes in a directed tree, 
+        using the last cluster in the list as the root.
+        """
+        # Build a directed graph
+        G = nx.DiGraph()
 
-        # Assign each cluster a unique ID and add to the graph
+        # Map each cluster object to an integer ID
+        cluster_map = {}
         for i, cluster in enumerate(clusters):
             cluster_map[cluster] = i
-            drawing1.add_node(i, pos=(cluster.x, cluster.y))
 
-        # Add edges between cluster IDs
+        # Add each cluster as a node, storing the depth
+        for cluster in clusters:
+            G.add_node(cluster_map[cluster], depth=cluster.depth)
+
+        # Add edges from parent -> child (or child -> parent, as needed)
         for cluster in clusters:
             for child in cluster.children:
                 if child in cluster_map:
-                    drawing1.add_edge(cluster_map[cluster], cluster_map[child])
+                    # Directed edge from this cluster -> child
+                    G.add_edge(cluster_map[cluster], cluster_map[child])
 
-        pos = graphviz_layout(drawing1, prog="dot", root=0)
+        # The last cluster in 'clusters' will be our "root"
+        root_idx = cluster_map[clusters[-1]]
 
-        pos = nx.spring_layout(drawing1)
-        nx.draw_networkx_nodes(drawing1, pos)
-        nx.draw_networkx_edges(drawing1, pos)
-        plt.savefig(f"cluster.png")
+        # Layout: use graphviz "dot" to create a hierarchical tree
+        # root is the node we want at the top.
+        pos = graphviz_layout(G, prog='dot', root=root_idx)
+
+        # Extract depths (for coloring)
+        depths = [c.depth for c in clusters]
+        min_depth = min(depths)
+        max_depth = max(depths)
+
+        # Create colormap
+        cmap = plt.cm.viridis
+        norm = matplotlib.colors.Normalize(vmin=min_depth, vmax=max_depth)
+        node_colors = [norm(d) for d in depths]
+
+        # Prepare figure/axes
+        fig, ax = plt.subplots(figsize=(8, 6))
+
+        # Draw
+        nx.draw_networkx_nodes(
+            G, pos,
+            node_color=node_colors,
+            node_size=400,
+            cmap=cmap,
+            ax=ax
+        )
+        # Use arrows for the directed edges
+        nx.draw_networkx_edges(
+            G, pos,
+            arrowstyle='-|>',
+            arrowsize=12,
+            ax=ax
+        )
+        nx.draw_networkx_labels(
+            G, pos,
+            labels={cluster_map[c]: f"d={c.depth}" for c in clusters},
+            font_color='white',
+            ax=ax
+        )
+
+        # Colorbar
+        sm = matplotlib.cm.ScalarMappable(cmap=cmap, norm=norm)
+        sm.set_array([])
+        cbar = fig.colorbar(sm, ax=ax)
+        cbar.set_label('Depth')
+
+        ax.set_title("Clusters as a Tree (Root = Last Cluster)")
+        ax.axis('off')
+        plt.tight_layout()
+        
+        plt.savefig("clusters_by_depth.png", dpi=300)
 
     def get_clusters(self, polilines, matrix, vertices):
         
+
         overall_clusters = []
         current_clusters = []
         matrix_with_clusters = np.zeros((IMG_REZ,IMG_REZ), dtype=object)
         max_depth = 0
-
+        matrix = [
+            [1,1,1,1,1,1,1,0,0,0,0,0],
+            [1,2,2,2,2,2,1,0,0,0,0,0],
+            [1,2,3,3,3,2,1,0,0,0,0,0],
+            [1,2,4,3,3,2,1,0,0,0,0,0],
+            [1,2,4,4,3,2,1,0,0,0,0,0],
+            [1,2,2,2,2,2,1,0,2,2,2,0],
+            [1,1,1,1,1,1,1,0,2,3,2,0],
+            [0,0,0,0,0,0,0,0,2,2,2,0],
+            [0,0,0,0,0,0,0,0,0,0,0,0],
+            [0,0,0,0,0,0,0,0,0,0,0,0]
+        ]
         for i in range(0, len(matrix)):
             for j in range(0, len(matrix[i])):
                 matrix[i][j] = int(matrix[i][j])
                 max_depth = max(max_depth, matrix[i][j])
         
+        vertices = [(0,0), (1,1), (0,8), (2,4), (3,4), (4,2), (6,9), (7,9), (9,10)]
         for i in range(0, len(vertices)):
             cluster = self.Cluster()
             cluster.x = vertices[i][0]
@@ -110,8 +180,8 @@ class Clustering:
         for depth in range(int(max_depth), -1, -1):
             
             checkMatrix = np.zeros((IMG_REZ,IMG_REZ))
-            for i in range(0, IMG_REZ):
-                for j in range(0, IMG_REZ):
+            for i in range(0, min(matrix.__len__() , IMG_REZ)):
+                for j in range(0, min(matrix[i].__len__(), IMG_REZ)):
                     if(matrix[i][j] == depth):
                         searchedPos = []
                         searchedPos.append((i,j))
@@ -128,7 +198,7 @@ class Clustering:
                             
                             for x in range (-1, 2):
                                 for y in range (-1, 2):
-                                    if(I + x >= 0 and I + x < IMG_REZ and J + y >= 0 and J + y < IMG_REZ and checkMatrix[I + x][J + y] == 0):
+                                    if(I + x >= 0 and I + x < min(matrix.__len__() , IMG_REZ) and J + y >= 0 and J + y < min(matrix[i].__len__(), IMG_REZ) and checkMatrix[I + x][J + y] == 0):
                                         if(matrix[I + x][J + y] >= depth):
                                             searchedPos.append((I + x, J + y))
                                             searchStack.append((I + x, J + y))
@@ -139,7 +209,7 @@ class Clustering:
                                     checkMatrix[I][J] = 1
             
                         for x in range(0, len(searchedPos)):
-                            matrix[searchedPos[x][0]][searchedPos[x][1]] = -1
+                            matrix[searchedPos[x][0]][searchedPos[x][1]] -= 1
                         cluster = self.Cluster()
                         if(len(brother_clusters) != 0):
                             
@@ -152,34 +222,20 @@ class Clustering:
                             for x in range(0, len(brother_clusters)):
                                 cluster.children.append(brother_clusters[x])
                                 cluster.contains += brother_clusters[x].contains
-                                for j in range(0, len(brother_clusters[x].children)):
-                                    brother_clusters[x].children[x].parent = cluster
+                                for y in range(0, len(brother_clusters[x].children)):
+                                    brother_clusters[x].children[y].parent = cluster
                             overall_clusters.append(cluster)
 
                             for x in range(0, len(brother_clusters)):
+                                matrix_with_clusters[brother_clusters[x].x][brother_clusters[x].y] = 0
                                 if (x == 0):
                                     matrix_with_clusters[brother_clusters[x].x][brother_clusters[x].y] = cluster
+                                
                                 current_clusters.remove(brother_clusters[x])
                             current_clusters.append(cluster)
 
         return overall_clusters
                             
-
-
-                        
-                    
-                       
-                        
-
-
-
-
-
-
-
-        
-        return overall_clusters
-
     """
     def get_clusters(self, polilines, matrix, vertices):
         
