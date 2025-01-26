@@ -1,32 +1,20 @@
-import copy
 import os
-import networkx as nx
 import numpy as np
-from scipy import signal
-from PIL import Image
-import pickle
-import seaborn as sbn
 import matplotlib.pyplot as plt
-import matplotlib
-from frechetdist import frdist
-import re
-from PIL import Image
-from matplotlib.backends.backend_pdf import PdfPages
-from pdf2image import convert_from_path
-import requests
-from wand.image import Image
-import pandas as pd
-from plotnine import ggplot, aes, geom_violin, geom_boxplot, theme, element_text, labs, element_blank
 import matplotlib.image as mpimg
-from matplotlib.offsetbox import OffsetImage, AnnotationBbox
+import seaborn as sbn
 from matplotlib.lines import Line2D
+from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 from matplotlib.legend_handler import HandlerBase
-from matplotlib.legend import Legend
+from plotnine import ggplot, aes, geom_violin, geom_boxplot, theme, element_text, labs, element_blank
 
 
 class PlotTest:
-    def __init__(self):
-        pass
+    def __init__(self, output_folder="."):
+        """
+        :param output_folder: Base directory where final plots will be saved.
+        """
+        self.output_folder = output_folder
 
     def plotMonotonicity(self, results):
         self.plot_metrics(results, 'Monotonicity')
@@ -39,9 +27,10 @@ class PlotTest:
 
     def plotProjectedMonotonicity(self, results):
         self.plot_metrics(results, 'Monotonicity Projection')
-    
+
     def plotAngles(self, results):
         self.plot_metrics(results, 'Angle')
+
     def plotSelfIntersect(self, results):
         self.plot_metrics(results, 'Self Intersect')
 
@@ -64,14 +53,7 @@ class PlotTest:
     @staticmethod
     def normalize_data(data_list, method='min-max'):
         """
-        Normalize the data using specified method.
-
-        Parameters:
-            data_list (list of lists): The data to normalize.
-            method (str): 'min-max' or 'z-score'
-
-        Returns:
-            list of lists: Normalized data.
+        Normalize the data using the specified method: 'min-max' or 'z-score'.
         """
         normalized_data = []
         if method == 'min-max':
@@ -79,14 +61,17 @@ class PlotTest:
             min_val = np.min(all_data)
             max_val = np.max(all_data)
             for data in data_list:
-                normalized = (data - min_val) / (max_val - min_val)
+                normalized = (data - min_val) / (max_val - min_val) if (max_val - min_val) != 0 else data
                 normalized_data.append(normalized)
         elif method == 'z-score':
             all_data = np.concatenate(data_list)
             mean_val = np.mean(all_data)
             std_val = np.std(all_data)
             for data in data_list:
-                normalized = (data - mean_val) / std_val
+                if std_val != 0:
+                    normalized = (data - mean_val) / std_val
+                else:
+                    normalized = data
                 normalized_data.append(normalized)
         else:
             raise ValueError("Normalization method must be 'min-max' or 'z-score'")
@@ -98,7 +83,7 @@ class PlotTest:
         Calculate statistics for each dataset in data_list.
 
         Returns:
-            tuple: (means, quartile1, medians, quartile3, whiskers_min, whiskers_max)
+          (means, quartile1, medians, quartile3, whiskers_min, whiskers_max)
         """
         means = []
         quartile1 = []
@@ -120,18 +105,18 @@ class PlotTest:
 
         return means, quartile1, medians, quartile3, whiskers_min, whiskers_max
 
-    @staticmethod
-    def plot_histograms(data_list, labels, means, title_prefix, image_path):
+    def plot_histograms(self, data_list, labels, means, title_prefix, image_path):
         """
         Plot histograms for each dataset.
+        Saves them in subfolders named after each label (algorithm) inside self.output_folder.
 
-        Parameters:
-            data_list (list of arrays): Data to plot.
-            labels (list of str): Labels for each dataset.
-            means (list of float): Mean values for each dataset.
-            title_prefix (str): Prefix for the plot title.
-            image_path (str): Path to the image for the legend.
+        :param data_list: list of arrays
+        :param labels: list of str
+        :param means: list of float
+        :param title_prefix: e.g. 'Distortion'
+        :param image_path: path to an image used for the legend (if you wish)
         """
+        # Optional: if you don't want an embedded image in the legend, remove this entire 'HandlerImage' class usage.
         class HandlerImage(HandlerBase):
             def __init__(self, image, text, zoom=1):
                 self.image = image
@@ -154,88 +139,86 @@ class PlotTest:
                     text_x, text_y, self.text, ha='center', va='top', fontsize=fontsize
                 )
                 text_artist.set_transform(trans)
-
                 return [imagebox, text_artist]
 
-        all_counts = []
-        num_bins = 100
-        maximum = 0
-
-        for data in data_list:
-            n, bins = np.histogram(data, bins=num_bins)
-            max_count = n.max()
-            maximum = max(max_count, maximum)
+        num_bins = 50  # or 100
 
         for index, data in enumerate(data_list):
+            label = labels[index]
+            # Create a subfolder for this label
+            label_folder = os.path.join(self.output_folder, label)
+            os.makedirs(label_folder, exist_ok=True)
+
             plt.figure()
             n, bins, patches = plt.hist(data, bins=num_bins, alpha=0.5)
             median = np.median(data)
 
-            image_proxy = Line2D([], [], linestyle='none')
+            # If you want a custom legend with an image:
+            if os.path.isfile(image_path):
+                image = mpimg.imread(image_path)
+                image_proxy = Line2D([], [], linestyle='none')
 
-            image = mpimg.imread(image_path)
+                legend_handles = [image_proxy]
+                legend_labels = [''] 
+                handler_map = {
+                    image_proxy: HandlerImage(
+                        image, f'{label} Mean: {means[index]:.4f}', 0.05
+                    )
+                }
 
-         
-            legend_handles = [image_proxy]
-            legend_labels = [''] 
-
-            handler_map = {
-                image_proxy: HandlerImage(
-                    image, f'{labels[index]} Mean: {means[index]:.4f}', 0.05
+                plt.legend(
+                    handles=legend_handles,
+                    labels=legend_labels,
+                    handler_map=handler_map,
+                    loc='upper right'
                 )
-            }
 
-            plt.legend(
-                handles=legend_handles,
-                labels=legend_labels,
-                handler_map=handler_map,
-                loc='upper right'
-            )
-
-            if title_prefix != 'Distortion' and title_prefix != 'Angle':
+            # If not Distortion/Angle, we set X-limits from -0.2 to 1.2 (for normalized data)
+            if title_prefix not in ['Distortion', 'Angle']:
                 plt.xlim(-0.2, 1.2)
                 plt.xlabel('Normalized Value')
             else:
                 plt.xlabel('Value')
 
-            plt.ylim(0, maximum * 1.1)
             plt.ylabel('Frequency')
-            plt.title(f'{title_prefix} - {labels[index]}')
+            plt.title(f'{title_prefix} - {label}')
             plt.axvline(x=median, color='r', linestyle='dashed', linewidth=1)
-            plt.savefig(
-                f'{title_prefix.lower().replace(" ", "_")}_{labels[index]}.png'
-            )
+
+            # Build the output file path
+            out_name = f"{title_prefix.lower().replace(' ', '_')}_{label}.png"
+            out_path = os.path.join(label_folder, out_name)
+
+            plt.savefig(out_path)
             plt.close()
 
-    @staticmethod
-    def plot_violin(data_list, labels, medians, quartile1, quartile3, whiskers_min, whiskers_max, title, is_normalized=True):
+    def plot_violin(self, data_list, labels, medians, quartile1,
+                    quartile3, whiskers_min, whiskers_max, title,
+                    is_normalized=True):
         """
-        Plot violin plot for the data.
-
-        Parameters:
-            data_list (list of arrays): Data to plot.
-            labels (list of str): Labels for each dataset.
-            medians, quartile1, quartile3, whiskers_min, whiskers_max: Statistics for the data.
-            title (str): Title for the plot.
-            is_normalized (bool): Whether the data is normalized.
+        Plot a single violin plot containing all labels.
+        The single figure is saved at the top level of self.output_folder.
+        If you prefer a separate violin plot per label, you can adapt accordingly.
         """
         fig, ax = plt.subplots(figsize=(9, 4))
-
         parts = ax.violinplot(
             data_list, showmeans=False, showmedians=False, showextrema=False
         )
 
+        # Style the violin bodies
         for pc in parts['bodies']:
             pc.set_facecolor('#D43F3A')  
             pc.set_edgecolor('black')   
             pc.set_alpha(1)
 
         inds = np.arange(1, len(medians) + 1)
+        # Plot medians as white dots
         ax.scatter(inds, medians, marker='o', color='white', s=30, zorder=3)
+        # Plot quartile ranges
         ax.vlines(inds, quartile1, quartile3, color='k', linestyle='-', lw=5)
+        # You could also add whiskers if you want:
         # ax.vlines(inds, whiskers_min, whiskers_max, color='k', linestyle='-', lw=1)
 
-        PlotTest.set_axis_style(ax, labels)
+        self.set_axis_style(ax, labels)
         if is_normalized:
             ax.set_ylabel('Normalized Value')
         else:
@@ -243,20 +226,28 @@ class PlotTest:
         ax.set_title(title)
 
         plt.tight_layout()
-        plt.savefig(f'{title.lower().replace(" ", "_")}.png', dpi=300)
+
+        # Save the single combined violin in self.output_folder, with a descriptive name
+        filename = f"{title.lower().replace(' ', '_')}.png"
+        out_path = os.path.join(self.output_folder, filename)
+        plt.savefig(out_path, dpi=300)
         plt.close()
 
     def plot_metrics(self, results, metric_name):
+        """
+        Master function to handle a list of (values, label) pairs and produce
+        per-label histograms + a single combined violin plot.
+        """
         data_list = []
         labels = []
 
         for rez in results:
             print(f"Processing result: {rez[1]}")
-            print(f"Type of rez[0]: {type(rez[0])}")
-            print(f"Content of rez[0]: {rez[0]}")
-
+            # rez[0] is the data array or list, rez[1] is the label (algorithm)
             try:
+                # The code below tries to flatten any sub-lists or arrays into a single NumPy array
                 if isinstance(rez[0], (list, tuple)):
+                    # If it's a list of lists, flatten them
                     data = np.concatenate([np.array(sublist).flatten() for sublist in rez[0]])
                 elif isinstance(rez[0], np.ndarray):
                     data = rez[0].flatten()
@@ -276,31 +267,54 @@ class PlotTest:
         if not data_list:
             raise ValueError("No valid data to plot.")
 
-        if metric_name != 'Distortion' and metric_name != 'Angle':
+        # If it's not Distortion or Angle, we do min-max normalization
+        # (As you specified in your original code)
+        if metric_name not in ['Distortion', 'Angle']:
             normalized_data = self.normalize_data(data_list, method='min-max')
             is_normalized = True
         else:
             normalized_data = data_list
             is_normalized = False
 
+        # Now compute basic stats
         means, quartile1, medians, quartile3, whiskers_min, whiskers_max = self.calculate_statistics(normalized_data)
 
-        self.plot_histograms(normalized_data, labels, means, metric_name, "Linear_RGB_color_wheel.png")
+        # 1) Plot histogram for each label (algorithm) in its own subfolder
+        #    We'll pass a "dummy" image path or a color wheel path if you have it
+        color_wheel_img_path = "Linear_RGB_color_wheel.png"  # or any existing image
+        self.plot_histograms(normalized_data, labels, means, metric_name, color_wheel_img_path)
 
+        # 2) Plot a single combined violin for all labels at once
+        #    We'll put that in the top-level output folder
         self.plot_violin(
-            normalized_data, labels, medians, quartile1, quartile3, whiskers_min, whiskers_max,
-            f'violin plot {metric_name}', is_normalized
+            normalized_data,
+            labels,
+            medians,
+            quartile1,
+            quartile3,
+            whiskers_min,
+            whiskers_max,
+            f'violin plot {metric_name}',
+            is_normalized
         )
 
+
 if __name__ == "__main__":
-    plotter = PlotTest()
+    # Example usage:
+    plotter = PlotTest(output_folder="sample_output")
 
-    # Example data (you need to provide actual data)
-    # results = [
-    #     (np.random.normal(0, 1, 1000), 'Algorithm 1'),
-    #     (np.random.normal(0, 1, 1000), 'Algorithm 2'),
-    #     (np.random.normal(0, 1, 1000), 'Algorithm 3'),
-    # ]
+    # Suppose we have some fake data:
+    # Format: a list of (data, label), e.g. (np.array(...), "fd"), ...
+    results_example = [
+        (np.random.normal(0, 1, 1000), 'fd'),
+        (np.random.normal(5, 2, 1000), 'epb'),
+        (np.random.normal(-2, 1, 1000), 'wr'),
+    ]
 
-    # Plotting
-    # plotter.plotDistortionHistogram(results)
+    # Let's test with a "Distortion" metric (no normalization).
+    plotter.plotDistortionHistogram(results_example)
+
+    # Or "Monotonicity" (which triggers min-max normalization).
+    plotter.plotMonotonicity(results_example)
+
+    print("Plots saved in 'sample_output/'. Check subfolders for label-specific histograms, and top-level for violin plots.")

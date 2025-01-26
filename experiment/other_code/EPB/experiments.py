@@ -582,45 +582,77 @@ class Experiment:
         return all_intersections, number_of_intersections
 
 
-    def plotMegaGraph(self, algorithms, metric, histogram_image_paths, ink_ratios):
+    def plotMegaGraph(self, algorithms, metric, histogram_image_paths, ink_ratios, output_folder):
+        """
+        Creates a PDF comparing multiple algorithm outputs. 
+        Embeds images (like fd.png, epb.png) and histogram images (distortion_fd.png, etc.) 
+        and saves the PDF in `output_folder`.
 
+        :param algorithms: list of algorithm names, e.g. ["fd", "epb", "wr"]
+        :param metric: e.g. "distortion", "frechet", ...
+        :param histogram_image_paths: list of histogram image files to embed
+        :param ink_ratios: list of ink ratios or other text info
+        :param output_folder: where to place output_comparison_<metric>.pdf
+        """
+        import os
+        from matplotlib.backends.backend_pdf import PdfPages
+        import matplotlib.pyplot as plt
 
         def embed_image(ax, image_path, title, subtitle=None):
+            """
+            Helper function to load and embed an image into a subplot ax.
+            """
             try:
                 img = plt.imread(image_path)
                 ax.imshow(img)
                 ax.axis('off')
                 ax.set_title(title, fontsize=10)
                 if subtitle:
-                    ax.text(0.5, -0.1, subtitle, fontsize=9, ha='center', va='top', transform=ax.transAxes)
+                    ax.text(0.5, -0.1, subtitle, fontsize=9, 
+                            ha='center', va='top', transform=ax.transAxes)
             except Exception as e:
                 print(f"Error processing {image_path}: {e}")
                 ax.text(0.5, 0.5, "Error loading image", ha="center", va="center", fontsize=12)
                 ax.axis('off')
 
-        pdf_path = f"output_comparison_{metric}.pdf"
+        # Build the full path to the PDF in output_folder
+        pdf_filename = f"output_comparison_{metric}.pdf"
+        pdf_path = os.path.join(output_folder, pdf_filename)
+
         with PdfPages(pdf_path) as pdf:
             fig = plt.figure(figsize=(12, 12))
- 
+
+            # 1) Embed the main algorithm images on the first row
             for i, graph_path in enumerate(algorithms):
                 ax = plt.subplot2grid((3, 3), (0, i))
-                ink_ratio = ink_ratios[i]
-                subtitle = f"Ink Ratio: {ink_ratio}"
-                embed_image(ax, f'output/airlines/images/{graph_path}.png', f"Graph {algorithms[i]}", subtitle=subtitle)
+                # Each algorithm's .png is assumed to be in <output_folder>/images/
+                algo_image_path = os.path.join(output_folder, "images", f"{graph_path}.png")
 
+                # If you have an ink_ratio for each algorithm:
+                subtitle = f"Ink Ratio: {ink_ratios[i]}" if i < len(ink_ratios) else None
+                embed_image(ax, algo_image_path, f"Graph {graph_path}", subtitle=subtitle)
+
+            # 2) Embed histogram images on the second row
             for i, hist_path in enumerate(histogram_image_paths):
                 ax = plt.subplot2grid((3, 3), (1, i))
-                embed_image(ax, hist_path, f"{metric} Histogram {i+1}")
+                # If your histogram images are also in <output_folder>/images, adjust:
+                hist_path_full = os.path.join(output_folder, "images", hist_path)
+                embed_image(ax, hist_path_full, f"{metric} Histogram {i+1}")
 
+            # 3) Embed a violin plot or any other summary plot on the third row
+            # By default, your code tries to load:
             violin_plot_path = f"violin_plot_{metric}.png"
+            violin_full_path = os.path.join(output_folder, "images", violin_plot_path)
+
             ax = plt.subplot2grid((3, 3), (2, 0), colspan=3)
-            embed_image(ax, violin_plot_path, f"{metric} Violin Plot")
+            embed_image(ax, violin_full_path, f"{metric} Violin Plot")
 
             plt.tight_layout()
             pdf.savefig(fig)
-            plt.close()
+            plt.close(fig)
 
-        print(f"PDF created at: {pdf_path}")
+        print(f"[INFO] PDF created at: {pdf_path}")
+
 
     def plotAll(self, algorithms, metrics):
         for index, rez in enumerate(algorithms):

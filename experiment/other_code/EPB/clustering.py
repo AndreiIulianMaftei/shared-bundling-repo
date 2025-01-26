@@ -61,7 +61,42 @@ class Clustering:
         parent: []
         contains: int
 
-    
+    def draw_heatMaps(self, matrix, verticies):
+        
+        max_depth = 0
+        for i in range(0, len(matrix)):
+            for j in range(0, len(matrix[i])):
+                matrix[i][j] = int(matrix[i][j])
+                max_depth = max(max_depth, matrix[i][j])
+        
+        for depth in range(int(max_depth), -1, -1):
+            checkMatrix = np.zeros((IMG_REZ,IMG_REZ))
+            for i in range(0, len(matrix)):
+                for j in range(0, len(matrix[i])):
+                    if(matrix[i][j] >= depth):
+                        searchedPos = []
+                        searchedPos.append((i,j))
+                        searchStack = []
+                        searchStack.append((i,j))
+                        while(len(searchStack) != 0):
+                            currentPos = searchStack.pop()
+                            I = currentPos[0]
+                            J = currentPos[1]
+                            for x in range (-1, 2):
+                                for y in range (-1, 2):
+                                    if(I + x >= 0 and I + x < len(matrix) and J + y >= 0 and J + y < len(matrix[i]) and checkMatrix[I + x][J + y] == 0):
+                                        if(matrix[I + x][J + y] >= depth):
+                                            searchedPos.append((I + x, J + y))
+                                            searchStack.append((I + x, J + y))
+                                            checkMatrix[I + x][J + y] = 1
+                                    checkMatrix[I][J] = 1
+                        for x in range(0, len(searchedPos)):
+                            matrix[searchedPos[x][0]][searchedPos[x][1]] -= 1
+            plt.imshow(checkMatrix, cmap='hot', interpolation='nearest')
+            plt.savefig(f"heatMap_{depth}.png")
+            
+
+        return 
     def draw_clusters(self, clusters):
         """
         Draws all clusters as nodes in a directed tree, 
@@ -215,7 +250,7 @@ class Clustering:
                             
                             cluster.x = brother_clusters[0].x
                             cluster.y = brother_clusters[0].y
-                            cluster.depth = brother_clusters[0].depth
+                            cluster.depth = matrix[brother_clusters[0].x][brother_clusters[0].y]+1
                             cluster.children = []
                             cluster.parent = []
                             cluster.contains = 0
@@ -356,7 +391,7 @@ class Clustering:
 
 
         plt.imshow(matrix, cmap='hot', interpolation='nearest')
-        plt.show()
+        plt.savefig("heatMap.png")
         return matrix
     
     def init_Points(self):

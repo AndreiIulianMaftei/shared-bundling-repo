@@ -60,14 +60,16 @@ def process_single_metric(file, metric, algorithms, draw):
         mat = clustering.init_matrix(all_edges2)
         mat = clustering.calcMatrix(mat)
         vertices = clustering.init_Points()
+        clustering.draw_heatMaps(mat, vertices)
+        
 
         #clusters = clustering.get_clusters(all_edges2, mat, vertices)
 
-        overall_clusters = clustering.get_clusters(all_edges2, mat, vertices)
+        #overall_clusters = clustering.get_clusters(all_edges2, mat, vertices)
 
-        print(overall_clusters.__len__())
+        #print(overall_clusters.__len__())
 
-        clustering.draw_clusters(overall_clusters)
+        #clustering.draw_clusters(overall_clusters)
 
         #print(all_edges2)
         if(metric == "intersect_all"):
@@ -121,7 +123,7 @@ def process_single_metric(file, metric, algorithms, draw):
     if(metric == "monotonicity_projection"):
         print(rez_all.__len__())
         plotter.plotProjectedMonotonicity(rez_all)
-        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["monotonicity_projection_fd.png", "monotonicity_projection_epb.png", "monotonicity_projection_wr.png"], ink_ratios)
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["monotonicity_projection_fd.png", "monotonicity_projection_epb.png", "monotonicity_projection_wr.png"], ink_ratios, )
     if(metric == "monotonicity"):
         print(rez_all.__len__())
         plotter.plotMonotonicity(rez_all)
