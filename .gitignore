@@ -3,8 +3,8 @@
 *.so
 experiment/other_code/FD/node_modules
 
-.vscode
-.png
-.pdf
+*.vscode
+*.png
+*.pdf
 
 output/*
