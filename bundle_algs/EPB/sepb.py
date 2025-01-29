@@ -1,6 +1,6 @@
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
-from other_code.EPB.abstractBundling import AbstractBundling
+from bundle_algs.EPB.abstractBundling import AbstractBundling
 from heapq import heappush, heappop
 from itertools import count
 import networkx as nx

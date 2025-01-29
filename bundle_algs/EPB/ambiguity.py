@@ -59,7 +59,7 @@ class Ambiguity:
                         w_bin = int(p_x / self.minDist)
                         h_bin = int(p_y / self.minDist)
 
-                        a = 
+                        a = None
 
                         points[h_bin][w_bin].append((p_x, p_y, u, v, a))
 

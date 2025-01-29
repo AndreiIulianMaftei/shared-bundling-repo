@@ -2,7 +2,7 @@ import networkx as nx
 import sys
 import numpy as np
 
-from other_code.EPB.abstractBundling import GWIDTH
+from bundle_algs.EPB.abstractBundling import GWIDTH
 
 class Reader:
 

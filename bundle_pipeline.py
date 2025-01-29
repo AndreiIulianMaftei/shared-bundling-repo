@@ -1,10 +1,10 @@
 import os
 import networkx as nx
-from other_code.EPB.epb import EPB_Biconn
-from other_code.EPB.reader import Reader
-from other_code.EPB.abstractBundling import GWIDTH, GraphLoader
-from tulip import tlp
-from other_code.EPB.sepb import SpannerBundlingFG
+from bundle_algs.EPB.epb import EPB_Biconn
+from bundle_algs.EPB.reader import Reader
+from bundle_algs.EPB.abstractBundling import GWIDTH, GraphLoader
+# from tulip import tlp
+from bundle_algs.EPB.sepb import SpannerBundlingFG
 
 output = 'output'
 
@@ -157,3 +157,6 @@ def read_bundling(folder, algorithm):
 
     return G
     
+
+if __name__ == "__main__":
+    compute_bundling("test.graphml", "epb")

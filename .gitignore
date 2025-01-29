@@ -8,3 +8,6 @@ experiment/other_code/FD/node_modules
 *.pdf
 
 output/*
+
+
+__pycache__/

@@ -1,6 +1,6 @@
 
 from concurrent.futures import ThreadPoolExecutor
-from other_code.EPB.abstractBundling import AbstractBundling
+from bundle_algs.EPB.abstractBundling import AbstractBundling
 import networkx as nx
 import numpy as np
 from nx2ipe.nx2ipe import SplineC
