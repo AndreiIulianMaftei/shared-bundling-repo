@@ -44,7 +44,6 @@ class AbstractBundling:
     def __init__(self, G : nx.Graph):
         self.G = G.copy()
         self.name = 'abstract'
-
         for (u, v, data) in G.edges(data=True):
             data['cp'] = []
 

@@ -26,8 +26,12 @@ def main():
             parts = line.strip().split()
             if len(parts) >= 3:
                 node_id = parts[0]
-                x = - float(parts[1])
-                y = float(parts[2])
+                orig_x = float(parts[1])
+                orig_y = float(parts[2])
+
+                # 90 degrees clockwise: (x, y) -> ( y, -x )
+                x = -orig_y
+                y = -orig_x
                 nodes[node_id] = {'x': x, 'y': y}
 
     # Read edges.edge file
@@ -38,8 +42,20 @@ def main():
                 src = parts[0]
                 dest = parts[1]
                 coords = list(map(float, parts[2:]))
-                x_coords = [-x for x in coords[::2]]
-                y_coords = coords[1::2]
+
+                orig_x_coords = coords[::2]  # every other from index 0
+                orig_y_coords = coords[1::2] # every other from index 1
+
+                x_coords = []
+                y_coords = []
+
+                # For each point along the edge, do the same 90° clockwise transform
+                for ox, oy in zip(orig_x_coords, orig_y_coords):
+                    rx = -oy      # new x = old y
+                    ry = -ox     # new y = - old x
+                    x_coords.append(rx)
+                    y_coords.append(ry)
+
                 edges.append({
                     'src': src,
                     'dest': dest,
