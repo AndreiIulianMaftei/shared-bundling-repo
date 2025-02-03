@@ -22,11 +22,7 @@ metrics = [
 
 algorithms = ["fd", "epb", "wr"]
 
-def process_single_metric(folder: str, metric: str, algorithms: list, draw: bool, output_folder: str):
-    """
-    Process a single metric for a dataset folder containing multiple algorithm results,
-    saving all images / plots to `output_folder`.
-    """
+def process_single_metric(folder: str, metric: str, algorithms: list, draw: bool, input_folder: str, output_folder: str):
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
     epb_graph_path = os.path.join(folder, "epb.graphml")
@@ -38,9 +34,9 @@ def process_single_metric(folder: str, metric: str, algorithms: list, draw: bool
     straight = StraightLine(G)
     straight.scaleToWidth(GWIDTH)
     straight.bundle()
-    images_dir = os.path.join(output_folder, "images")
+    images_dir = os.path.join("output", "airlines", "images")
     if draw and not os.path.exists(images_dir):
-        os.makedirs(images_dir)   
+        os.makedirs(images_dir)
     if draw:
         straight.draw(images_dir)
     rez_all = []
@@ -59,15 +55,8 @@ def process_single_metric(folder: str, metric: str, algorithms: list, draw: bool
             print(f"[{alg}] total intersections: {intersections}")
             rez_all.append((intersections, alg))
         elif metric == "distortion":
-            (
-                dist_min,
-                dist_mean,
-                dist_std,
-                dist_var,
-                dist_median,
-                distortions,
-            ) = experiment.calcDistortion()
-            rez_all.append((distortions, alg))
+            dist = experiment.calcDistortion()[5]
+            rez_all.append((dist, alg))
         elif metric == "monotonicity":
             mono_vals = experiment.calcMonotonicity(alg)
             rez_all.append((mono_vals, alg))
@@ -93,28 +82,43 @@ def process_single_metric(folder: str, metric: str, algorithms: list, draw: bool
             rez_all.append((monotonicities, f"monotonicity-{alg}"))
     if len(rez_all) == 0:
         return
+    ink_ratios = []
     plotter = PlotTest(output_folder=output_folder)
-    if metric == "monotonicity_projection":
+    if(metric == "monotonicity_projection"):
+        print(rez_all.__len__())
         plotter.plotProjectedMonotonicity(rez_all)
-    elif metric == "monotonicity":
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["monotonicity_projection_fd.png", "monotonicity_projection_epb.png", "monotonicity_projection_wr.png"], ink_ratios, input_folder, output_folder )
+    if(metric == "monotonicity"):
+        print(rez_all.__len__())
         plotter.plotMonotonicity(rez_all)
-    elif metric == "distortion":
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["monotonicity_fd.png", "monotonicity_epb.png", "monotonicity_wr.png"], ink_ratios,  input_folder, output_folder)
+
+    if(metric == "distortion"):
+        print(rez_all.__len__())
         plotter.plotDistortionHistogram(rez_all)
-    elif metric == "frechet":
-        plotter.plotFrechet(rez_all)
-    elif metric == "angle":
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["distortion_fd.png", "distortion_epb.png", "distortion_wr.png"], ink_ratios, input_folder,  output_folder)
+
+    if(metric == "frechet"):
+        print(rez_all.__len__())
+        plotter.plotFrechet(rez_all)   
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["frechet_fd.png", "frechet_epb.png", "frechet_wr.png"], ink_ratios,  input_folder, output_folder)
+ 
+    if(metric == "all"):
+        print(rez_all.__len__())
+        experiment.plotAll(["fd", "epb", "wr"], ["distortion", "monotonicity", "frechet"])  
+
+    if(metric == "angle"):
+        print(rez_all.__len__())
         plotter.plotAngles(rez_all)
-    elif metric == "self_intersect":
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["angle_fd.png", "angle_epb.png", "angle_wr.png"], ink_ratios, input_folder,  output_folder)
+
+    if(metric == "self_intersect"):
+        print(rez_all.__len__())
         plotter.plotSelfIntersect(rez_all)
-    elif metric == "all":
-        pass
+        experiment.plotMegaGraph(["fd", "epb", "wr"], metric, ["self_intersect_fd.png", "self_intersect_epb.png", "self_intersect_wr.png"], ink_ratios, input_folder,  output_folder)
+        
 
 def run_all_experiments(input_folder="testingDatabases", output_folder="results"):
-    """
-    Look in `testingDatabases/` for subfolders (each subfolder = a dataset).
-    For each subfolder with 'epb.graphml', run all metrics in `metrics`,
-    then save the results in `results/<dataset_name>/`.
-    """
     if not os.path.exists(output_folder):
         os.makedirs(output_folder)
     for dataset_name in os.listdir(input_folder):
@@ -127,6 +131,7 @@ def run_all_experiments(input_folder="testingDatabases", output_folder="results"
             continue
         print(f"=== Found dataset: {dataset_name} ===")
         dataset_output_folder = os.path.join(output_folder, dataset_name)
+        dataset_input_folder = os.path.join(input_folder, dataset_name)
         if not os.path.exists(dataset_output_folder):
             os.makedirs(dataset_output_folder)
         for metric in metrics:
@@ -136,9 +141,48 @@ def run_all_experiments(input_folder="testingDatabases", output_folder="results"
                 metric=metric,
                 algorithms=algorithms,
                 draw=True,
+                input_folder = dataset_input_folder, 
                 output_folder=dataset_output_folder
             )
         print(f"=== Finished dataset: {dataset_name} ===\n")
+        
+        # Add megaplot functionality
+        G_dummy = nx.Graph()
+        straight_dummy = StraightLine(G_dummy)
+        experiment = Experiment(straight_dummy, straight_dummy)
+        
+        graph_images = []
+        image_output_folder = "output"
+        images_base_path = os.path.join(image_output_folder, "airlines", "images")
+        for alg in algorithms:
+            image_path = os.path.join(images_base_path, f"{alg}.png")
+            if os.path.exists(image_path):
+                graph_images.append(image_path)
+            else:
+                print(f"[Warning] Missing graph image: {image_path}")
+
+        histogram_images = []
+        for alg in algorithms:
+            images_base_path = os.path.join(output_folder, "airlines", "images")
+            for alg in algorithms:
+                hist_path = os.path.join(images_base_path, "violin_plot_distortion.png")
+                if os.path.exists(hist_path):
+                    histogram_images.append(hist_path)
+                else:
+                    print(f"[Warning] Missing histogram image: {hist_path}")
+
+            if graph_images and histogram_images:
+                experiment.plotMegaGraph(
+                    algorithms,
+                    "output_comparison",
+                    histogram_images,
+                    [],
+                    dataset_input_folder,
+                    dataset_output_folder
+                )
+                print(f"[INFO] Megaplot created for {dataset_name}.")
+            else:
+                print(f"[Warning] Skipping megaplot due to missing images.")
 
 if __name__ == "__main__":
     run_all_experiments(

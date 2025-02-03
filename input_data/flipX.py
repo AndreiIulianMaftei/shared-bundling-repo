@@ -24,7 +24,7 @@ def invert_coordinates(input_file, output_file):
                         inverted_x = -float(value)
                         data.text = str(inverted_x)
                     elif key == 'y':
-                        inverted_y = float(value)
+                        inverted_y = -float(value)
                         data.text = str(inverted_y)
                 except ValueError:
                     print(f"Warning: Invalid coordinate '{value}' for key '{key}' in node '{node.get('id')}'. Skipping.")

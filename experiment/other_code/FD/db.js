@@ -484,9 +484,10 @@ function someFunction() {
 
         for (var i = 0; i < raw_nodes.length; i++) {
             var key = raw_nodes[i].getAttribute('id');
-            var x = Math.abs(parseFloat(raw_nodes[i].childNodes[1].firstChild.nodeValue));
-            var name = raw_nodes[i].childNodes[3].firstChild.nodeValue;
-            var y = Math.abs(parseFloat(raw_nodes[i].childNodes[5].firstChild.nodeValue));
+            //modified hee
+            var x = Math.abs(parseFloat(raw_nodes[i].childNodes[1]?.firstChild?.nodeValue || 0));
+            var name = raw_nodes[i].childNodes[3]?.firstChild?.nodeValue || '';
+            var y = Math.abs(parseFloat(raw_nodes[i].childNodes[5]?.firstChild?.nodeValue || 0));
 
             nnodes[key] = {
                 'x': x,

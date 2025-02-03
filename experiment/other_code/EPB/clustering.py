@@ -377,7 +377,7 @@ class Clustering:
                 y = np.linspace(y1, y2, EDGE_REZ)
                 for j in range(0, EDGE_REZ):
                     if(checkMatrix[int(x[j])][int(y[j])] == 0):
-                        matrix[int(x[j])][int(y[j])] += 1
+                        matrix[int(x[j])][int(y[j])] += 10
                     checkMatrix[int(x[j])][int(y[j])] = 1
 
 

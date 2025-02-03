@@ -54,13 +54,13 @@ def process_single_metric(file, metric, algorithms, draw):
         clustering = Clustering(bundling, straight)
 
         
-        all_edges= experiment.all_edges()
+       #all_edges= experiment.all_edges()
 
-        all_edges2 = clustering.all_edges()
-        mat = clustering.init_matrix(all_edges2)
-        mat = clustering.calcMatrix(mat)
-        vertices = clustering.init_Points()
-        clustering.draw_heatMaps(mat, vertices)
+        #all_edges2 = clustering.all_edges()
+        #mat = clustering.init_matrix(all_edges2)
+        #mat = clustering.calcMatrix(mat)
+        #vertices = clustering.init_Points()
+        #clustering.draw_heatMaps(mat, vertices)
         
 
         #clusters = clustering.get_clusters(all_edges2, mat, vertices)

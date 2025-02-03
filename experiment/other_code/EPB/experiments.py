@@ -582,7 +582,7 @@ class Experiment:
         return all_intersections, number_of_intersections
 
 
-    def plotMegaGraph(self, algorithms, metric, histogram_image_paths, ink_ratios, output_folder):
+    def plotMegaGraph(self, algorithms, metric, histogram_image_paths, ink_ratios, input_folder, output_folder):
         """
         Creates a PDF comparing multiple algorithm outputs. 
         Embeds images (like fd.png, epb.png) and histogram images (distortion_fd.png, etc.) 
@@ -618,7 +618,7 @@ class Experiment:
         # Build the full path to the PDF in output_folder
         pdf_filename = f"output_comparison_{metric}.pdf"
         pdf_path = os.path.join(output_folder, pdf_filename)
-
+        image_path = input_folder 
         with PdfPages(pdf_path) as pdf:
             fig = plt.figure(figsize=(12, 12))
 
@@ -626,7 +626,7 @@ class Experiment:
             for i, graph_path in enumerate(algorithms):
                 ax = plt.subplot2grid((3, 3), (0, i))
                 # Each algorithm's .png is assumed to be in <output_folder>/images/
-                algo_image_path = os.path.join(output_folder, "images", f"{graph_path}.png")
+                algo_image_path = os.path.join(image_path, f"{graph_path}.png")
 
                 # If you have an ink_ratio for each algorithm:
                 subtitle = f"Ink Ratio: {ink_ratios[i]}" if i < len(ink_ratios) else None
@@ -636,13 +636,13 @@ class Experiment:
             for i, hist_path in enumerate(histogram_image_paths):
                 ax = plt.subplot2grid((3, 3), (1, i))
                 # If your histogram images are also in <output_folder>/images, adjust:
-                hist_path_full = os.path.join(output_folder, "images", hist_path)
+                hist_path_full = os.path.join(output_folder, f"{algorithms[i]}", hist_path)
                 embed_image(ax, hist_path_full, f"{metric} Histogram {i+1}")
 
             # 3) Embed a violin plot or any other summary plot on the third row
             # By default, your code tries to load:
             violin_plot_path = f"violin_plot_{metric}.png"
-            violin_full_path = os.path.join(output_folder, "images", violin_plot_path)
+            violin_full_path = os.path.join(output_folder, violin_plot_path)
 
             ax = plt.subplot2grid((3, 3), (2, 0), colspan=3)
             embed_image(ax, violin_full_path, f"{metric} Violin Plot")

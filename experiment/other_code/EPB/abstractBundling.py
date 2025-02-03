@@ -151,6 +151,7 @@ class AbstractBundling:
         Calculate the edge angle and color edges accordingly.
         '''
         for source, target, data in self.G.edges(data=True):
+            
             x0 = self.G.nodes[source]['X']
             y0 = self.G.nodes[source]['Y']
             x1 = self.G.nodes[target]['X']
@@ -236,12 +237,13 @@ class AbstractBundling:
                 ax.plot(X, Y, color='red', alpha=ALPHA, lw = LINEWIDTH)
 
         for source, target, data in self.G.edges(data = True):
+            
+
             if 'Xapprox' in data and 'Yapprox' in data:
                 X = data['Xapprox']
                 Y = data['Yapprox']
             elif 'Spline' in data:
                 points = [(self.G.nodes[source]['X'], self.G.nodes[source]['Y'])] + data['Spline'].points + [(self.G.nodes[target]['X'], self.G.nodes[target]['Y'])]
-
                 X, Y = self.approxBezier(points, 50)
             else:
                 X = [self.G.nodes[source]['X'], self.G.nodes[target]['X']]
@@ -258,6 +260,7 @@ class AbstractBundling:
         Y = []
         C = []
         for id, data in self.G.nodes().data():
+            
             X.append(data['X'])
             Y.append(data['Y'])
             
@@ -382,8 +385,11 @@ class GraphLoader(AbstractBundling):
         ymax = -sys.maxsize - 1
 
         for u, data in G.nodes(data=True):
-            data['X'] = float(data['X'])
-            data['Y'] = float(data['Y'])
+            if 'X' in data and 'Y' in data:
+                data['X'] = float(data['X'])
+                data['Y'] = float(data['Y'])
+            else:
+                continue
 
             xmin = min(xmin, data['X'])
             xmax = max(xmax, data['X'])
@@ -401,6 +407,7 @@ class GraphLoader(AbstractBundling):
         G.graph['ymax'] = height
 
         for node, data in G.nodes().data():
+            
             G.nodes()[node]['X'] = (data['X'] - xmin) * factor
             data['Y'] = (data['Y'] - ymin) * factor
 
@@ -408,6 +415,7 @@ class GraphLoader(AbstractBundling):
             if invertY: data['Y'] = height - data['Y']
 
         for u,v,data in G.edges(data=True):
+            
 
             if "Spline_X" in data:
                 X = [(float(x) - xmin) * factor for x in data['Spline_X'].split(" ")]
@@ -423,7 +431,6 @@ class GraphLoader(AbstractBundling):
                 data["Yapprox"] = Y
                 data['X'] = data['Xapprox']
                 data['Y'] = data['Yapprox']
-
             else:
                 data['X'] = []
                 data['Y'] = []
@@ -431,6 +438,7 @@ class GraphLoader(AbstractBundling):
 
             x1 = G.nodes[u]['X']
             y1 = G.nodes[u]['Y']
+
             x2 = G.nodes[v]['X']
             y2 = G.nodes[v]['Y']
 

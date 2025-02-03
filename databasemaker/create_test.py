@@ -57,7 +57,7 @@ def main():
                 country = airport_data['Country'].strip().strip('"')
                 
                 # Filter: Only include airports in the specified country
-                if country != 'Japan':
+                if country != 'United States':
                     continue
 
                 if not airport_id or not longitude or not latitude or not iata or iata == '\\N':
