@@ -70,7 +70,7 @@ class Experiment:
 
         greyscalepixel = (imGray < GREY_THRESH).sum()
         inkratio = greyscalepixel / inkratioG
-
+        print(f'Ink Ratio: {inkratio}')
         return inkratio
     def calcMonotonicity(self, algorithm):
 

@@ -8,6 +8,9 @@ from other_code.EPB.clustering import Clustering
 from other_code.EPB.plot import Plot
 from other_code.EPB.plotTest import PlotTest
 
+"""
+
+"""
 metrics = [
     "angle",
     "drawing",
@@ -18,6 +21,7 @@ metrics = [
     "all",
     "intersect_all",
     "self_intersect",
+    "ink"
 ]
 
 algorithms = ["fd", "epb", "wr"]
@@ -50,10 +54,14 @@ def process_single_metric(folder: str, metric: str, algorithms: list, draw: bool
         if draw:
             bundling.draw(images_dir)
         experiment = Experiment(bundling, straight)
+
         if metric == "intersect_all":
             intersections = experiment.all_intersection(all_edges_ref)
             print(f"[{alg}] total intersections: {intersections}")
             rez_all.append((intersections, alg))
+        elif metric == "ink":
+            ink_ratio = experiment.calcInkRatio(images_dir)
+            rez_all.append((ink_ratio, alg))
         elif metric == "distortion":
             dist = experiment.calcDistortion()[5]
             rez_all.append((dist, alg))
@@ -136,14 +144,15 @@ def run_all_experiments(input_folder="testingDatabases", output_folder="results"
             os.makedirs(dataset_output_folder)
         for metric in metrics:
             print(f"  -> Running metric={metric} for dataset={dataset_name}")
-            process_single_metric(
-                folder=dataset_path,
-                metric=metric,
-                algorithms=algorithms,
-                draw=True,
-                input_folder = dataset_input_folder, 
-                output_folder=dataset_output_folder
-            )
+            if(dataset_name == "Oceania"):
+                process_single_metric(
+                    folder=dataset_path,
+                    metric=metric,
+                    algorithms=algorithms,
+                    draw=True,
+                    input_folder = dataset_input_folder, 
+                    output_folder=dataset_output_folder
+                )
         print(f"=== Finished dataset: {dataset_name} ===\n")
         
         # Add megaplot functionality

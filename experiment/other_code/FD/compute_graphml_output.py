@@ -30,8 +30,9 @@ def main():
                 orig_y = float(parts[2])
 
                 # 90 degrees clockwise: (x, y) -> ( y, -x )
-                x = -orig_y
-                y = -orig_x
+                # 90 degrees counter-clockwise: (x, y) -> ( -y, x )
+                x = orig_x
+                y = -orig_y
                 nodes[node_id] = {'x': x, 'y': y}
 
     # Read edges.edge file
@@ -51,8 +52,8 @@ def main():
 
                 # For each point along the edge, do the same 90° clockwise transform
                 for ox, oy in zip(orig_x_coords, orig_y_coords):
-                    rx = -oy      # new x = old y
-                    ry = -ox     # new y = - old x
+                    rx = ox     # new x = old y
+                    ry = -oy     # new y = - old x
                     x_coords.append(rx)
                     y_coords.append(ry)
 
