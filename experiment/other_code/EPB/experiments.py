@@ -73,101 +73,104 @@ class Experiment:
         print(f'Ink Ratio: {inkratio}')
         return inkratio
     def calcMonotonicity(self, algorithm):
-
-        monotonicitys = []
-        polylines = []
-        x = 0
-       
+        """
+        Computes a 'monotonicity' measure for each edge, normalized by the
+        number of polyline control points. Returns a list of normalized
+        monotonicity values (one per edge).
+        """
+        monotonicities = []
         
-        list_edges = list(self.G.edges(data = True))
+        # Grab all edges once
+        list_edges = list(self.G.edges(data=True))
 
-        for index, (u,v,data) in enumerate(list_edges):
-            
-            
-            if index == 1 and algorithm == "wr":
-                yes = 1
-            Y = []
-            X = []
-            polyline = []
+        for index, (u, v, data) in enumerate(list_edges):
+            # Retrieve the polyline coordinates
             X = [float(num) for num in data.get('X')]
             Y = [float(num) for num in data.get('Y')]
-
+            
             x0 = self.G.nodes[u]['X']
             y0 = self.G.nodes[u]['Y']
-
             x1 = self.G.nodes[v]['X']
             y1 = self.G.nodes[v]['Y']
-            
-            
-            monotonicity = 0
-            previous_sign = None
 
-            for i in range(0, len(X)):
-                polyline.append((X[i], Y[i]))
-            index2 = 0
-            A = Experiment.Point(x0,y0)
-            B = Experiment.Point(polyline[1][0],polyline[1][1])
-            C = Experiment.Point(x1,y1)
-            orientation = Experiment.orientation(A, B, C)
-            for point in polyline:
-                
-                    
-                point1x = point[0]
-                point1y = point[1]
-                A = Experiment.Point(x0,y0)
-                B = Experiment.Point(point1x, point1y)
-                C = Experiment.Point(x1, y1)
-                orientation2 = Experiment.orientation(A, B, C)
+            # Build the initial polyline
+            polyline = [(X[i], Y[i]) for i in range(len(X))]
+            
+            # If we have fewer than 2 points, monotonicity is 0
+            if len(polyline) < 2:
+                monotonicities.append(0.0)
+                continue
 
-                projection = Experiment.project_point_onto_line((point1x, point1y), (x0, y0), (x1, y1))
+            # We'll store the 'transformed' polyline as (distAlongBase, signedDistance)
+            # so we can detect changes in direction along X or Y
+            # First, figure out the orientation of the entire line (A->B->C)
+            A = self.Point(x0, y0)
+            B = self.Point(polyline[1][0], polyline[1][1])
+            C = self.Point(x1, y1)
+            main_orientation = Experiment.orientation(A, B, C)
+
+            # Transform each point
+            for i in range(len(polyline)):
+                px, py = polyline[i]
+                # Project the polyline point onto the segment (x0, y0)->(x1, y1)
+                proj = Experiment.project_point_onto_line((px, py), (x0, y0), (x1, y1))
+                dist_from_source = np.linalg.norm(np.array(proj) - np.array((x0, y0)))
                 
-                distance = np.linalg.norm(np.array((point1x, point1y)) - np.array(projection))
+                # If the orientation differs, treat distance as negative
+                # (depending on whether the point is 'above' or 'below' the line)
+                point_orientation = Experiment.orientation(A, self.Point(px, py), C)
+                distance = np.linalg.norm(np.array((px, py)) - proj)
+                
+                # If the point is effectively on the line, set distance to 0
                 if math.isclose(distance, 0, abs_tol=1e-5):
-                    distance = 0
-                if orientation!= orientation2 and distance != 0:
-                    distance = distance * -1
-                distanceFromSource = np.linalg.norm(projection - np.array((x0, y0)))
-                newPoint = (distanceFromSource, distance)
-                polyline[index2] = newPoint
-                index2 += 1
-            #print(index, len(polyline))
+                    distance = 0.0
+                
+                if point_orientation != main_orientation and not math.isclose(distance, 0.0, abs_tol=1e-5):
+                    distance = -distance
+                
+                # Replace the polyline[i] with (dist_from_source, signed_distance)
+                polyline[i] = (dist_from_source, distance)
+
+            # Now count how many times we have a direction change in X or Y
+            monotonicity = 0
             xDirection = None
             yDirection = None
-            index2 = 0
-            for point in polyline:
-                #compute the monocity by checking if the xOrientation or y orientation changes
-                if index2 == 1:
-                    if point[0] >= polyline[index2 - 1][0] and xDirection == None:
-                        xDirection = 1                    
-                    if point[0] < polyline[index2 - 1][0] and xDirection == None:
-                        xDirection = -1
-                    if point[1] >= polyline[index2 - 1][1] and yDirection == None:
-                        yDirection = 1
-                    if point[1] < polyline[index2 - 1][1] and yDirection == None:
-                        yDirection = -1
-                checked = 0 
-                if index2 > 1:
-                    if point[0]> polyline[index2 - 1][0] and xDirection == -1:
-                        checked += 1
-                        xDirection = 1
-                        
-                    if point[0] < polyline[index2 - 1][0] and xDirection == 1:
-                        checked += 1
-                        xDirection = -1
-                        
-                    if point[1] > polyline[index2 - 1][1] and yDirection == -1:
-                        checked += 1
-                        yDirection = 1
 
-                    if point[1] < polyline[index2 - 1][1] and yDirection == 1:
-                        checked += 1
-                        yDirection = -1
-                if checked != 0:
+            for i in range(1, len(polyline)):
+                curr_x, curr_y = polyline[i]
+                prev_x, prev_y = polyline[i - 1]
+
+                # If this is the second point in the polyline, set initial direction
+                if i == 1:
+                    xDirection = 1 if curr_x >= prev_x else -1
+                    yDirection = 1 if curr_y >= prev_y else -1
+                    continue
+
+                # Check for sign changes in X
+                if curr_x > prev_x and xDirection == -1:
                     monotonicity += 1
-                index2 += 1
-            monotonicitys.append(monotonicity)
+                    xDirection = 1
+                elif curr_x < prev_x and xDirection == 1:
+                    monotonicity += 1
+                    xDirection = -1
 
-        return monotonicitys
+                # Check for sign changes in Y
+                if curr_y > prev_y and yDirection == -1:
+                    monotonicity += 1
+                    yDirection = 1
+                elif curr_y < prev_y and yDirection == 1:
+                    monotonicity += 1
+                    yDirection = -1
+
+            # Normalize the monotonicity by the number of control points minus 1
+            # so if we have N polyline points, we have (N - 1) "segments"
+            denom = max(1, len(polyline) - 1)
+            norm_monotonicity = monotonicity / denom
+
+            monotonicities.append(norm_monotonicity)
+
+        return monotonicities
+
     def calcNumberOfSegments(self, algorithm):
         segments = []
         list_edges = list(self.G.edges(data = True))
@@ -180,73 +183,57 @@ class Experiment:
             segments = segments + [len(polyline)]
         return segments
     def calcAngle(self, algorithm):
+        """
+        For each edge, compute the internal angles (at intermediate vertices),
+        then store the AVERAGE angle for that edge.
+        """
         angles = []
-        list_edges = list(self.G.edges(data = True))
-        for index, (u,v,data) in enumerate(list_edges):
-            
 
-            if index == 19:
-                yes = 1
-            Y = []
-            X = []
-            polyline = []
-            X = [num for num in data.get('X')]
-            Y = [num for num in data.get('Y')]
+        # Iterate over each edge
+        for index, (u, v, data) in enumerate(self.G.edges(data=True)):
+            # Read the polyline X,Y from the edge data
+            X = [float(x) for x in data.get('X')]
+            Y = [float(y) for y in data.get('Y')]
 
-            x0 = self.G.nodes[u]['X']
-            y0 = self.G.nodes[u]['Y']
+            # Build the list of (x, y) points
+            polyline = [(X[i], Y[i]) for i in range(len(X))]
 
-            x1 = self.G.nodes[v]['X']
-            y1 = self.G.nodes[v]['Y']
-            
-            
-            monotonicity = 0
-            previous_sign = None
+            sum_angle = 0.0
+            angle_count = 0
 
-            
-            for i in range(0, len(X)):
-                polyline.append((X[i], Y[i]))
-            
-            index = 0
-            for point in polyline:
-                if index > 0 and index < len(polyline) - 1:
-                    A = Experiment.Point(polyline[index - 1][0], polyline[index - 1][1])
-                    B = Experiment.Point(polyline[index][0], polyline[index][1])
-                    C = Experiment.Point(polyline[index + 1][0], polyline[index + 1][1])
-                    
-                    BA = (B.x - A.x, B.y - A.y)
-                    BC = (C.x - B.x, C.y - B.y)
-                    
-                    dot_product = BA[0]*BC[0] + BA[1]*BC[1]
+            # We'll compute angles only at interior points
+            # i.e., between the first and last point in the polyline
+            for i in range(1, len(polyline) - 1):
+                A = polyline[i - 1]
+                B = polyline[i]
+                C = polyline[i + 1]
 
-                    cross = BA[0]*BC[1] - BA[1]*BC[0]
+                # Vector BA and BC
+                BA = (A[0] - B[0], A[1] - B[1])
+                BC = (C[0] - B[0], C[1] - B[1])
 
-                    angle_radians = abs(math.atan2(cross, dot_product))
+                # Dot product and cross product to find angle
+                dot_product = BA[0] * BC[0] + BA[1] * BC[1]
+                cross = BA[0] * BC[1] - BA[1] * BC[0]
 
-                    angle= math.degrees(angle_radians)
-                    if angle > 90:
-                        test = 1
-                    '''                    
-                    mag_BA = math.sqrt(BA[0]**2 + BA[1]**2)
-                    mag_BC = math.sqrt(BC[0]**2 + BC[1]**2)
-                    
-                    if mag_BA == 0 or mag_BC == 0:
-                        angles.append(0)
-                        index += 1
-                        continue           
-                             
-                    cos_theta = dot_product / (mag_BA * mag_BC)
-                    
-                    cos_theta = max(min(cos_theta, 1.0), -1.0)
-                    
-                    theta_radians = math.acos(cos_theta)
-                    
-                    theta_degrees = math.degrees(theta_radians)
-                    '''
-                    angles.append(angle)
-                index += 1
+                # atan2 of (cross, dot) = signed angle in radians
+                angle_radians = abs(np.arctan2(cross, dot_product))
+                angle_degrees = np.degrees(angle_radians)
+
+                sum_angle += angle_degrees
+                angle_count += 1
+
+            # If we have at least one "internal" vertex, compute average
+            if angle_count > 0:
+                avg_angle = sum_angle / angle_count
+                angles.append(180 - avg_angle)
+            else:
+                # If polyline has no interior point (e.g., only 2 points),
+                # we can push 0 or simply skip. Let's push 0:
+                angles.append(0.0)
 
         return angles
+
                 
     
     def calcFrechet(self, algorithm):
@@ -354,7 +341,7 @@ class Experiment:
             
                 
                 
-    def project_point_onto_line(point, line_start, line_end):
+    def project_point_onto_line( point, line_start, line_end):
         
         line_vec = np.array(line_end) - np.array(line_start)
         point_vec = np.array(point) - np.array(line_start)
@@ -414,62 +401,74 @@ class Experiment:
         return frechet
     
     def projection_Monotonicty(self, algorithm):
-        monotonicities = []
+        """
+        For each edge, project every control point onto the line from (u) to (v),
+        then detect direction (sign) changes in that one-dimensional projection.
 
+        We then normalize the final 'monotonicity' count by the number of
+        control points minus one. This avoids bias when polylines differ
+        in length / number of segments.
+        """
+        monotonicities = []
         list_edges = list(self.G.edges(data=True))
 
         for index, (u, v, data) in enumerate(list_edges):
+            # Retrieve the polyline from the edge data
+            X = [float(num) for num in data.get('X')]
+            Y = [float(num) for num in data.get('Y')]
+            polyline = [(X[i], Y[i]) for i in range(len(X))]
 
-            numbers_x = [float(num) for num in data.get('X')]
-            numbers_y = [float(num) for num in data.get('Y')]
-            polyline = [(numbers_x[i], numbers_y[i]) for i in range(len(numbers_x))]
-            projections = []
-            mono = 0
-            orientation = 0
+            # If fewer than 2 points, monotonicity is 0
+            if len(polyline) < 2:
+                monotonicities.append(0.0)
+                continue
+
             x0 = self.G.nodes[u]['X']
             y0 = self.G.nodes[u]['Y']
             x1 = self.G.nodes[v]['X']
             y1 = self.G.nodes[v]['Y']
-            
-            index = 0 
-            for point in polyline:
-                
-                projection = Experiment.project_point_onto_line(point, (x0, y0), (x1, y1))
-                projections.append(projection)
 
-                index += 1
-            index = 0
-            order = 0
-            for point in projections:
-                if index > 0:
-                    A = Experiment.Point(projections[index - 1][0], projections[index - 1][1])
-                    B = Experiment.Point(point[0], point[1])
-                    
-                    if index == 1:
-                        if A.x < B.x:
-                            order = 1
-                        else:
-                            order = -1
-                    else:
-                        if A.x < B.x and order != 1:
-                            mono += 1
-                            order = 1
-                        if A.x > B.x and order != -1:
-                            mono += 1
-                            order = -1
-            
-                index += 1
-            if mono == 5:
-                test = 1
-            monotonicities.append(mono)
+            # Project each control point onto the line segment (x0,y0)->(x1,y1)
+            projections = []
+            for (px, py) in polyline:
+                proj = Experiment.project_point_onto_line((px, py), (x0, y0), (x1, y1))
+                projections.append(proj)
+
+            # Count sign changes along the projected x-coordinates (1D)
+            sign_change_count = 0
+            direction = 0  # +1 or -1 for "increasing" or "decreasing" in X
+
+            for i in range(1, len(projections)):
+                prev_x = projections[i - 1][0]
+                curr_x = projections[i][0]
+
+                if i == 1:
+                    # Establish initial direction
+                    direction = 1 if curr_x >= prev_x else -1
+                else:
+                    # Check if direction flips
+                    if curr_x > prev_x and direction == -1:
+                        sign_change_count += 1
+                        direction = 1
+                    elif curr_x < prev_x and direction == 1:
+                        sign_change_count += 1
+                        direction = -1
+
+            # Normalize by (number of control points - 1)
+            denom = max(1, len(projections) - 1)
+            normalized_mono = sign_change_count / denom
+
+            monotonicities.append(normalized_mono)
+
         return monotonicities
+
 
     def onSegment(p, q, r): 
         if ( (q.x <= max(p.x, r.x)) and (q.x >= min(p.x, r.x)) and 
             (q.y <= max(p.y, r.y)) and (q.y >= min(p.y, r.y))): 
             return True
         return False
-    def orientation(p, q, r): 
+    def orientation( p, q, r): 
         
         
         val = (float(q.y - p.y) * (r.x - q.x)) - (float(q.x - p.x) * (r.y - q.y)) 

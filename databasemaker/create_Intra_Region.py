@@ -130,7 +130,7 @@ def main():
                     continue  # Skip invalid coordinates
 
                 # Scale or transform coordinates if needed
-                x = -longitude * 10
+                x = longitude * 10
                 y = latitude * 10
 
                 # Prepare tooltip

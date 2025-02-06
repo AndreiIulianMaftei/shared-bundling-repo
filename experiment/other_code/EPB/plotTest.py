@@ -61,7 +61,10 @@ class PlotTest:
             min_val = np.min(all_data)
             max_val = np.max(all_data)
             for data in data_list:
-                normalized = (data - min_val) / (max_val - min_val) if (max_val - min_val) != 0 else data
+                if (max_val - min_val) != 0:
+                    normalized = (data - min_val) / (max_val - min_val)
+                else:
+                    normalized = data  # fallback if all_data is constant
                 normalized_data.append(normalized)
         elif method == 'z-score':
             all_data = np.concatenate(data_list)
@@ -71,7 +74,7 @@ class PlotTest:
                 if std_val != 0:
                     normalized = (data - mean_val) / std_val
                 else:
-                    normalized = data
+                    normalized = data  # fallback if std=0
                 normalized_data.append(normalized)
         else:
             raise ValueError("Normalization method must be 'min-max' or 'z-score'")
@@ -98,25 +101,26 @@ class PlotTest:
             quartile1.append(q1)
             medians.append(med)
             quartile3.append(q3)
-            whisker_min, whisker_max = PlotTest.adjacent_values(sorted_data, q1, q3)
-            whiskers_min.append(whisker_min)
-            whiskers_max.append(whisker_max)
+            w_min, w_max = PlotTest.adjacent_values(sorted_data, q1, q3)
+            whiskers_min.append(w_min)
+            whiskers_max.append(w_max)
             means.append(np.mean(data))
 
         return means, quartile1, medians, quartile3, whiskers_min, whiskers_max
 
-    def plot_histograms(self, data_list, labels, means, title_prefix, image_path):
+    def plot_histograms(self, data_list, labels, means, title_prefix, image_path,
+                        x_is_normalized=False):
         """
-        Plot histograms for each dataset.
-        Saves them in subfolders named after each label (algorithm) inside self.output_folder.
+        Plot histograms for each dataset, ensuring the same X- and Y-limits.
 
-        :param data_list: list of arrays
-        :param labels: list of str
-        :param means: list of float
+        :param data_list: list of arrays (one array per algorithm)
+        :param labels: list of str (one label per algorithm)
+        :param means: list of floats (mean value of each dataset)
         :param title_prefix: e.g. 'Distortion'
-        :param image_path: path to an image used for the legend (if you wish)
+        :param image_path: path to an image used for the legend (optional usage)
+        :param x_is_normalized: bool, if True we clamp X from [-0.2, 1.2]
         """
-        # Optional: if you don't want an embedded image in the legend, remove this entire 'HandlerImage' class usage.
+        # Optional: If you don't want an embedded image in the legend, remove HandlerImage usage below.
         class HandlerImage(HandlerBase):
             def __init__(self, image, text, zoom=1):
                 self.image = image
@@ -128,29 +132,52 @@ class PlotTest:
                                xdescent, ydescent, width, height, fontsize, trans):
                 imagebox = OffsetImage(self.image, zoom=self.zoom)
                 x_image = xdescent + width / 2
-                y_image = ydescent + height  
+                y_image = ydescent + height
 
                 imagebox.set_offset((x_image, y_image))
                 imagebox.set_transform(trans)
 
                 text_x = xdescent + width / 2
-                text_y = ydescent + height / 2  
+                text_y = ydescent + height / 2
                 text_artist = plt.Text(
                     text_x, text_y, self.text, ha='center', va='top', fontsize=fontsize
                 )
                 text_artist.set_transform(trans)
                 return [imagebox, text_artist]
 
-        num_bins = 50  # or 100
+        num_bins = 50
 
-        for index, data in enumerate(data_list):
+        # 1) Determine global X-limits (and optionally clamp for normalized metrics).
+        if x_is_normalized:
+            # For normalized metrics, we'll just clamp to [-0.2, 1.2]
+            global_x_min, global_x_max = -0.2, 1.2
+        else:
+            # Freed: base on actual data
+            global_x_min = min(d.min() for d in data_list)
+            global_x_max = max(d.max() for d in data_list)
+
+        # 2) First pass: gather histograms to find global max count (Y-limit).
+        hist_results = []
+        global_max_count = 0
+        for data in data_list:
+            # np.histogram so we can see the counts (without plotting)
+            n, bins = np.histogram(data, bins=num_bins, range=(global_x_min, global_x_max))
+            global_max_count = max(global_max_count, n.max())
+            hist_results.append((n, bins))
+
+        # 3) Second pass: actually create each histogram with consistent axis limits.
+        for index, (n, bins) in enumerate(hist_results):
             label = labels[index]
+            data = data_list[index]
+
             # Create a subfolder for this label
             label_folder = os.path.join(self.output_folder, label)
             os.makedirs(label_folder, exist_ok=True)
 
             plt.figure()
-            n, bins, patches = plt.hist(data, bins=num_bins, alpha=0.5)
+            # Plot with the same bins so x-limits are consistent
+            plt.hist(data, bins=bins, alpha=0.5, color='blue', range=(global_x_min, global_x_max))
+
             median = np.median(data)
 
             # If you want a custom legend with an image:
@@ -159,7 +186,7 @@ class PlotTest:
                 image_proxy = Line2D([], [], linestyle='none')
 
                 legend_handles = [image_proxy]
-                legend_labels = [''] 
+                legend_labels = ['']
                 handler_map = {
                     image_proxy: HandlerImage(
                         image, f'{label} Mean: {means[index]:.4f}', 0.05
@@ -173,13 +200,15 @@ class PlotTest:
                     loc='upper right'
                 )
 
-            # If not Distortion/Angle, we set X-limits from -0.2 to 1.2 (for normalized data)
-            if title_prefix not in ['Distortion', 'Angle']:
-                plt.xlim(-0.2, 1.2)
+            # Set X-limits
+            plt.xlim(global_x_min, global_x_max)
+            if x_is_normalized:
                 plt.xlabel('Normalized Value')
             else:
                 plt.xlabel('Value')
 
+            # Set the Y-limits to a bit more than global_max_count
+            plt.ylim(0, global_max_count * 1.1)
             plt.ylabel('Frequency')
             plt.title(f'{title_prefix} - {label}')
             plt.axvline(x=median, color='r', linestyle='dashed', linewidth=1)
@@ -195,9 +224,9 @@ class PlotTest:
                     quartile3, whiskers_min, whiskers_max, title,
                     is_normalized=True):
         """
-        Plot a single violin plot containing all labels.
-        The single figure is saved at the top level of self.output_folder.
-        If you prefer a separate violin plot per label, you can adapt accordingly.
+        Plot a single violin plot containing all labels,
+        with consistent labeling. The figure is saved at the top-level
+        of self.output_folder.
         """
         fig, ax = plt.subplots(figsize=(9, 4))
         parts = ax.violinplot(
@@ -206,8 +235,8 @@ class PlotTest:
 
         # Style the violin bodies
         for pc in parts['bodies']:
-            pc.set_facecolor('#D43F3A')  
-            pc.set_edgecolor('black')   
+            pc.set_facecolor('#D43F3A')
+            pc.set_edgecolor('black')
             pc.set_alpha(1)
 
         inds = np.arange(1, len(medians) + 1)
@@ -215,19 +244,15 @@ class PlotTest:
         ax.scatter(inds, medians, marker='o', color='white', s=30, zorder=3)
         # Plot quartile ranges
         ax.vlines(inds, quartile1, quartile3, color='k', linestyle='-', lw=5)
-        # You could also add whiskers if you want:
+        # Optionally plot whiskers:
         # ax.vlines(inds, whiskers_min, whiskers_max, color='k', linestyle='-', lw=1)
 
         self.set_axis_style(ax, labels)
-        if is_normalized:
-            ax.set_ylabel('Normalized Value')
-        else:
-            ax.set_ylabel('Value')
+        ax.set_ylabel('Normalized Value' if is_normalized else 'Value')
         ax.set_title(title)
 
         plt.tight_layout()
 
-        # Save the single combined violin in self.output_folder, with a descriptive name
         filename = f"{title.lower().replace(' ', '_')}.png"
         out_path = os.path.join(self.output_folder, filename)
         plt.savefig(out_path, dpi=300)
@@ -243,11 +268,10 @@ class PlotTest:
 
         for rez in results:
             print(f"Processing result: {rez[1]}")
-            # rez[0] is the data array or list, rez[1] is the label (algorithm)
+            # rez[0] is the data array/list, rez[1] is the label
             try:
-                # The code below tries to flatten any sub-lists or arrays into a single NumPy array
+                # Flatten any sub-lists or arrays
                 if isinstance(rez[0], (list, tuple)):
-                    # If it's a list of lists, flatten them
                     data = np.concatenate([np.array(sublist).flatten() for sublist in rez[0]])
                 elif isinstance(rez[0], np.ndarray):
                     data = rez[0].flatten()
@@ -262,30 +286,30 @@ class PlotTest:
 
             except Exception as e:
                 print(f"Error processing {rez[1]}: {e}")
-                continue  
+                continue
 
         if not data_list:
             raise ValueError("No valid data to plot.")
 
-        # If it's not Distortion or Angle, we do min-max normalization
-        # (As you specified in your original code)
-        if metric_name not in ['Distortion', 'Angle']:
+        # If metric_name is not Distortion or Angle, we do min-max normalization by default
+        is_normalized = (metric_name not in ['Distortion', 'Angle'])
+
+        if is_normalized:
             normalized_data = self.normalize_data(data_list, method='min-max')
-            is_normalized = True
         else:
             normalized_data = data_list
-            is_normalized = False
 
-        # Now compute basic stats
         means, quartile1, medians, quartile3, whiskers_min, whiskers_max = self.calculate_statistics(normalized_data)
 
-        # 1) Plot histogram for each label (algorithm) in its own subfolder
-        #    We'll pass a "dummy" image path or a color wheel path if you have it
+        # 1) Plot histograms for each label (algorithm) in its own subfolder
         color_wheel_img_path = "Linear_RGB_color_wheel.png"  # or any existing image
-        self.plot_histograms(normalized_data, labels, means, metric_name, color_wheel_img_path)
+
+        self.plot_histograms(normalized_data, labels, means,
+                             title_prefix=metric_name,
+                             image_path=color_wheel_img_path,
+                             x_is_normalized=is_normalized)
 
         # 2) Plot a single combined violin for all labels at once
-        #    We'll put that in the top-level output folder
         self.plot_violin(
             normalized_data,
             labels,
@@ -304,17 +328,17 @@ if __name__ == "__main__":
     plotter = PlotTest(output_folder="sample_output")
 
     # Suppose we have some fake data:
-    # Format: a list of (data, label), e.g. (np.array(...), "fd"), ...
     results_example = [
         (np.random.normal(0, 1, 1000), 'fd'),
         (np.random.normal(5, 2, 1000), 'epb'),
         (np.random.normal(-2, 1, 1000), 'wr'),
     ]
 
-    # Let's test with a "Distortion" metric (no normalization).
+    # Let's test with a "Distortion" metric (NO normalization).
     plotter.plotDistortionHistogram(results_example)
 
-    # Or "Monotonicity" (which triggers min-max normalization).
+    # Test with "Monotonicity" (which triggers min-max normalization).
     plotter.plotMonotonicity(results_example)
 
-    print("Plots saved in 'sample_output/'. Check subfolders for label-specific histograms, and top-level for violin plots.")
+    print("Plots saved in 'sample_output/'.\n"
+          "Check subfolders for label-specific histograms, and top-level for violin plots.")
