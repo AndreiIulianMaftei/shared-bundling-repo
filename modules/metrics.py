@@ -24,6 +24,8 @@ class Metrics():
         for i, (u,v) in enumerate(self.G.edges()):
             self.G[u][v]['id'] = i
 
+        self.metricvalues = dict()
+
     def compute_metric(self,metric, **args):
         match metric:
             case "distortion":
@@ -33,6 +35,16 @@ class Metrics():
             case _:
                 print("not yet implemented")
                 return 
+            
+    def store_metric(self,metricname,metricvalue):
+        if isinstance(metricvalue,np.ndarray): metricvalue = [float(x) for x in metricvalue]
+        self.metricvalues[metricname] = metricvalue
+
+    def write_to_file(self,path):
+        import json 
+        print(path)
+        with open(path, 'w') as fdata:
+            json.dump(self.metricvalues, fdata,indent=4)
 
     def getDrawing(self):
         """
@@ -141,10 +153,10 @@ class Metrics():
         imgBundle = self.getDrawing()
         imGrayBundle  = np.array(PILImage.fromarray(imgBundle).convert("L"))
 
-        imgStraight = self.getStraightDrawing()
-        imgGrayStraight = np.array(PILImage.fromarray(imgStraight).convert("L"))
+        imStraight = self.getStraightDrawing()
+        imGrayStraight = np.array(PILImage.fromarray(imStraight).convert("L"))
 
-        inkratio = (imGrayBundle < GREY_THRESH).sum() / (imgGrayStraight < GREY_THRESH).sum()
+        inkratio = (imGrayBundle < GREY_THRESH).sum() / (imGrayStraight < GREY_THRESH).sum()
 
         return inkratio
     

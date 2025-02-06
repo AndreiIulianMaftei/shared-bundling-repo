@@ -349,6 +349,22 @@ class RealizedBundling(AbstractBundling):
     def __init__(self, G:nx.Graph):
         self.G = G
 
+    def store_metric(self,metricname, metricvalue):
+        """
+        Stores value of metric in the networkx graph, so that it can be written out 
+        to file later. Scalar "image-wide" metrics are stored in self.G.graph. Otherwise, 
+        they are assumed to be associated with the edges and stored as edge attributes.
+        """
+        
+        #Check if it is a sequence
+        if hasattr(metricvalue, "__len__"):
+            metricvalue = [str(float(x)) for x in metricvalue]
+            for x, (u,v) in zip(metricvalue, self.G.edges()):
+                self.G[u][v][metricname] = x
+        else: #should be a scalar 
+            self.G.graph[metricname] = str(float(metricvalue))
+    
+
 
 class GraphLoader(AbstractBundling):
     def __init__(self, G):

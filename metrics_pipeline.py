@@ -29,10 +29,6 @@ def read_bundling(fname, invertX=False, invertY=False):
 
     return bundling
 
-def correct(G):
-    for v in G.nodes():
-        G.nodes[v]['X'] = G.nodes[v]['x']
-        G.nodes[v]["Y"] = G.nodes[v]["y"]
 
 def process_single_metric(file, metric, algorithms, draw):
 
@@ -44,7 +40,6 @@ def process_single_metric(file, metric, algorithms, draw):
     G = nx.read_graphml(file)
     G = nx.Graph(G)
     #print(G)
-    correct(G)
  
     straight = StraightLine(G)
     straight.scaleToWidth(GWIDTH)
@@ -229,9 +224,10 @@ if __name__ == "__main__":
     M = Metrics(G)
     
     for metric in M.implemented_metrics:
-        print(M.compute_metric(metric, return_mean=False))
+        mvalue = M.compute_metric(metric,return_mean=False)
+        M.store_metric(metric, mvalue)
 
-    print(M.implemented_metrics)
+    M.write_to_file('test.json')
 
     
 

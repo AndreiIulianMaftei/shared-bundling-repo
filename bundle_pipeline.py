@@ -6,9 +6,15 @@ from modules.abstractBundling import GWIDTH, GraphLoader
 # from tulip import tlp
 from modules.EPB.sepb import SpannerBundlingFG
 
+def postProcess(G):
+    for v in G.nodes():
+        G.nodes[v]["X"] = G.nodes[v]['x']
+        G.nodes[v]["Y"] = G.nodes[v]['y']
+
 
 def compute_epb(file, out_path):
     G = Reader.readGraphML(f'{file}', G_width=GWIDTH, invertY=False, directed=False)
+    postProcess(G)
     bundling = EPB_Biconn(G)
     bundling.bundle()
     bundling.store(out_path)
@@ -16,6 +22,7 @@ def compute_epb(file, out_path):
 
 def compute_sepb(file, out_path):
     G = Reader.readGraphML(f'{file}', G_width=GWIDTH, invertY=False, directed=False)
+    postProcess(G)
     bundling = SpannerBundlingFG(G)
     bundling.bundle()
     bundling.store(out_path)
@@ -25,7 +32,7 @@ def compute_fd(file, out_path):
     G = Reader.readGraphML(f'{file}', G_width=GWIDTH, invertY=False, directed=False)
     import os
     
-    os.system(f"node bundle_algs/FD/bundleFD.js {file}")
+    os.system(f"node modules/FD/bundleFD.js {file}")
     
     with open('outputs/edges.edge', 'r') as fdata:
         edgedata = fdata.read()
@@ -37,6 +44,8 @@ def compute_fd(file, out_path):
         u,v = (line[0], line[1])
         G[u][v]["Spline_X"] = " ".join([str(x) for x in line[2::2]])
         G[u][v]["Spline_Y"] = " ".join([str(y) for y in line[3::2]])
+
+    postProcess(G)
     
     nx.write_graphml(G,out_path)
     
