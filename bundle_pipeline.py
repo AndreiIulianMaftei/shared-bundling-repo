@@ -1,15 +1,20 @@
 import os
 import networkx as nx
-from other_code.EPB.epb import EPB_Biconn
-from other_code.EPB.reader import Reader
-from other_code.EPB.abstractBundling import GWIDTH, GraphLoader
-from tulip import tlp
-from other_code.EPB.sepb import SpannerBundlingFG
+from modules.EPB.epb import EPB_Biconn
+from modules.EPB.reader import Reader
+from modules.abstractBundling import GWIDTH, GraphLoader
+# from tulip import tlp
+from modules.EPB.sepb import SpannerBundlingFG
 
-output = 'output'
+def postProcess(G):
+    for v in G.nodes():
+        G.nodes[v]["X"] = G.nodes[v]['x']
+        G.nodes[v]["Y"] = G.nodes[v]['y']
+
 
 def compute_epb(file, out_path):
     G = Reader.readGraphML(f'{file}', G_width=GWIDTH, invertY=False, directed=False)
+    postProcess(G)
     bundling = EPB_Biconn(G)
     bundling.bundle()
     bundling.store(out_path)
@@ -17,6 +22,7 @@ def compute_epb(file, out_path):
 
 def compute_sepb(file, out_path):
     G = Reader.readGraphML(f'{file}', G_width=GWIDTH, invertY=False, directed=False)
+    postProcess(G)
     bundling = SpannerBundlingFG(G)
     bundling.bundle()
     bundling.store(out_path)
@@ -24,16 +30,37 @@ def compute_sepb(file, out_path):
 
 def compute_fd(file, out_path):
     G = Reader.readGraphML(f'{file}', G_width=GWIDTH, invertY=False, directed=False)
-    #tell python to run my app.js file here 
-    #and my convert from xml to graphml file
+    import os
     
+    os.system(f"node modules/FD/bundleFD.js {file}")
+    
+    with open('outputs/edges.edge', 'r') as fdata:
+        edgedata = fdata.read()
+    os.remove("outputs/edges.edge")
 
+    polylines = [edge.split(" ") for edge in edgedata.split("\n")]
+
+    for line in polylines: 
+        u,v = (line[0], line[1])
+        G[u][v]["Spline_X"] = " ".join([str(x) for x in line[2::2]])
+        G[u][v]["Spline_Y"] = " ".join([str(y) for y in line[3::2]])
+
+    postProcess(G)
+    
+    nx.write_graphml(G,out_path)
+    
     return
 
 def compute_cubu(file, out_path):
     return
 
 def compute_wr(file, out_path):
+    try: 
+        import tulip as tlp
+    except: 
+        print("You do not have python tulip bindings installed.........\n As far as I know, cannot be installed via pip (Jacob)")
+        return 
+    
     G = tlp.loadGraph(f'{file}')
     G_out = nx.Graph()
 
@@ -78,27 +105,25 @@ def compute_wr(file, out_path):
 
     return
 
-def compute_bundling(file, algorithm):
+def compute_bundling(file, algorithm,outfile):
 
     name = file.split('/')[-1]
     name = name.replace('.graphml','')
 
-    out_path = f'{output}/{name}/'
-
-    if not os.path.exists(out_path):
-        os.makedirs(out_path)
+    # if not os.path.exists(out_path):
+    #     os.makedirs(out_path)
 
     match algorithm:
         case 'epb':
-            compute_epb(file, out_path + "epb.graphml")
+            compute_epb(file, outfile)
         case 'sepb':
-            compute_sepb(file, out_path + "sepb.graphml")
+            compute_sepb(file, outfile)
         case 'fd':
-            compute_fd(file, out_path + "fd.graphml")
+            compute_fd(file, outfile)
         case 'cubu':
-            compute_cubu(file, out_path)
+            compute_cubu(file, outfile)
         case 'wr':
-            compute_wr(file, out_path + "wr.graphml")
+            compute_wr(file, outfile)
 
 
 def read_epb(folder):
@@ -157,3 +182,23 @@ def read_bundling(folder, algorithm):
 
     return G
     
+def bundle_all(dir):
+    import os 
+
+    if not os.path.isdir("outputs"): os.mkdir("outputs")
+
+    for gname in os.listdir(dir):
+        
+        for alg in ['epb', 'sepb', 'fd']:
+            compute_bundling(f"{dir}{gname}", alg, f"outputs/{alg}_{gname}")    
+
+if __name__ == "__main__":
+    # compute_bundling("test.graphml", "epb")
+    import os 
+
+    if not os.path.isdir("outputs"): os.mkdir("outputs")
+
+    for gname in os.listdir("inputs"):
+        
+        for alg in ['epb', 'sepb', 'fd']:
+            compute_bundling(f"inputs/{gname}", alg, f"outputs/{alg}_{gname}")

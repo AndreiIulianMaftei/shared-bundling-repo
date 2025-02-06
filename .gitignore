@@ -2,9 +2,16 @@
 *.o
 *.so
 experiment/other_code/FD/node_modules
+package-lock.json
+package.json
+node_modules/
 
-.vscode
-.png
-.pdf
+*.vscode
+*.png
+*.pdf
+*.graphml
 
 output/*
+
+
+__pycache__/
