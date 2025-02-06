@@ -1,33 +1,55 @@
 import argparse
 import glob
 import os.path
-from bundle_pipeline import read_bundling
-from other_code.EPB.abstractBundling import GWIDTH
-from other_code.EPB.experiments import Experiment
-from other_code.EPB.straight import StraightLine
-from other_code.EPB.clustering import Clustering
-from other_code.EPB.plot import Plot
-from other_code.EPB.plotTest import PlotTest
+from modules.abstractBundling import GWIDTH, GraphLoader, RealizedBundling
+from modules.EPB.experiments import Experiment
+from modules.EPB.straight import StraightLine
+from modules.EPB.clustering import Clustering
+from modules.EPB.plot import Plot
+from modules.EPB.plotTest import PlotTest
 import networkx as nx
 import numpy as np
 
 metrics = ["angle", "drawing", "distortion", "ink", "frechet", "monotonicity", "monotonicity_projection", "all", "intersect_all", "self_intersect"]
 #algorithms = ["epb", "sepb", "fd", "cubu", "wr", "straight"]
-algorithms = ["fd", "epb", "wr"]
+algorithms = ["fd", "epb", "fd"]
 
+def read_bundling(fname, invertX=False, invertY=False):
+    
+    G = GraphLoader.readData_graphml(
+        self=None, 
+        path=os.path.dirname(fname),
+        file=os.path.basename(fname).replace(".graphml", ""),
+        invertX=invertX,
+        invertY=invertY,
+        reverse=None
+    )
 
+    bundling = RealizedBundling(G)
+
+    return bundling
+
+def correct(G):
+    for v in G.nodes():
+        G.nodes[v]['X'] = G.nodes[v]['x']
+        G.nodes[v]["Y"] = G.nodes[v]["y"]
 
 def process_single_metric(file, metric, algorithms, draw):
 
     ## TODO this needs to be changed to not rely on epb. Maybe also have the original input in the output?
     #test if the file is accesible
 
-    G = nx.read_graphml(file + "/epb.graphml")
+    gname = file.split("/")[-1].replace(".graphml", '')
+
+    G = nx.read_graphml(file)
     G = nx.Graph(G)
     #print(G)
+    correct(G)
  
     straight = StraightLine(G)
     straight.scaleToWidth(GWIDTH)
+
+    #formats the straightline drawing
     straight.bundle()
  
     
@@ -35,49 +57,28 @@ def process_single_metric(file, metric, algorithms, draw):
     ink_ratios = []
 
     if draw:
-        if not os.path.exists(f"{file}/images"):
-            os.makedirs(f"{file}/images")
+        if not os.path.exists(f"drawings/"):
+            os.makedirs(f"drawings/")
 
-        straight.draw(f"{file}/images/")
+        straight.draw(f"drawings/straight")
 
     all_edges = []
     for algorithm in algorithms:
 
-        bundling = read_bundling(file, algorithm)
+        bundling = read_bundling(file)
 
         if draw:
-           bundling.draw(f"{file}/images/")
+           bundling.draw(f"drawings/{algorithm}_{gname}")
 
-        G = nx.Graph()
-        bundling.draw(f"{file}/images/")
         experiment = Experiment(bundling, straight)
-        clustering = Clustering(bundling, straight)
 
-        
-       #all_edges= experiment.all_edges()
-
-        #all_edges2 = clustering.all_edges()
-        #mat = clustering.init_matrix(all_edges2)
-        #mat = clustering.calcMatrix(mat)
-        #vertices = clustering.init_Points()
-        #clustering.draw_heatMaps(mat, vertices)
-        
-
-        #clusters = clustering.get_clusters(all_edges2, mat, vertices)
-
-        #overall_clusters = clustering.get_clusters(all_edges2, mat, vertices)
-
-        #print(overall_clusters.__len__())
-
-        #clustering.draw_clusters(overall_clusters)
-
-        #print(all_edges2)
         if(metric == "intersect_all"):
             print(experiment.all_intersection(all_edges))
 
+        #Gets path to straight line and bundled drawing
         int_aux = experiment.calcInkRatio('/home/andrei/c++/shared-bundling-repo/output/airlines/images/')
-        ink_ratios.append((int_aux, algorithm))
-        print(experiment.calcNumberOfSegments(algorithm))
+        # ink_ratios.append((int_aux, algorithm))
+        # print(experiment.calcNumberOfSegments(algorithm))
         match metric:
             case "distortion":
                 
@@ -206,5 +207,34 @@ def main():
         print("Error: no file or metric given in arguments")
 
 
+def all_metrics(dir):
+    for graph in os.listdir(dir):
+        # metrics = ["angle", "drawing", "distortion", "ink", "frechet", "monotonicity", "monotonicity_projection", "all", "intersect_all", "self_intersect"]
+        metrics = ['all']
+        algs = ['epb', 'sepb', 'fd']
+        for metric in metrics:
+            print(metric)
+            try: 
+                process_single_metric(f"{dir}{graph}", metric, algs, 1)
+            except: print(f"Couldnt do {metric} metric")
+
+
 if __name__ == "__main__":
-    main()
+    from modules.metrics import Metrics
+    import pylab as plt
+
+    G = read_bundling("outputs/epb_g0.graphml")
+    print(type(G))
+
+    M = Metrics(G)
+    print(M.calcDistortion())
+    # fig, ax = M.drawStraight()
+
+    # fig.savefig('test.png')
+
+    print(M.calcInkRatio())
+
+    
+
+    
+
