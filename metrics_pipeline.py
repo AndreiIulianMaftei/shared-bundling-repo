@@ -227,12 +227,11 @@ if __name__ == "__main__":
     print(type(G))
 
     M = Metrics(G)
-    print(M.calcDistortion())
-    # fig, ax = M.drawStraight()
+    
+    for metric in M.implemented_metrics:
+        print(M.compute_metric(metric, return_mean=False))
 
-    # fig.savefig('test.png')
-
-    print(M.calcInkRatio())
+    print(M.implemented_metrics)
 
     
 

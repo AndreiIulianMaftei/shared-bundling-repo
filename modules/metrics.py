@@ -5,6 +5,7 @@ from modules.abstractBundling import RealizedBundling
 from modules.EPB.straight import StraightLine
 
 class Metrics():
+    implemented_metrics = ["distortion", "inkratio"]
     def __init__(self,bundle:RealizedBundling):
         """
         G should be a RealizedBundling instance. 
@@ -23,20 +24,36 @@ class Metrics():
         for i, (u,v) in enumerate(self.G.edges()):
             self.G[u][v]['id'] = i
 
+    def compute_metric(self,metric, **args):
+        match metric:
+            case "distortion":
+                return self.calcDistortion(**args)
+            case "inkratio":
+                return self.calcInkRatio(**args)
+            case _:
+                print("not yet implemented")
+                return 
+
     def getDrawing(self):
         """
-        
+        Get drawing for computing metrics. Not intended for visualization, instead use the draw methods from AbstractBundling.
         """
         if self.bundleDrawing is None: 
             self.bundleDrawing = self._metricDraw()
         return self.bundleDrawing
     
     def getStraightDrawing(self):
+        """
+        Get drawing for computing metrics. Not intended for visualization, instead use the draw methods from AbstractBundling.
+        """        
         if self.straightDrawing is None:
             self.straightDrawing = self._metricDraw(straightline=True)    
         return self.straightDrawing
     
     def getStraightLineGraph(self):
+        """
+        Get drawing for computing metrics. Not intended for visualization, instead use the draw methods from AbstractBundling.
+        """        
         if self.straightGraph is None:
             self.straightGraph = self._genStraightGraph()
         return self.straightGraph 
@@ -46,7 +63,7 @@ class Metrics():
         SL.bundle()
         return SL.G
 
-    def _metricDraw(self,straightline=False, DPI=192,CIRCLE=10.0,LINEWIDTH=0.5,return_fig=True):
+    def _metricDraw(self,straightline=False, DPI=192,CIRCLE=10.0,LINEWIDTH=0.5,return_fig=False):
         '''
         Draw the bundling. Either using the assign color function or the coloring given by the bundling. if plotIpe is true, it will create an IPE drawing as well.
         '''
@@ -114,21 +131,17 @@ class Metrics():
         else: return distortions
 
 
-    def calcInkRatio(self):
+    def calcInkRatio(self,return_mean=True):
         '''
         Calculate the ink ratio.
         '''
         from PIL import Image as PILImage
         GREY_THRESH = 255            
 
-        fig, ax = self.getDrawing()
-        buffer, (width, height) = fig.canvas.print_to_buffer()
-        imgBundle = np.frombuffer(buffer,dtype=np.uint8).reshape((height,width,4))
+        imgBundle = self.getDrawing()
         imGrayBundle  = np.array(PILImage.fromarray(imgBundle).convert("L"))
 
-        figst, axst = self.getStraightDrawing()
-        buffer, (width, height) = figst.canvas.print_to_buffer()
-        imgStraight = np.frombuffer(buffer,dtype=np.uint8).reshape((height,width,4))
+        imgStraight = self.getStraightDrawing()
         imgGrayStraight = np.array(PILImage.fromarray(imgStraight).convert("L"))
 
         inkratio = (imGrayBundle < GREY_THRESH).sum() / (imgGrayStraight < GREY_THRESH).sum()
