@@ -189,16 +189,9 @@ def bundle_all(dir):
 
     for gname in os.listdir(dir):
         
-        for alg in ['epb', 'sepb', 'fd']:
+        for alg in ['epb', 'sepb', 'fd', 'wr']:
             compute_bundling(f"{dir}{gname}", alg, f"outputs/{alg}_{gname}")    
 
 if __name__ == "__main__":
     # compute_bundling("test.graphml", "epb")
-    import os 
-
-    if not os.path.isdir("outputs"): os.mkdir("outputs")
-
-    for gname in os.listdir("inputs"):
-        
-        for alg in ['epb', 'sepb', 'fd']:
-            compute_bundling(f"inputs/{gname}", alg, f"outputs/{alg}_{gname}")
+    bundle_all("inputs")
