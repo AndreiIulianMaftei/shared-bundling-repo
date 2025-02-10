@@ -9,6 +9,7 @@ from modules.EPB.plot import Plot
 from modules.EPB.plotTest import PlotTest
 import networkx as nx
 import numpy as np
+import json
 
 metrics = ["angle", "drawing", "distortion", "ink", "frechet", "monotonicity", "monotonicity_projection", "all", "intersect_all", "self_intersect"]
 #algorithms = ["epb", "sepb", "fd", "cubu", "wr", "straight"]
@@ -213,12 +214,33 @@ def all_metrics(dir):
                 process_single_metric(f"{dir}{graph}", metric, algs, 1)
             except: print(f"Couldnt do {metric} metric")
 
+def write_json(G, M, path, algorithm):
+    G = G.G
+
+    for u,v,data in G.edges(data=True):
+        del data['Spline_X']
+        del data['Spline_Y']
+        del data['Xapprox']
+        del data['Yapprox']
+
+    for metric in ['distortion']:
+        counter = 0
+        for u,v,data in G.edges(data=True):
+            data[metric] = M.metricvalues[metric][counter]
+            counter += 1
+
+        G.graph[metric] = np.mean(M.metricvalues[metric])
+
+    G.graph['inkratio'] = M.metricvalues['inkratio']
+    data = nx.node_link_data(G, link="edges")
+    with open(f'{path}/{algorithm}.json', 'w', encoding='utf-8') as f:
+        json.dump(data, f, ensure_ascii=False, indent=4)
 
 if __name__ == "__main__":
     from modules.metrics import Metrics
     import pylab as plt
 
-    G = read_bundling("outputs/epb_g0.graphml")
+    G = read_bundling("outputs/epb_airlines.graphml")
     print(type(G))
 
     M = Metrics(G)
@@ -227,7 +249,7 @@ if __name__ == "__main__":
         mvalue = M.compute_metric(metric,return_mean=False)
         M.store_metric(metric, mvalue)
 
-    M.write_to_file('test.json')
+    write_json(G, M, 'dashboard/output_dashboard', 'epb')
 
     
 
