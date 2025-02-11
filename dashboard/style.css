@@ -62,11 +62,11 @@ body {
 }
 
 .node {
-
+    fill: black;
+    opacity: 0.8;
 }
 
 .edge {
     fill: none;
-    stroke: black;
     stroke-width: 1px;
 }
