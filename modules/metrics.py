@@ -42,7 +42,6 @@ class Metrics():
 
     def write_to_file(self,path):
         import json 
-        print(path)
         with open(path, 'w') as fdata:
             json.dump(self.metricvalues, fdata,indent=4)
 
@@ -77,7 +76,8 @@ class Metrics():
 
     def _metricDraw(self,straightline=False, DPI=192,CIRCLE=10.0,LINEWIDTH=0.5,return_fig=False):
         '''
-        Draw the bundling. Either using the assign color function or the coloring given by the bundling. if plotIpe is true, it will create an IPE drawing as well.
+        Draw the bundling. Either using the assign color function or the coloring given by the bundling. 
+        Not intended for visualization, but for use in metrics.
         '''
         import pylab as plt
 
@@ -134,6 +134,7 @@ class Metrics():
             dx = np.diff(X)
             dy = np.diff(Y)
 
+            #L2 distance between first and last point on curve
             lStraight = np.sqrt((X[-1] - X[0]) * (X[-1] - X[0]) + (Y[-1] - Y[0]) * (Y[-1] - Y[0]))
             lPoly     = np.sum(np.sqrt(dx * dx + dy * dy))
 
