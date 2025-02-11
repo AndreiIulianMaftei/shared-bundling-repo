@@ -13,6 +13,8 @@ class Bundling {
             var X = edge.X;
             var Y = edge.Y;
 
+            //var angle = 
+
             var polyline = []
             for(var i = 0; i < X.length; i++) {
                 polyline.push({'x': X[i], 'y': Y[i]})
@@ -60,13 +62,16 @@ class Bundling {
         const line = d3.line().x(d => xScale(d.x)).y(d => yScale(d.y));
         this.svg.selectAll('.edge')
             .attr('d', d => line(d.polyline))
+            .attr('stroke', d => 'black')
+            .attr('opacity', 0.4)
         
     }
 }
 
 class Histogram{
-    constructor(svg) {
-        this.svg = svg
+    constructor(svg, container) {
+        this.svg = svg;
+        this.container = container;
     }
 
     async load_data(edges, accessor) {
@@ -81,7 +86,7 @@ class Histogram{
         
         var xScale = d3.scaleLinear().domain(this.extentX).range([3 * margin, width - margin]);
 
-        this.svg.append("g")
+        this.axisBottom = this.svg.append("g")
             .attr("transform", "translate(" + 0 * margin + "," + (width - 2 * margin) + ")")
             .call(d3.axisBottom(xScale).ticks(5));
 
@@ -118,9 +123,9 @@ class Histogram{
         console.log(xScale.domain(), xScale.range())
 
         this.svg.selectAll("rect")
-            .attr("transform", function(d) { return "translate(" + xScale(d.x0) + "," + (yScale(d.length) - 2 * margin) + ")"; })
+            .attr("transform", function(d) { return "translate(" + xScale(d.x0) + "," + (yScale(d.length)) + ")"; })
             .attr("width", function(d) {return xScale(d.x1) - xScale(d.x0); })
-            .attr("height", function(d) {return width - yScale(d.length); })
+            .attr("height", function(d) {return width - 2 * margin - yScale(d.length); })
 
         // this.svg.append("g")
         //     .attr("transform", "translate(" + 3 * margin + "," + margin + ")")
@@ -138,16 +143,21 @@ class Container{
         this.container = container;
         this.file = file;
 
+        this.container.append('h6').text(algorithm);
+
         var bundlingSvg = this.container.append('svg').attr('class', 'bundlingSVG');
         this.bundling = new Bundling(bundlingSvg);
-        
+         
         this.metrics = {}
 
         metrics.forEach(metric => {
-            var mC = this.container.append('div')
-            mC = mC.append('svg').attr('class', 'metricSVG')
+            var mCTop = this.container.append('div')
+            mCTop.append('h6').text(metric);
+            var mCVis = mCTop.append('svg').attr('class', 'metricSVG')
         
-            this.metrics[metric] = new Histogram(mC)
+            mCTop.style('visibility', 'collapse');
+
+            this.metrics[metric] = new Histogram(mCVis, mCTop)
         });
     }
 
@@ -179,6 +189,8 @@ class Container{
 
     metric_visibility(metric, flag) {
         var mC = this.metrics[metric]
+
+        mC.container.style('visibility', flag ? 'visible' : 'collapse');
 
         mC.draw();
     }
