@@ -56,9 +56,9 @@ def compute_cubu(file, out_path):
 
 def compute_wr(file, out_path):
     try: 
-        import tulip as tlp
+        from tulip import tlp
     except: 
-        print("You do not have python tulip bindings installed.........\n As far as I know, cannot be installed via pip (Jacob)")
+        print("python-tulip is needed")
         return 
     
     G = tlp.loadGraph(f'{file}')
@@ -124,63 +124,6 @@ def compute_bundling(file, algorithm,outfile):
             compute_cubu(file, outfile)
         case 'wr':
             compute_wr(file, outfile)
-
-
-def read_epb(folder):
-    bundling = GraphLoader(None)
-    bundling.is_graphml = True
-    bundling.filename = "epb"
-    bundling.filepath = folder
-    bundling.bundle()
-
-    return bundling
-
-def read_sepb(folder):
-    bundling = GraphLoader(None)
-    bundling.is_graphml = True
-    bundling.filename = "sepb"
-    bundling.filepath = folder
-    bundling.bundle()
-
-    return bundling
-
-def read_fd(folder):
-    path = folder + "/fd.graphml"
-    bundling = GraphLoader(None)
-    bundling.is_graphml = True
-    bundling.filename = "fd"
-    bundling.filepath = folder
-    bundling.bundle()
-
-    return bundling
-
-def read_cubu(folder):
-    return
-
-def read_wr(folder):
-    path = folder + "/wr.graphml"
-    bundling = GraphLoader(None)
-    bundling.is_graphml = True
-    bundling.filename = "wr"
-    bundling.filepath = folder
-    bundling.bundle()
-    
-    return bundling
-
-def read_bundling(folder, algorithm):
-    match algorithm:
-        case 'epb':
-            G = read_epb(folder)
-        case 'sepb':
-            G = read_sepb(folder)
-        case 'fd':
-            G = read_fd(folder)
-        case 'cubu':
-            G = read_cubu(folder)
-        case 'wr':
-            G = read_wr(folder)
-
-    return G
     
 def bundle_all(dir):
     import os 
@@ -193,5 +136,4 @@ def bundle_all(dir):
             compute_bundling(f"{dir}{gname}", alg, f"outputs/{alg}_{gname}")    
 
 if __name__ == "__main__":
-    # compute_bundling("test.graphml", "epb")
-    bundle_all("inputs")
+    bundle_all("inputs/")
