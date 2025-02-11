@@ -47,7 +47,7 @@
         });
 
         //const algorithms = ["S-EPB", "EPB", "WR", "FD", "CUBu"];
-        const ALGORITHMS = ["S-EPB"]; //, "WR", "FD", "CUBu"
+        const ALGORITHMS = ["S-EPB", "WR", "FD", "CUBu"]; //, "WR", "FD", "CUBu"
         const METRICS = ["Distortion", "Frechet", "Angular Change"]
         var interface = []
 
@@ -58,7 +58,7 @@
             ALGORITHMS.forEach(al => {               
                 var container = content.append('div').attr('class', 'algorithm-container');
                 var file = 'output_dashboard/epb.json';
-                var obj = new Container(file, container, ['Distortion']);
+                var obj = new Container(file, container, METRICS, al);
                 interface.push(obj);
             });
 
@@ -73,18 +73,22 @@
         }
 
         function handleCheck_algo(event) {
-            if (event.target.checked) {
-                interface.push({"algo": event.target.value});
-            } else {
-                interface = interface.filter(function( obj ) {
-                    return obj.algo !== event.target.value;
-                });
-            }
+            interface.forEach(i => {
+                if(i.algorithm === event.target.value)
+                    i.visibility(event.target.checked);
+            });
+
+            interface.forEach(i => {
+                i.resize();
+            });
+
             console.log(interface)
         }
 
         function handleCheck_metric(event) {
-            console.log(event)
+            interface.forEach(i => {
+                i.metric_visibility(event.target.value, event.target.checked);
+            });
         }
 
         function createChecklist(id, isAlgo, items) {
@@ -93,10 +97,16 @@
             checklist.innerHTML = `<ul class="list-group"></ul>`;
             const list = checklist.querySelector('ul');
             
+
+            var algo = ''
+            if (isAlgo)
+                var algo = 'checked';
+
+
             items.forEach(item => {
                 const listItem = document.createElement('li');
                 listItem.className = "list-group-item";
-                listItem.innerHTML = `<input type="checkbox" class="checklist-item" value="${item}"> ${item}`;
+                listItem.innerHTML = `<input type="checkbox" class="checklist-item" value="${item}" ${algo}> ${item}`;
                 if (isAlgo)
                     listItem.querySelector('input').addEventListener('change', handleCheck_algo);
                 else
