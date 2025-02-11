@@ -14,7 +14,6 @@ from PIL import Image
 from matplotlib.backends.backend_pdf import PdfPages
 from pdf2image import convert_from_path
 import requests
-from wand.image import Image
 import pandas as pd
 import numpy as np
 from plotnine import ggplot, aes, geom_violin, geom_boxplot, theme, element_text, labs, element_blank
