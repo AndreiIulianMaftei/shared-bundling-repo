@@ -1154,7 +1154,8 @@ class Metrics:
     @staticmethod
     def calcAmbiguity(G, path, name):
         '''
-        Calculate the ambiguity. Store intermediate results in the folder /pickle and reuse. Important if parameters for the ambiguity are changed then delete the files.
+        Calculate the ambiguity. Store intermediate results in the folder /pickle and reuse. 
+        Important if parameters for the ambiguity are changed then delete the files.
         '''
         try:
             edgeEdgeSet = pickle.load(open(f'{path}/pickle/{name}.ees', 'rb'))

@@ -213,7 +213,8 @@ class AbstractBundling:
 
     def draw(self, path, color=True, plotIpe=False, plotSpanner=False, plotSubgraph=None, fileAddition="", color_vertices=None):
         '''
-        Draw the bundling. Either using the assign color function or the coloring given by the bundling. if plotIpe is true, it will create an IPE drawing as well.
+        Draw the bundling. Either using the assign color function or the coloring given by the bundling. 
+        if plotIpe is true, it will create an IPE drawing as well.
         '''
         nx.set_edge_attributes(self.G, '50%', name='Opacity')
 
@@ -348,8 +349,9 @@ class AbstractBundling:
         return coeff
 
 class RealizedBundling(AbstractBundling):
-    def __init__(self, G:nx.Graph):
+    def __init__(self, G:nx.Graph, name:str):
         self.G = G
+        self.name = name
 
     def store_metric(self,metricname, metricvalue):
         """

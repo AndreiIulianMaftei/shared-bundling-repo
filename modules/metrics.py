@@ -1,19 +1,26 @@
 import os
 import networkx as nx
 import numpy as np
+from gdMetriX import number_of_crossings
+
 from modules.abstractBundling import RealizedBundling
 from modules.EPB.straight import StraightLine
+from modules.EPB.experiments import Metrics as EPBMetrics
+
+PATH_TO_PICKLE_FOLDER = "pickle/"
+if not os.path.isdir(PATH_TO_PICKLE_FOLDER): os.mkdir(PATH_TO_PICKLE_FOLDER)
 
 class Metrics():
-    implemented_metrics = ["distortion", "inkratio"]
-    def __init__(self,bundle:RealizedBundling):
+    implemented_metrics = ["distortion", "inkratio", "self_intersections", "all_intersections"]
+    def __init__(self,bundle:RealizedBundling, verbose=True):
         """
         G should be a RealizedBundling instance. 
         All nodes should have 'X' and 'Y' coordinates defined. 
         All edges should have "Spline_X" and "Spline_Y" attributes defined. 
         """
-        self.Bundle = bundle
-        self.G      = bundle.G
+        self.Bundle  = bundle
+        self.G       = bundle.G
+        self.verbose = verbose
 
         #Setup things we need for metrics (but we'll compute them on demand)
         self.bundleDrawing   = None
@@ -32,6 +39,10 @@ class Metrics():
                 return self.calcDistortion(**args)
             case "inkratio":
                 return self.calcInkRatio(**args)
+            case "self_intersections":
+                return self.calcSelfIntersections(**args)
+            case "all_intersections":
+                return self.calcAllIntersections(**args)
             case _:
                 print("not yet implemented")
                 return 
@@ -68,7 +79,7 @@ class Metrics():
         if self.straightGraph is None:
             self.straightGraph = self._genStraightGraph()
         return self.straightGraph 
-    
+
     def _genStraightGraph(self):
         SL = StraightLine(self.G)
         SL.bundle()
@@ -161,3 +172,55 @@ class Metrics():
 
         return inkratio
     
+    def calcAmbiguity(self, return_mean=True):
+        '''
+        Calculate the ambiguity. Store intermediate results in the folder /pickle and reuse. 
+        Important if parameters for the ambiguity are changed then delete the files.
+        '''
+        ambiguities = EPBMetrics.calcAmbiguity(self.G, PATH_TO_PICKLE_FOLDER, self.G.graph['name'])
+
+        return [float(x) for x in ambiguities]
+
+    def calcSelfIntersections(self, return_mean=True):
+        """Count the number of self-intersections in a polyline defined by a list of points."""
+        intersections = np.zeros(self.G.number_of_edges())
+        for index, (u,v, data) in enumerate(self.G.edges(data=True)):
+            ncontrol_points = len(data['X'])
+            H = nx.Graph()
+            H.add_edges_from([(i,i+1) for i in range(ncontrol_points-1)])
+            pos = {i: (data['X'][i], data['Y'][i]) for i in range(ncontrol_points)}
+
+            intersections[index] = number_of_crossings(H,pos)
+        
+        if return_mean: return np.mean(intersections)
+        return intersections
+    
+    def calcAllIntersections(self,return_mean=True):
+        """Counts all intersections in the bundling"""
+        H = nx.Graph()
+        H.add_nodes_from(self.G.nodes())
+        pos = {v: (self.G.nodes[v]['X'], self.G.nodes[v]['Y']) for v in self.G.nodes()}
+        for u,v,data in self.G.edges(data=True):
+            ncontrol_points = len(data["X"])
+            
+            eid = (u,v)
+            #Add first and last edge 
+            H.add_edge(u,( eid ,1))
+            H.add_edge((eid, ncontrol_points-1), v)
+
+            #Fill in edges from first to last control point
+            H.add_edges_from([( (eid, i), (eid,i+1) ) for i in range(1,ncontrol_points-1)])
+
+            #add positions 
+            pos |= {(eid,i): (data["X"][i], data["Y"][i]) for i in range(1,ncontrol_points)}
+
+        if self.verbose: print("computing crossings, will take a while")
+        ncrossings = number_of_crossings(H,pos)
+        return ncrossings
+
+    
+
+
+##################################################
+# Helper functions                               #
+##################################################
