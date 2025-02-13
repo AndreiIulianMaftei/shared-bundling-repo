@@ -52,6 +52,13 @@ def compute_fd(file, out_path):
     return
 
 def compute_cubu(file, out_path):
+    # read file as graphml 
+    # itterate over edges and write trail file 
+    # run cubu code
+    # read cubu output
+    # parse cubu file and write to splinex / spliney 
+    # catch around the cuda to make sure it is installed if not the input is output 
+    # write the graphml
     return
 
 def compute_wr(file, out_path):
