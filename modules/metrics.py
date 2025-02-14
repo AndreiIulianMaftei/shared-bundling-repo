@@ -267,6 +267,10 @@ class Metrics():
 ##################################################
 
 def project_points_to_line(points:np.array, line: np.array):
+    """
+    points: array of shape (n,2) of points to be projected onto line 
+    line  : array of shape (2,2) indicating the start and endpoints of a line segment
+    """
     a,b = line 
 
     ab = b - a 
