@@ -218,9 +218,62 @@ class Metrics():
         ncrossings = number_of_crossings(H,pos)
         return ncrossings
 
+    def calcFrechet(self,return_mean=True):
+        frechet = np.zeros(self.G.number_of_edges())
+
+        for index, (u,v,data) in enumerate(self.G.edges(data=True)):
+
+            points = np.array([[x,y] for x,y in zip(data['X'], data['Y'])])
+
+            x0 = self.G.nodes[u]['X']
+            y0 = self.G.nodes[u]['Y']
+            x1 = self.G.nodes[v]['X']
+            y1 = self.G.nodes[v]['Y']
+            line = np.array([[x0,y0], [x1,y1]])
+
+            projected_points = project_points_to_line(points, line)
+
+            minx,maxx = min(x0, x1), max(x0,x1)
+            miny,maxy = min(y0, y1), max(y0,y1)
+            inside_segment_mask = (
+                (minx <= projected_points[:,0]) & (projected_points[:,0] <= maxx) & 
+                (miny <= projected_points[:,1]) & (projected_points[:,1] <= maxy)
+            )
+
+            inside_segment  = points[ inside_segment_mask]
+            outside_segment = points[~inside_segment_mask]
+
+            #Projected distance from (x2,y2)  to line ((x0,y0), (x1,y1)) is given by 
+            #d = \frac{\left| (x_2 - x_0)(y_1 - y_0) - (y_2 - y_0)(x_1 - x_0) \right|} {||(x_1,y_1) - (x_0, y_0)||}
+            ab = line[1] - line[0]
+            ab_norm = np.sqrt(np.sum(np.square(ab)))
+            inside_distances = np.abs(np.cross(inside_segment - line[0], ab)) / ab_norm 
+
+            if outside_segment.size > 0: 
+                #For outside the segment, get the minimum distance to either endpoint
+                outside_distances = np.min(np.linalg.norm(outside_segment[:, np.newaxis, :] - line, axis=2), axis=1)
+            else: outside_distances = np.zeros(1)
+
+            frechet[index] = max(np.max(inside_distances), np.max(outside_distances))
+        
+        if return_mean: return np.mean(frechet)
+        return frechet
+
     
 
 
 ##################################################
 # Helper functions                               #
 ##################################################
+
+def project_points_to_line(points:np.array, line: np.array):
+    a,b = line 
+
+    ab = b - a 
+    ab_norm_sq = np.dot(ab, ab)
+
+    ap = points - a 
+
+    projection = np.dot(ap, ab) / ab_norm_sq 
+    projected_points = a + np.outer(projection, ab)
+    return projected_points
