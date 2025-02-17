@@ -1,3 +1,4 @@
+import json
 import os
 import networkx as nx
 from modules.EPB.epb import EPB_Biconn
@@ -32,11 +33,16 @@ def compute_fd(file, out_path):
     G = Reader.readGraphML(f'{file}', G_width=GWIDTH, invertY=False, directed=False)
     import os
     
-    os.system(f"node modules/FD/bundleFD.js {file}")
+    json_data = nx.node_link_data(G, link='edges')
+    with open('tmp.json', 'w') as f:
+        json.dump(json_data, f)
+
+    os.system(f"node modules/FD/bundleFD.js tmp.json")
     
     with open('outputs/edges.edge', 'r') as fdata:
         edgedata = fdata.read()
     os.remove("outputs/edges.edge")
+    os.remove("tmp.json")
 
     polylines = [edge.split(" ") for edge in edgedata.split("\n")]
 
@@ -106,13 +112,6 @@ def compute_wr(file, out_path):
     return
 
 def compute_bundling(file, algorithm,outfile):
-
-    name = file.split('/')[-1]
-    name = name.replace('.graphml','')
-
-    # if not os.path.exists(out_path):
-    #     os.makedirs(out_path)
-
     match algorithm:
         case 'epb':
             compute_epb(file, outfile)
@@ -128,12 +127,15 @@ def compute_bundling(file, algorithm,outfile):
 def bundle_all(dir):
     import os 
 
-    if not os.path.isdir("outputs"): os.mkdir("outputs")
+    for file in os.listdir(dir):
 
-    for gname in os.listdir(dir):
-        
+        name = file.split('/')[-1]
+        name = name.replace('.graphml','')
+
+        if not os.path.isdir(f"outputs/{name}"): os.mkdir(f"outputs/{name}")
+
         for alg in ['epb', 'sepb', 'fd', 'wr']:
-            compute_bundling(f"{dir}/{gname}", alg, f"outputs/{alg}_{gname}")    
+            compute_bundling(f"{dir}/{file}", alg, f"outputs/{name}/{alg}.graphml")    
 
 if __name__ == "__main__":
-    bundle_all("inputs/")
+    bundle_all("inputs")

@@ -12,43 +12,13 @@ async function bundleFD(pathToBundle) {
     Applies the force-directed bundling algorithm with default parameters from https://github.com/upphiminn/d3.ForceBundle
     Writes the output to a .edge file in the ../../outputs directory.
     */
+    var json_obj = JSON.parse(fs.readFileSync(pathToBundle, 'utf8'));
+    console.log(json_obj);
 
-    let xml = fs.readFileSync(pathToBundle,'utf8');
+    var edges = json_obj.edges;
+    var nodes = json_obj.nodes;
 
-    //Regex magic. find the keys which map to x and y.
-    const keyvalue_regex = /<key id="([^"]+)"(?:.*?attr\.name="([^"]+)")?/g;
-    const matches = [...xml.matchAll(keyvalue_regex)];
-    let keyLookup = {};
-    matches.forEach(match => keyLookup[match[2]] = match[1]);
-
-    // This finds all <node * </node> blocks
-    const nodeRegex = /<node[^>]*\bid="([^"]+)"[^>]*>([\s\S]*?)<\/node>/g;
-
-    // This finds all <data * </data> blocks
-    const dataRegex = /<data key="([^"]+)">([\d.e+-]+)<\/data>/g;
-
-    //This will find all nodes in the xml and assign them their id, x, and y values based on the keys in the header.
-    let nodes = [...xml.matchAll(nodeRegex)].map( ([_,id,content]) => {
-        let data = Object.fromEntries([...content.matchAll(dataRegex)].map(([__, key, value]) => [key, parseFloat(value)]));
-        return {'id': id, "x": data[keyLookup.x], "y": data[keyLookup.y]}
-    });
-
-    //the forcebundling expects an object instead of an array...
-    let fb_nodes = Object.fromEntries(nodes.map(nodeobj => {
-        return [nodeobj.id, {'x': nodeobj.x, 'y': nodeobj.y}]
-    }));
-
-
-    const edgeRegex = /<edge source="(\d+)" target="(\d+)"\/>/g;
-    let edges = [...xml.matchAll(edgeRegex)].map(([_,source,target]) => (
-        {
-            'source': source,
-            'target': target
-        }
-    ));
-
-
-    var fbundling = ForceEdgeBundling().nodes(fb_nodes).edges(edges);
+    var fbundling = ForceEdgeBundling().nodes(nodes).edges(edges);
     var bundle = fbundling();
 
     //Has the following format for each edge: [source target x1 y1 x2 y2 ... xk yk]
@@ -58,6 +28,7 @@ async function bundleFD(pathToBundle) {
         ]
     });
 
+    console.log(polylines);
     fs.writeFileSync('outputs/edges.edge', polylines.map(polyline => polyline.join(" ")).join("\n"));
 
 } 

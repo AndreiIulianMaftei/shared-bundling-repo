@@ -233,14 +233,14 @@ def write_json(G, M, path, algorithm):
 
     G.graph['inkratio'] = M.metricvalues['inkratio']
     data = nx.node_link_data(G, link="edges")
+
+    if not os.path.isdir(f"{path}"): os.mkdir(f"{path}")
     with open(f'{path}/{algorithm}.json', 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-if __name__ == "__main__":
-    from modules.metrics import Metrics
-    import pylab as plt
+def process(input, output, filename, algorithm):
 
-    G = read_bundling("outputs/epb_airlines.graphml")
+    G = read_bundling(f"{input}/{filename}/{algorithm}.graphml")
     print(type(G))
 
     M = Metrics(G)
@@ -249,7 +249,14 @@ if __name__ == "__main__":
         mvalue = M.compute_metric(metric,return_mean=False)
         M.store_metric(metric, mvalue)
 
-    write_json(G, M, 'dashboard/output_dashboard', 'epb')
+    write_json(G, M, f'{output}/{filename}', algorithm)
+
+if __name__ == "__main__":
+    from modules.metrics import Metrics
+    import pylab as plt
+
+    for algo in ['epb', 'fd', 'sepb', 'wr']:
+        process("outputs", 'dashboard/output_dashboard', 'airlines', algo)
 
     
 
