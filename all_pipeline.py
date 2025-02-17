@@ -4,6 +4,7 @@ from metrics_pipeline import all_metrics
 
 import os 
 if not os.path.isdir("inputs/"): os.mkdir("inputs")
+
 for i in range(10):
     gen_graphs(i)
 

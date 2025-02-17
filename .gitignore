@@ -11,6 +11,8 @@ package.json
 *.pdf
 *.graphml
 *.json
+*.ees
+*.es
 
 output/*
 

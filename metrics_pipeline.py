@@ -16,17 +16,18 @@ metrics = ["angle", "drawing", "distortion", "ink", "frechet", "monotonicity", "
 algorithms = ["fd", "epb", "fd"]
 
 def read_bundling(fname, invertX=False, invertY=False):
-    
+    graph_name = os.path.basename(fname).replace(".graphml", "")
+
     G = GraphLoader.readData_graphml(
         self=None, 
         path=os.path.dirname(fname),
-        file=os.path.basename(fname).replace(".graphml", ""),
+        file=graph_name,
         invertX=invertX,
         invertY=invertY,
         reverse=None
     )
-
-    bundling = RealizedBundling(G)
+    G.graph['name'] = graph_name
+    bundling = RealizedBundling(G,graph_name)
 
     return bundling
 
@@ -244,10 +245,22 @@ def process(input, output, filename, algorithm):
     print(type(G))
 
     M = Metrics(G)
+
+    c = M.calcAllIntersections()
+
+    print(c)
     
-    for metric in M.implemented_metrics:
-        mvalue = M.compute_metric(metric,return_mean=False)
-        M.store_metric(metric, mvalue)
+
+    # import pylab as plt
+
+    # G = read_bundling("outputs/epb_airlines.graphml")
+    # print(type(G))
+
+    # M = Metrics(G)
+    
+    # for metric in M.implemented_metrics:
+    #     mvalue = M.compute_metric(metric,return_mean=False)
+    #     M.store_metric(metric, mvalue)
 
     write_json(G, M, f'{output}/{filename}', algorithm)
 
