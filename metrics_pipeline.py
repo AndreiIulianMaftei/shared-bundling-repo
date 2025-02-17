@@ -224,7 +224,7 @@ def write_json(G, M, path, algorithm):
         del data['Xapprox']
         del data['Yapprox']
 
-    for metric in ['distortion']:
+    for metric in ['distortion', 'SL_angle']:
         counter = 0
         for u,v,data in G.edges(data=True):
             data[metric] = M.metricvalues[metric][counter]
@@ -246,9 +246,9 @@ def process(input, output, filename, algorithm):
 
     M = Metrics(G)
 
-    c = M.calcAllIntersections()
+    #c = M.calcAllIntersections()
 
-    print(c)
+    #print(c)
     
 
     # import pylab as plt
@@ -258,9 +258,9 @@ def process(input, output, filename, algorithm):
 
     # M = Metrics(G)
     
-    # for metric in M.implemented_metrics:
-    #     mvalue = M.compute_metric(metric,return_mean=False)
-    #     M.store_metric(metric, mvalue)
+    for metric in ['distortion', 'inkratio', 'SL_angle']:#M.implemented_metrics:
+        mvalue = M.compute_metric(metric,return_mean=False)
+        M.store_metric(metric, mvalue)
 
     write_json(G, M, f'{output}/{filename}', algorithm)
 
@@ -269,7 +269,7 @@ if __name__ == "__main__":
     import pylab as plt
 
     for algo in ['epb', 'fd', 'sepb', 'wr']:
-        process("outputs", 'dashboard/output_dashboard', 'airlines', algo)
+        process("outputs", 'dashboard/output_dashboard', 'migration', algo)
 
     
 

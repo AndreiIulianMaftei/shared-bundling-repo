@@ -16,10 +16,22 @@
         <h4 class="text-center">Dashboard</h4>
         <ul class="nav flex-column">
             <li class="nav-item"><a href="#" class="nav-link text-white">Home</a></li>
-            <li class="nav-item"><a href="#" class="nav-link text-white">Profile</a></li>
-            <li class="nav-item"><a href="#" class="nav-link text-white">Settings</a></li>
-            <li class="nav-item"><a href="#" class="nav-link text-white">Logout</a></li>
+
         </ul>
+
+        <h3>File</h3>
+        <div>
+            <label for="file-select">File:</label>
+
+            <select name="file-select" id="file-select">
+            </select> 
+        </div>
+
+        <h3>Settings</h3>
+        <div>
+            <input type="checkbox" id="show-nodes-check" name="scales" checked/>
+            <label for="scales">Show Nodes</label>
+        </div>
 
         <h3>Algorithms</h3>
         <div id="checklist-algo"></div>
@@ -47,17 +59,26 @@
         });
 
         //const algorithms = ["S-EPB", "EPB", "WR", "FD", "CUBu"];
-        const ALGORITHMS = ["S-EPB", "WR", "FD", "CUBu"]; //, "WR", "FD", "CUBu"
-        const METRICS = ["Distortion", "Frechet", "Angular Change"]
+        //const ALGORITHMS = ["S-EPB", "WR", "FD", "CUBu"]; //, "WR", "FD", "CUBu"
+        //const ALGORITHMS = ["S-EPB", "WR", "FD", "EPB"]; //, "WR", "FD", "CUBu"
+        const ALGORITHMS = ["S-EPB", "WR"];
+        const METRICS = ["Distortion", "Frechet", "Angular Change"];
+        const FILES = ['migration', 'airlines'];
+        
+        const converter = {"S-EPB": 'sepb', "WR": 'wr', "FD": 'fd', "EPB": 'epb'}; 
+
         var interface = []
 
-        function initInterface() {
+
+        function initInterface(path) {
             var content = d3.select("#content-container")
+            content.selectAll("*").remove();
             console.log(content);
 
             ALGORITHMS.forEach(al => {               
                 var container = content.append('div').attr('class', 'algorithm-container');
-                var file = 'output_dashboard/epb.json';
+                var file = `output_dashboard/${path}/${converter[al]}.json`;
+                console.log(file);
                 var obj = new Container(file, container, METRICS, al);
                 interface.push(obj);
             });
@@ -117,10 +138,29 @@
             container.appendChild(checklist);
         }
 
+        document.getElementById('show-nodes-check').addEventListener('change', (input) => {
+            interface.forEach(i => {
+                i.show_nodes(input.target.checked);
+            });
+        });
+
+        FILES.forEach(f => {
+            
+            var opt = document.createElement('option');
+            opt.value = f;
+            opt.innerHTML = f;
+            
+            document.getElementById('file-select').appendChild(opt);
+        });
+
+        document.getElementById('file-select').addEventListener('change', (input) => {
+            initInterface(input.target.value);
+        });
+
         createChecklist("checklist-algo",true, ALGORITHMS);
         createChecklist("checklist-metrics", false, METRICS);
 
-        initInterface();
+        initInterface('migration');
     </script>
 </body>
 </html>

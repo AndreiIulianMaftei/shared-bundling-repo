@@ -43,6 +43,8 @@ class Metrics():
                 return self.calcSelfIntersections(**args)
             case "all_intersections":
                 return self.calcAllIntersections(**args)
+            case "SL_angle":
+                return self.calcSLAngle(**args)
             case _:
                 print("not yet implemented")
                 return 
@@ -217,6 +219,39 @@ class Metrics():
         if self.verbose: print("computing crossings, will take a while")
         ncrossings = number_of_crossings(H,pos)
         return ncrossings
+
+    def calcSLAngle(self, return_mean=True):
+        
+        angles = np.zeros((self.G.number_of_edges()),dtype=np.float32)
+        for index, (u,v,data) in enumerate(self.G.edges(data=True)):
+            x0 = self.G.nodes[u]['X']
+            y0 = self.G.nodes[u]['Y']
+            x1 = self.G.nodes[v]['X']
+            y1 = self.G.nodes[v]['Y']
+            
+            x = x1 - x0
+            y = y1 - y0
+
+            angle = np.arctan2(y, x) * 180 / np.pi
+
+            
+            if angle < 0:
+                angle = 360 + angle
+
+            if self.G.is_directed():
+                a = angle / 360
+            else:            
+                if angle > 180:
+                    angle = (angle + 180) % 360
+                a = angle / 180
+            
+            a += 0.75
+            if a > 1:
+                a = a - 1
+                
+            angles[index] = a
+                
+        return angles
 
     def calcFrechet(self,return_mean=True):
         frechet = np.zeros(self.G.number_of_edges())
