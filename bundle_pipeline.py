@@ -191,20 +191,15 @@ def compute_bundling(file, algorithm,outfile):
 def bundle_all(dir):
     import os 
 
+    for file in os.listdir(dir):
 
-    for gname in os.listdir(dir):
-        #'epb', 'sepb', 'fd', 'wr', 
-        for alg in ['cubu']:
-            compute_bundling(f"{dir}/{gname}", alg, f"outputs/{alg}_{gname}")    
+        name = file.split('/')[-1]
+        name = name.replace('.graphml','')
+
+        if not os.path.isdir(f"outputs/{name}"): os.mkdir(f"outputs/{name}")
+
+        for alg in ['wr','fd', 'epb', 'sepb']:
+            compute_bundling(f"{dir}/{file}", alg, f"outputs/{name}/{alg}.graphml")    
 
 if __name__ == "__main__":
-    bundle_all("inputs/")
-    # compute_bundling("test.graphml", "epb")
-    import os 
-
-    if not os.path.isdir("outputs"): os.mkdir("outputs")
-
-    for gname in os.listdir("inputs"):
-        
-        for alg in ['epb', 'sepb', 'fd', 'wr', 'cubu']:
-            compute_bundling(f"inputs/{gname}", alg, f"outputs/{alg}_{gname}")
+    bundle_all("inputs")
