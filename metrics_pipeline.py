@@ -268,8 +268,8 @@ if __name__ == "__main__":
     from modules.metrics import Metrics
     import pylab as plt
 
-    for dataset in ['airlines', 'migration']:
-        for algo in ['epb', 'fd', 'sepb', 'wr']:
+    for dataset in ['g0', 'g1' ,'airlines', 'migration']:
+        for algo in ['epb', 'fd', 'sepb', 'wr', 'cubu']:
             process("outputs", 'dashboard/output_dashboard', dataset, algo)
 
     
