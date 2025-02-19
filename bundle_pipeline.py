@@ -57,15 +57,72 @@ def compute_fd(file, out_path):
     
     return
 
+
+
 def compute_cubu(file, out_path):
-    # read file as graphml 
-    # itterate over edges and write trail file 
-    # run cubu code
-    # read cubu output
-    # parse cubu file and write to splinex / spliney 
-    # catch around the cuda to make sure it is installed if not the input is output 
-    # write the graphml
-    return
+    """
+    1) Read the input .graphml (or whatever) into a NetworkX graph via your Reader.
+    2) Write a .trl file (edge list) for CuBu.
+    3) Run CuBu with the system call "./cubu -i 1000 -f input.trl"
+    4) Parse the 'bundled_output.trl' that CuBu generates.
+    5) Store the polylines in the NetworkX graph's edge attributes.
+    6) Write the final .graphml to `out_path`.
+    """
+
+    G = Reader.readGraphML(file, G_width=GWIDTH, invertY=False, directed=False)
+    maxX = -999999
+    minX = 999999
+    for v in G.nodes():
+        G.nodes[v]["X"] = G.nodes[v].get("x", 0.0)
+        G.nodes[v]["Y"] = G.nodes[v].get("y", 0.0)
+
+
+    temp_input = "input.trl"
+    edge_list = list(G.edges())
+    
+    with open(temp_input, 'w') as fout:
+        for idx, (u, v) in enumerate(edge_list):
+            x1, y1 = G.nodes[u]["X"], G.nodes[u]["Y"]
+            x2, y2 = G.nodes[v]["X"], G.nodes[v]["Y"]
+            if(idx <= len(edge_list)):
+                fout.write(f"{idx}: {x1} {y1} {x2} {y2} \n")
+           
+
+    cubu_command = f"./cubu -i 1000 -f {temp_input}"
+    print(f"Running CuBu command: {cubu_command}")
+    print(os.getcwd())
+    os.system(cubu_command)
+
+    bundled_output = "bundled_output.trl"
+
+    if not os.path.exists(bundled_output):
+        print("Error: 'bundled_output.trl' not found. CuBu may have failed.")
+        nx.write_graphml(G, out_path)
+        return
+
+    with open(bundled_output, 'r') as fin:
+        for line in fin:
+            parts = line.strip().split()
+            if len(parts) < 5:
+                continue  
+            parts[0]= parts[0].replace(":","")
+            edge_id = int(parts[0])
+            coords  = parts[1:]  
+
+    
+            spline_x = [float(x)/1000 for x in coords[0::2]]
+            spline_y = [float(x)/1000 for x in coords[1::2]]
+
+         
+            if edge_id < len(edge_list):
+                u, v = edge_list[edge_id]
+                G[u][v]["Spline_X"] = " ".join(str(x)for x in spline_x)
+                G[u][v]["Spline_Y"] = " ".join(str(y) for y in spline_y)
+
+    nx.write_graphml(G, out_path)
+    print(f"Saved bundled graph to {out_path}")
+
+  
 
 def compute_wr(file, out_path):
     try: 
@@ -134,15 +191,20 @@ def compute_bundling(file, algorithm,outfile):
 def bundle_all(dir):
     import os 
 
-    for file in os.listdir(dir):
 
-        name = file.split('/')[-1]
-        name = name.replace('.graphml','')
-
-        if not os.path.isdir(f"outputs/{name}"): os.mkdir(f"outputs/{name}")
-
-        for alg in ['wr','fd', 'epb', 'sepb']:
-            compute_bundling(f"{dir}/{file}", alg, f"outputs/{name}/{alg}.graphml")    
+    for gname in os.listdir(dir):
+        #'epb', 'sepb', 'fd', 'wr', 
+        for alg in ['cubu']:
+            compute_bundling(f"{dir}/{gname}", alg, f"outputs/{alg}_{gname}")    
 
 if __name__ == "__main__":
-    bundle_all("inputs")
+    bundle_all("inputs/")
+    # compute_bundling("test.graphml", "epb")
+    import os 
+
+    if not os.path.isdir("outputs"): os.mkdir("outputs")
+
+    for gname in os.listdir("inputs"):
+        
+        for alg in ['epb', 'sepb', 'fd', 'wr', 'cubu']:
+            compute_bundling(f"inputs/{gname}", alg, f"outputs/{alg}_{gname}")
