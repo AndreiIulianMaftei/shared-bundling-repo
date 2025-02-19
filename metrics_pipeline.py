@@ -241,14 +241,11 @@ def write_json(G, M, path, algorithm):
 
 def process(input, output, filename, algorithm):
 
-    G = read_bundling(f"{input}/{filename}/{algorithm}.graphml")
-    print(type(G))
+    G = read_bundling("inputs/bundle_cubu.graphml")
+    G.draw("draw")
 
-    M = Metrics(G)
-
-    #c = M.calcAllIntersections()
-
-    #print(c)
+    G = read_bundling("inputs/bundled_output.graphml")
+    G.draw("draw2")
     
 
     # import pylab as plt

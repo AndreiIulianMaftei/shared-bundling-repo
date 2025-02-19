@@ -6,6 +6,7 @@ from gdMetriX import number_of_crossings
 from modules.abstractBundling import RealizedBundling
 from modules.EPB.straight import StraightLine
 from modules.EPB.experiments import Metrics as EPBMetrics
+import math
 
 PATH_TO_PICKLE_FOLDER = "pickle/"
 if not os.path.isdir(PATH_TO_PICKLE_FOLDER): os.mkdir(PATH_TO_PICKLE_FOLDER)
@@ -220,79 +221,176 @@ class Metrics():
         ncrossings = number_of_crossings(H,pos)
         return ncrossings
 
-    def calcSLAngle(self, return_mean=True):
+    def calcFrechetDistance(self, return_mean=True):
+        """Calculate the Frechet distance between the straight line and the bundled line."""
+        from frechetdist import frdist
+
+        ma = -999999999999
+        mi = 999999999999
+        frechet = []
+        polylines = []
+        x= 0
         
-        angles = np.zeros((self.G.number_of_edges()),dtype=np.float32)
-        for index, (u,v,data) in enumerate(self.G.edges(data=True)):
-            x0 = self.G.nodes[u]['X']
-            y0 = self.G.nodes[u]['Y']
-            x1 = self.G.nodes[v]['X']
-            y1 = self.G.nodes[v]['Y']
-            
-            x = x1 - x0
-            y = y1 - y0
+        list_edges = list(self.G.edges(data=True))
 
-            angle = np.arctan2(y, x) * 180 / np.pi
+        for index, (u, v, data) in enumerate(list_edges):
+            numbers_x = [float(num) for num in data.get('X')]
+            numbers_y = [float(num) for num in data.get('Y')]
 
-            
-            if angle < 0:
-                angle = 360 + angle
-
-            if self.G.is_directed():
-                a = angle / 360
-            else:            
-                if angle > 180:
-                    angle = (angle + 180) % 360
-                a = angle / 180
-            
-            a += 0.75
-            if a > 1:
-                a = a - 1
-                
-            angles[index] = a
-                
-        return angles
-
-    def calcFrechet(self,return_mean=True):
-        frechet = np.zeros(self.G.number_of_edges())
-
-        for index, (u,v,data) in enumerate(self.G.edges(data=True)):
-
-            points = np.array([[x,y] for x,y in zip(data['X'], data['Y'])])
+            polyline = [(numbers_x[i], numbers_y[i]) for i in range(len(numbers_x))]
+            polylines.append(polyline)
 
             x0 = self.G.nodes[u]['X']
             y0 = self.G.nodes[u]['Y']
             x1 = self.G.nodes[v]['X']
             y1 = self.G.nodes[v]['Y']
-            line = np.array([[x0,y0], [x1,y1]])
 
-            projected_points = project_points_to_line(points, line)
+            t_values = np.linspace(0, 1, num=len(polyline))
+            x_values = x0 + t_values * (x1 - x0)
+            y_values = y0 + t_values * (y1 - y0)
 
-            minx,maxx = min(x0, x1), max(x0,x1)
-            miny,maxy = min(y0, y1), max(y0,y1)
-            inside_segment_mask = (
-                (minx <= projected_points[:,0]) & (projected_points[:,0] <= maxx) & 
-                (miny <= projected_points[:,1]) & (projected_points[:,1] <= maxy)
-            )
+            interpolated_points = [(float(x), float(y)) for x, y in zip(x_values, y_values)]
 
-            inside_segment  = points[ inside_segment_mask]
-            outside_segment = points[~inside_segment_mask]
+            if len(polyline) == 0:
+                x = 0
+            else:
+                x = frdist(interpolated_points, polyline)
 
-            #Projected distance from (x2,y2)  to line ((x0,y0), (x1,y1)) is given by 
-            #d = \frac{\left| (x_2 - x_0)(y_1 - y_0) - (y_2 - y_0)(x_1 - x_0) \right|} {||(x_1,y_1) - (x_0, y_0)||}
-            ab = line[1] - line[0]
-            ab_norm = np.sqrt(np.sum(np.square(ab)))
-            inside_distances = np.abs(np.cross(inside_segment - line[0], ab)) / ab_norm 
+            frechet.append(x)
+            ma = max(ma, x)
+            mi = min(mi, x)
 
-            if outside_segment.size > 0: 
-                #For outside the segment, get the minimum distance to either endpoint
-                outside_distances = np.min(np.linalg.norm(outside_segment[:, np.newaxis, :] - line, axis=2), axis=1)
-            else: outside_distances = np.zeros(1)
-
-            frechet[index] = max(np.max(inside_distances), np.max(outside_distances))
-        
-        if return_mean: return np.mean(frechet)
         return frechet
+    
+    def calcProjectedMonotonicity(self, return_mean = True):
+        monotonicities = []
+        list_edges = list(self.G.edges(data=True))
+
+        for index, (u, v, data) in enumerate(list_edges):
+            X = [float(num) for num in data.get('X')]
+            Y = [float(num) for num in data.get('Y')]
+            polyline = [(X[i], Y[i]) for i in range(len(X))]
+
+            if len(polyline) < 2:
+                monotonicities.append(0.0)
+                continue
+
+            x0 = self.G.nodes[u]['X']
+            y0 = self.G.nodes[u]['Y']
+            x1 = self.G.nodes[v]['X']
+            y1 = self.G.nodes[v]['Y']
+
+            projections = []
+            for (px, py) in polyline:
+                proj = Metrics.project_point_onto_line((px, py), (x0, y0), (x1, y1))
+                projections.append(proj)
+
+            sign_change_count = 0
+            direction = 0 
+
+            for i in range(1, len(projections)):
+                prev_x = projections[i - 1][0]
+                curr_x = projections[i][0]
+
+                if i == 1:
+                    direction = 1 if curr_x >= prev_x else -1
+                else:
+                    if curr_x > prev_x and direction == -1:
+                        sign_change_count += 1
+                        direction = 1
+                    elif curr_x < prev_x and direction == 1:
+                        sign_change_count += 1
+                        direction = -1
+
+            denom = max(1, len(projections) - 1)
+            normalized_mono = sign_change_count / denom
+
+            monotonicities.append(normalized_mono)
+
+        return monotonicities
+    
+    def calcMonotonicity(self, return_mean = True):
+        """
+        Computes a 'monotonicity' measure for each edge, normalized by the
+        number of polyline control points. Returns a list of normalized
+        monotonicity values (one per edge).
+        """
+        monotonicities = []
+        
+        list_edges = list(self.G.edges(data=True))
+
+        for index, (u, v, data) in enumerate(list_edges):
+            X = [float(num) for num in data.get('X')]
+            Y = [float(num) for num in data.get('Y')]
+            
+            x0 = self.G.nodes[u]['X']
+            y0 = self.G.nodes[u]['Y']
+            x1 = self.G.nodes[v]['X']
+            y1 = self.G.nodes[v]['Y']
+
+            polyline = [(X[i], Y[i]) for i in range(len(X))]
+            
+            if len(polyline) < 2:
+                monotonicities.append(0.0)
+                continue
+
+    
+            A = self.Point(x0, y0)
+            B = self.Point(polyline[1][0], polyline[1][1])
+            C = self.Point(x1, y1)
+            main_orientation = Metrics.orientation(A, B, C)
+
+            for i in range(len(polyline)):
+                px, py = polyline[i]
+                proj = Metrics.project_point_onto_line((px, py), (x0, y0), (x1, y1))
+                dist_from_source = np.linalg.norm(np.array(proj) - np.array((x0, y0)))
+                
+            
+                point_orientation = Metrics.orientation(A, self.Point(px, py), C)
+                distance = np.linalg.norm(np.array((px, py)) - proj)
+                
+                if math.isclose(distance, 0, abs_tol=1e-5):
+                    distance = 0.0
+                
+                if point_orientation != main_orientation and not math.isclose(distance, 0.0, abs_tol=1e-5):
+                    distance = -distance
+                
+                polyline[i] = (dist_from_source, distance)
+
+            monotonicity = 0
+            xDirection = None
+            yDirection = None
+
+            for i in range(1, len(polyline)):
+                curr_x, curr_y = polyline[i]
+                prev_x, prev_y = polyline[i - 1]
+
+                if i == 1:
+                    xDirection = 1 if curr_x >= prev_x else -1
+                    yDirection = 1 if curr_y >= prev_y else -1
+                    continue
+
+                if curr_x > prev_x and xDirection == -1:
+                    monotonicity += 1
+                    xDirection = 1
+                elif curr_x < prev_x and xDirection == 1:
+                    monotonicity += 1
+                    xDirection = -1
+
+                if curr_y > prev_y and yDirection == -1:
+                    monotonicity += 1
+                    yDirection = 1
+                elif curr_y < prev_y and yDirection == 1:
+                    monotonicity += 1
+                    yDirection = -1
+
+           
+            denom = max(1, len(polyline) - 1)
+            norm_monotonicity = monotonicity / denom
+
+            monotonicities.append(norm_monotonicity)
+
+        return monotonicities
 
     
 
@@ -301,18 +399,51 @@ class Metrics():
 # Helper functions                               #
 ##################################################
 
-def project_points_to_line(points:np.array, line: np.array):
-    """
-    points: array of shape (n,2) of points to be projected onto line 
-    line  : array of shape (2,2) indicating the start and endpoints of a line segment
-    """
-    a,b = line 
+def project_point_onto_line( point, line_start, line_end):
+        
+        line_vec = np.array(line_end) - np.array(line_start)
+        point_vec = np.array(point) - np.array(line_start)
+        line_len_squared = np.dot(line_vec, line_vec)
+        t = max(0, min(1, np.dot(point_vec, line_vec) / line_len_squared))
+        projection = np.array(line_start) + t * line_vec
+        return projection
 
-    ab = b - a 
-    ab_norm_sq = np.dot(ab, ab)
+def orientation( p, q, r): 
+        
+        
+        val = (float(q.y - p.y) * (r.x - q.x)) - (float(q.x - p.x) * (r.y - q.y)) 
+        if (val > 0): 
+            
+            return 1
+        elif (val < 0): 
+            
+            return 2
+        else: 
+            
+            return 0
 
-    ap = points - a 
-
-    projection = np.dot(ap, ab) / ab_norm_sq 
-    projected_points = a + np.outer(projection, ab)
-    return projected_points
+def doIntersect(p1,q1,p2,q2): 
+        
+        
+        o1 = Metrics.orientation(p1, q1, p2) 
+        o2 = Metrics.orientation(p1, q1, q2) 
+        o3 = Metrics.orientation(p2, q2, p1) 
+        o4 = Metrics.orientation(p2, q2, q1) 
+    
+        if ((o1 != o2) and (o3 != o4)): 
+            return True
+    
+    
+        if ((o1 == 0) and Metrics.onSegment(p1, p2, q1)): 
+            return True
+    
+        if ((o2 == 0) and Metrics.onSegment(p1, q2, q1)): 
+            return True
+    
+        if ((o3 == 0) and Metrics.onSegment(p2, p1, q2)): 
+            return True
+    
+        if ((o4 == 0) and Metrics.onSegment(p2, q1, q2)): 
+            return True
+    
+        return False
