@@ -13,7 +13,6 @@ async function bundleFD(pathToBundle) {
     Writes the output to a .edge file in the ../../outputs directory.
     */
     var json_obj = JSON.parse(fs.readFileSync(pathToBundle, 'utf8'));
-    console.log(json_obj);
 
     var edges = json_obj.edges;
     var nodes = json_obj.nodes;
@@ -28,7 +27,6 @@ async function bundleFD(pathToBundle) {
         ]
     });
 
-    console.log(polylines);
     fs.writeFileSync('outputs/edges.edge', polylines.map(polyline => polyline.join(" ")).join("\n"));
 
 } 
