@@ -253,7 +253,7 @@ def process(input, output, filename, algorithm):
     # G = read_bundling("outputs/epb_airlines.graphml")
     # print(type(G))
 
-    # M = Metrics(G)
+    M = Metrics(G)
     
     for metric in ['distortion', 'inkratio', 'SL_angle']:#M.implemented_metrics:
         mvalue = M.compute_metric(metric,return_mean=False)
