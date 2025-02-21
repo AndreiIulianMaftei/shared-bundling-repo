@@ -198,7 +198,7 @@ def bundle_all(dir):
 
         if not os.path.isdir(f"outputs/{name}"): os.mkdir(f"outputs/{name}")
 
-        for alg in ['wr','fd', 'epb', 'sepb']:
+        for alg in ['wr','fd', 'epb', 'sepb', 'cubu']:
             compute_bundling(f"{dir}/{file}", alg, f"outputs/{name}/{alg}.graphml")    
 
 if __name__ == "__main__":
