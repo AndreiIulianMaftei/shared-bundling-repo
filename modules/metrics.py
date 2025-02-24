@@ -377,7 +377,30 @@ class Metrics():
 
             monotonicities[index] = monotonicity
 
+        if return_mean: return np.mean(monotonicities)
         return monotonicities
+    
+
+def calcDirectionalityChange(self,return_mean=True,normalize=True):
+    dchange = np.zeros(self.G.number_of_edges(),np.float32)
+
+    for index, (u,v,data) in enumerate(self.G.edges(data=True)):
+        points = np.array([[x,y] for x,y in zip(data['X'], data['Y'])])
+
+        directions = np.diff(points,axis=0)
+
+        cross = np.cross(directions[:-1], directions[1:])
+        signs = np.sign(cross)
+
+        edgechanges = np.sum(signs[1:] * signs[:-1] < 0)
+
+        if normalize: edgechanges /= (points.shape[0] - 1)
+
+        dchange[index] = edgechanges
+    
+    if return_mean: return np.mean(edgechanges)
+    return edgechanges
+
 
 
 ##################################################
