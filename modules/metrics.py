@@ -6,13 +6,23 @@ from gdMetriX import number_of_crossings
 from modules.abstractBundling import RealizedBundling
 from modules.EPB.straight import StraightLine
 from modules.EPB.experiments import Metrics as EPBMetrics
-import math
 
 PATH_TO_PICKLE_FOLDER = "pickle/"
 if not os.path.isdir(PATH_TO_PICKLE_FOLDER): os.mkdir(PATH_TO_PICKLE_FOLDER)
 
 class Metrics():
-    implemented_metrics = ["distortion", "inkratio", "self_intersections", "all_intersections"]
+    @staticmethod
+    def getImplementedMetrics():
+        return Metrics.getGlobalMetrics() + Metrics.getLocalMetrics()
+
+    @staticmethod
+    def getGlobalMetrics():
+        return ['inkratio', 'all_intersections', 'ambiguity']
+    
+    @staticmethod
+    def getLocalMetrics():
+        return ['distortion', 'frechet', 'directionality', 'monotonicity', 'projected_monotonicity', 'SL_angle', 'self_intersections']
+
     def __init__(self,bundle:RealizedBundling, verbose=True):
         """
         G should be a RealizedBundling instance. 
@@ -46,6 +56,16 @@ class Metrics():
                 return self.calcAllIntersections(**args)
             case "SL_angle":
                 return self.calcSLAngle(**args)
+            case "ambiguity": 
+                return self.calcAmbiguity(**args)
+            case "frechet":
+                return self.calcFrechet(**args)
+            case "directionality":
+                return self.calcDirectionalityChange(**args)
+            case "monotonicity":
+                return self.calcMonotonicity(**args)
+            case "projected_monotonicity": 
+                return self.calcProjectedMonotonicity(**args)
             case _:
                 print("not yet implemented")
                 return 
@@ -156,7 +176,6 @@ class Metrics():
 
         if return_mean: return np.mean(distortions)
         else: return distortions
-
 
     def calcInkRatio(self,return_mean=True):
         '''
@@ -381,25 +400,25 @@ class Metrics():
         return monotonicities
     
 
-def calcDirectionalityChange(self,return_mean=True,normalize=True):
-    dchange = np.zeros(self.G.number_of_edges(),np.float32)
+    def calcDirectionalityChange(self,return_mean=True,normalize=True):
+        dchange = np.zeros(self.G.number_of_edges(),np.float32)
 
-    for index, (u,v,data) in enumerate(self.G.edges(data=True)):
-        points = np.array([[x,y] for x,y in zip(data['X'], data['Y'])])
+        for index, (u,v,data) in enumerate(self.G.edges(data=True)):
+            points = np.array([[x,y] for x,y in zip(data['X'], data['Y'])])
 
-        directions = np.diff(points,axis=0)
+            directions = np.diff(points,axis=0)
 
-        cross = np.cross(directions[:-1], directions[1:])
-        signs = np.sign(cross)
+            cross = np.cross(directions[:-1], directions[1:])
+            signs = np.sign(cross)
 
-        edgechanges = np.sum(signs[1:] * signs[:-1] < 0)
+            edgechanges = np.sum(signs[1:] * signs[:-1] < 0)
 
-        if normalize: edgechanges /= (points.shape[0] - 1)
+            if normalize: edgechanges /= (points.shape[0] - 1)
 
-        dchange[index] = edgechanges
-    
-    if return_mean: return np.mean(edgechanges)
-    return edgechanges
+            dchange[index] = edgechanges
+        
+        if return_mean: return np.mean(dchange)
+        return dchange
 
 
 
