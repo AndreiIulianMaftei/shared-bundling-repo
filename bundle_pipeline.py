@@ -69,6 +69,9 @@ def compute_cubu(file, out_path):
     6) Write the final .graphml to `out_path`.
     """
 
+    if not os.path.exists("cubu"):
+        return 
+
     G = Reader.readGraphML(file, G_width=GWIDTH, invertY=False, directed=False)
     maxX = -999999
     minX = 999999
@@ -89,8 +92,8 @@ def compute_cubu(file, out_path):
            
 
     cubu_command = f"./cubu -i 1000 -f {temp_input}"
-    print(f"Running CuBu command: {cubu_command}")
-    print(os.getcwd())
+    # print(f"Running CuBu command: {cubu_command}")
+    # print(os.getcwd())
     os.system(cubu_command)
 
     bundled_output = "bundled_output.trl"
@@ -190,8 +193,9 @@ def compute_bundling(file, algorithm,outfile):
     
 def bundle_all(dir):
     import os 
+    import tqdm
 
-    for file in os.listdir(dir):
+    for file in tqdm.tqdm(os.listdir(dir)):
 
         name = file.split('/')[-1]
         name = name.replace('.graphml','')

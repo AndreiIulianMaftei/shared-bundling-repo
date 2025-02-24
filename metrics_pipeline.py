@@ -224,7 +224,7 @@ def write_json(G, M, path, algorithm):
         del data['Xapprox']
         del data['Yapprox']
 
-    for metric in ['distortion', 'SL_angle']:
+    for metric in ['distortion']:
         counter = 0
         for u,v,data in G.edges(data=True):
             data[metric] = M.metricvalues[metric][counter]
@@ -245,20 +245,8 @@ def process(input, output, filename, algorithm):
     print(type(G))
 
     M = Metrics(G)
-
-    #c = M.calcAllIntersections()
-
-    #print(c)
     
-
-    # import pylab as plt
-
-    # G = read_bundling("outputs/epb_airlines.graphml")
-    # print(type(G))
-
-    M = Metrics(G)
-    
-    for metric in ['distortion', 'inkratio', 'SL_angle']:#M.implemented_metrics:
+    for metric in M.implemented_metrics:
         mvalue = M.compute_metric(metric,return_mean=False)
         M.store_metric(metric, mvalue)
 
@@ -269,7 +257,7 @@ if __name__ == "__main__":
     import pylab as plt
 
     for dataset in ['g0', 'g1' ,'airlines', 'migration']:
-        for algo in ['epb', 'fd', 'sepb', 'wr', 'cubu']:
+        for algo in ['wr']:
             process("outputs", 'dashboard/output_dashboard', dataset, algo)
 
     
