@@ -12,11 +12,11 @@ endif
 
 ifeq ($(PLATFORM),PLATFORM_LINUX)
 CXX       =  g++
-CUDAROOT  =  /usr/local/cuda-11.8
+CUDAROOT  =  /usr/local/cuda-11.5
 CUDAINC   = -I$(CUDAROOT)/samples/common/inc
 CUDALIB   = $(CUDAROOT)/lib64
 CUDAINC2  = -I$(CUDAROOT)/Common
-GLUI      = /home/andrei/Downloads/glui-2.37
+GLUI      = /home/jacob253/Downloads/glui-2.37
 GLINC     = -I$(GLUI)/include
 GLLIB     = $(GLUI)/lib/libglui.a -lGL -lGLU -lglut -lGLEW
 CUDAGEN   = -gencode=arch=compute_50,code=\"sm_50,compute_50\"
