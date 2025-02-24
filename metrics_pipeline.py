@@ -43,8 +43,6 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
         if metric not in M.metricvalues: continue
 
         counter = 0
-        print(metric)
-        print(M.metricvalues[metric])
         for u,v,data in G.edges(data=True):
             data[metric] = M.metricvalues[metric][counter]
             counter += 1
