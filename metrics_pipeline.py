@@ -1,4 +1,5 @@
 import argparse
+import csv
 import glob
 import os.path
 from modules.abstractBundling import GWIDTH, GraphLoader, RealizedBundling
@@ -10,6 +11,9 @@ from modules.EPB.plotTest import PlotTest
 import networkx as nx
 import numpy as np
 import json
+from modules.metrics import Metrics
+import pylab as plt
+
 
 metrics = ["angle", "drawing", "distortion", "ink", "frechet", "monotonicity", "monotonicity_projection", "all", "intersect_all", "self_intersect"]
 #algorithms = ["epb", "sepb", "fd", "cubu", "wr", "straight"]
@@ -265,12 +269,15 @@ def process(input, output, filename, algorithm):
     write_json(G, M, f'{output}/{filename}', algorithm)
 
 if __name__ == "__main__":
-    from modules.metrics import Metrics
-    import pylab as plt
 
-    for dataset in ['g0', 'g1' ,'airlines', 'migration']:
-        for algo in ['epb', 'fd', 'sepb', 'wr', 'cubu']:
-            process("outputs", 'dashboard/output_dashboard', dataset, algo)
+   with open('dashboard/output_dashboard/instances.csv', 'w') as f:
+        csvwriter = csv.writer(f)
+        csvwriter.writerow(['instance'])
+
+        for dataset in ['airlines', 'migration']:
+            for algo in ['epb', 'fd', 'sepb', 'wr', 'cubu']:
+                process("outputs", 'dashboard/output_dashboard', dataset, algo)
+            csvwriter.writerow([dataset])
 
     
 
