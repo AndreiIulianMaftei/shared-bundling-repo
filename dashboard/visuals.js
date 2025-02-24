@@ -85,21 +85,30 @@ class Bundling {
 }
 
 class Histogram{
-    constructor(svg, container) {
+    constructor(svg, container, stats) {
         this.svg = svg;
         this.container = container;
+        this.stats = stats;
     }
 
     async load_data(edges, accessor) {
         this.edges = edges;
         this.accessor = accessor;
 
-        var width = this.svg.node().getBoundingClientRect().width;
-        
-        this.svg.attr('height', width);
-
         this.extentX = d3.extent(edges, d => d[accessor])
         
+        var mean = d3.mean(edges, d => d[accessor]);
+        var median = d3.median(edges, d => d[accessor]);
+
+        this.stats.append('span').text(`mean: ${mean.toFixed(2)}   median: ${median.toFixed(2)}`)
+
+    }
+
+    async draw () {
+        this.svg.selectAll('*').remove();
+        var width = this.svg.node().getBoundingClientRect().width;
+        this.svg.attr('height', width);
+
         var xScale = d3.scaleLinear().domain(this.extentX).range([3 * margin, width - margin]);
 
         this.axisBottom = this.svg.append("g")
@@ -107,26 +116,25 @@ class Histogram{
             .call(d3.axisBottom(xScale).ticks(5));
 
         this.histogram = d3.histogram()
-                            .value(d => {return d[accessor]})
+                            .value(d => {return d[this.accessor]})
                             .domain(xScale.domain())
-                            .thresholds(xScale.ticks(20));
+                            .thresholds(xScale.ticks(50));
 
-        this.bins = this.histogram(edges);
+        this.bins = this.histogram(this.edges);
+        this.extentY = [0, d3.max(this.bins, function(d) { return d.length; })];
 
         var yScale = d3.scaleLinear().range([width - 2 * margin, margin]).domain([0, d3.max(this.bins, function(d) { return d.length; })]); 
         this.svg.append("g")
             .attr("transform", "translate(" + 3 * margin + "," + 0 + ")")
             .call(d3.axisLeft(yScale).ticks(5));
-    }
 
-    async draw () {
         this.svg.selectAll("rect")
-            .data(this.bins)
-            .enter()
-            .append("rect")
-              .attr('x', 1)
-              .attr('y', 0)
-              .style("fill", "#69b3a2")
+        .data(this.bins)
+        .enter()
+        .append("rect")
+            .attr('x', 1)
+            .attr('y', 0)
+            .style("fill", "#69b3a2")
 
         this.resize();
     }
@@ -134,10 +142,10 @@ class Histogram{
 
 
     async resize () {
-        console.log(this.bins);
+
         var width = this.svg.node().getBoundingClientRect().width;
         var xScale = d3.scaleLinear().domain(this.extentX).range([3 * margin, width - margin]);
-        var yScale = d3.scaleLinear().range([width - 2 * margin, margin]).domain([0, d3.max(this.bins, function(d) { return d.length; })]); 
+        var yScale = d3.scaleLinear().range([width - 2 * margin, margin]).domain(this.extentY); 
         console.log(xScale.domain(), xScale.range())
 
         this.svg.selectAll("rect")
@@ -152,6 +160,15 @@ class Histogram{
 
     async resize_bins() {
 
+    }
+
+    get_extent() {
+        return [d3.extent(this.edges, d => d[this.accessor]), this.extentY];
+    }
+
+    set_extent(extentX, extentY) {
+        this.extentX = extentX;
+        this.extentY = extentY;
     }
 }
 
@@ -169,13 +186,16 @@ class Container{
         this.metrics = {}
 
         metrics.forEach(metric => {
-            var mCTop = this.container.append('div')
-            mCTop.append('h6').text(metric);
-            var mCVis = mCTop.append('svg').attr('class', 'metricSVG')
-        
+            var mCTop = this.container.append('div').attr('class', 'metric-container')
+            mCTop.append('h6').text(metric.name);
+            var mCVis = mCTop.append('svg').attr('class', 'metricSVG');
+            var mCStat = mCTop.append('div');
+
+            mCTop.style('diplay', 'none');
             mCTop.style('visibility', 'collapse');
 
-            this.metrics[metric] = new Histogram(mCVis, mCTop)
+
+            this.metrics[metric.accessor] = new Histogram(mCVis, mCTop, mCStat)
         });
     }
 
@@ -187,7 +207,7 @@ class Container{
             tthis.bundling.add_data(data.nodes, data.edges);
 
             for (const [key, value] of Object.entries(tthis.metrics)) {
-                value.load_data(data.edges, 'distortion');
+                value.load_data(data.edges, key);
             };
         });
     }
@@ -205,9 +225,18 @@ class Container{
         this.container.style('visibility', flag ? 'visible' : 'collapse');
     }
 
+    metric_extent(metric) {
+        return this.metrics[metric].get_extent();
+    }
+
+    metric_set_extent(metric, extent) {
+        return this.metrics[metric].set_extent(extent);
+    }
+
     metric_visibility(metric, flag) {
         var mC = this.metrics[metric]
 
+        mC.container.style('display', flag ? 'block' : 'none');
         mC.container.style('visibility', flag ? 'visible' : 'collapse');
 
         mC.draw();

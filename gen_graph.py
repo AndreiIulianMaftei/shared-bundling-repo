@@ -38,7 +38,7 @@ def blockgraph():
     nx.write_graphml(G,"inputs/block.graphml")
 
 def circular_graph(index, n=100, d=2):
-    G = nx.barabasi_albert_graph(n, d)
+    G = nx.barabasi_albert_graph(n, int(d))
 
     pos = nx.nx_agraph.graphviz_layout(G, 'circo', args='-Goneblock=true')
 

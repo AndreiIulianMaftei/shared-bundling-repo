@@ -63,7 +63,7 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
     with open(f'{path}/{algorithm}.json', 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
 
-def process(input, filename, algorithm, output="dashboard/output_dashboard",metrics='all',verbose=False):
+def process(input, filename, algorithm, output="dashboard/output_dashboard", metrics='all',verbose=False):
     if not os.path.isdir(output): os.mkdir(output)
 
     Bundle = read_bundling(f"{input}/{filename}/{algorithm}.graphml")
@@ -71,7 +71,7 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard",metr
     M = Metrics(Bundle,verbose=verbose)
     
     if metrics == 'all': metrics_to_compute = M.getImplementedMetrics()
-    else: metrics_to_compute = [metrics]
+    else: metrics_to_compute = metrics
 
     for metric in metrics_to_compute:
         if metric == "all_intersections": continue
@@ -111,6 +111,7 @@ def main():
         raise("Input folder not found")
     
     metrics = args.metric
+    metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
     
     for gdata in os.listdir(inputfolder):
         for algfile in os.listdir(f"{inputfolder}/{gdata}"):
