@@ -58,7 +58,11 @@ body {
 .metricSVG {
     /* background-color: beige; */
     width: 100%;
-    margin-bottom: 5px;
+    
+}
+
+.metric-container {
+    margin-bottom: 20px;
 }
 
 .node {

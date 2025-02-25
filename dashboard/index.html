@@ -59,11 +59,11 @@
         });
 
         //const algorithms = ["S-EPB", "EPB", "WR", "FD", "CUBu"];
-        //const ALGORITHMS = ["S-EPB", "WR", "FD", "CUBu"]; //, "WR", "FD", "CUBu"
-        const ALGORITHMS = ["S-EPB", "WR", "FD", "EPB", "CUBu"]; //, "WR", "FD", "CUBu"
+        const ALGORITHMS = ["S-EPB", "EPB", "WR", "FD"]; //, "WR", "FD", "CUBu"
+        //const ALGORITHMS = ["S-EPB", "WR", "FD", "EPB", "CUBu"]; //, "WR", "FD", "CUBu"
         //const ALGORITHMS = ["S-EPB", "WR"];
-        const METRICS = ["Distortion", "Frechet", "Angular Change"];
-        const FILES = [ 'g0', 'g1', 'migration', 'airlines'];
+        const METRICS = [{'name': "Distortion", "accessor": "distortion", "type": "edge"}, {'name': "Frechet", "accessor": "frechet", "type": "edge"}, {'name': "Directionality Change", "accessor": "directionality", "type": "edge"}, {'name': "Monotonicity", "accessor": "monotonicity", "type": "edge"}];
+        var FILES = [ 'g0', 'g1', 'migration', 'airlines'];
         
         const converter = {"S-EPB": 'sepb', "WR": 'wr', "FD": 'fd', "EPB": 'epb', "CUBu": 'cubu'}; 
 
@@ -107,8 +107,26 @@
         }
 
         function handleCheck_metric(event) {
+            var min = 1000;
+            var max = 0;
+
+            var checked = event.target.checked;
+            var metric = event.target.value;
+
+            if (event.target.checked) {
+                interface.forEach(i => {
+                    extent = i.metric_extent(metric);
+                    min = d3.min([min, extent[0][0]]);
+                    max = d3.max([max, extent[0][1]]);
+                });
+
+                interface.forEach(i => {
+                    i.metric_set_extent(metric, [min,max]);
+                });
+            }
+
             interface.forEach(i => {
-                i.metric_visibility(event.target.value, event.target.checked);
+                i.metric_visibility(metric, checked);
             });
         }
 
@@ -127,11 +145,16 @@
             items.forEach(item => {
                 const listItem = document.createElement('li');
                 listItem.className = "list-group-item";
-                listItem.innerHTML = `<input type="checkbox" class="checklist-item" value="${item}" ${algo}> ${item}`;
-                if (isAlgo)
+                
+                if (isAlgo) {
+                    listItem.innerHTML = `<input type="checkbox" class="checklist-item" value="${item}" ${algo}> ${item}`;
                     listItem.querySelector('input').addEventListener('change', handleCheck_algo);
+                }
                 else
+                {
+                    listItem.innerHTML = `<input type="checkbox" class="checklist-item" value="${item.accessor}" ${algo}> ${item.name}`;
                     listItem.querySelector('input').addEventListener('change', handleCheck_metric);
+                }
                 list.appendChild(listItem);
             });
             
@@ -144,23 +167,27 @@
             });
         });
 
-        FILES.forEach(f => {
-            
-            var opt = document.createElement('option');
-            opt.value = f;
-            opt.innerHTML = f;
-            
-            document.getElementById('file-select').appendChild(opt);
-        });
+        d3.csv("output_dashboard/instances.csv").then(function(data) {
+            FILES = data;
 
+            FILES.forEach(f => {
+            
+                var opt = document.createElement('option');
+                opt.value = f.instance;
+                opt.innerHTML = f.instance;
+                
+                document.getElementById('file-select').appendChild(opt);
+            });
+    
+            initInterface(FILES[0].instance)
+        })
+        
         document.getElementById('file-select').addEventListener('change', (input) => {
             initInterface(input.target.value);
         });
 
         createChecklist("checklist-algo",true, ALGORITHMS);
         createChecklist("checklist-metrics", false, METRICS);
-
-        initInterface('migration');
     </script>
 </body>
 </html>

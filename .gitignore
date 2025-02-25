@@ -13,8 +13,13 @@ package.json
 *.json
 *.ees
 *.es
+*.trl
+*.a
+*.cu
+*.tiff
+
 
 output/*
-
+cubu/CUBu/DATA/
 
 __pycache__/
