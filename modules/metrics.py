@@ -373,14 +373,7 @@ class Metrics():
 
             s = np.linalg.norm(projection - line[0],axis=1)
     
-            orientations = orientationVec(points,line[0], line[1])
-
-            #Projected distance of point to line
-            ab = line[1] - line[0]
-            ab_norm = np.sqrt(np.sum(np.square(ab)))
-            proj_dist = np.abs(np.cross(points - line[0], ab)) / ab_norm   
-
-            d = orientations * proj_dist  
+            d = orientationVecTriples(points)
 
             sdiff = np.diff(s)
             ddiff = np.diff(d)
@@ -399,17 +392,13 @@ class Metrics():
         if return_mean: return np.mean(monotonicities)
         return monotonicities
     
-
     def calcDirectionalityChange(self,return_mean=True,normalize=True):
         dchange = np.zeros(self.G.number_of_edges(),np.float32)
 
         for index, (u,v,data) in enumerate(self.G.edges(data=True)):
             points = np.array([[x,y] for x,y in zip(data['X'], data['Y'])])
 
-            directions = np.diff(points,axis=0)
-
-            cross = np.cross(directions[:-1], directions[1:])
-            signs = np.sign(cross)
+            signs = orientationVecTriples(points)
 
             edgechanges = np.sum(signs[1:] * signs[:-1] < 0)
 
@@ -439,3 +428,18 @@ def orientationVec(points: np.ndarray, a: np.ndarray, b:np.ndarray):
     ab = b - a 
     ap = points - a 
     return np.sign(np.cross(ab,ap))
+
+def orientationVecTriples(points:np.ndarray):
+    """
+    Computes the orientation of all consecutive pairs of triples in array points.
+    """
+    if points.shape[0] < 3: return np.array([])
+
+    p1 = points[:-2]
+    p2 = points[1:-1]
+    p3 = points[2:]
+
+    v1 = p2 - p1 
+    v2 = p3 - p1
+
+    return np.sign(np.cross(v1,v2))
