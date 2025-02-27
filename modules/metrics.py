@@ -194,6 +194,98 @@ class Metrics():
 
         return inkratio
     
+    def calcMeanOccupationArea(self):
+        """
+        Calculate the Mean Occupation Area (MOA) using 8×8 pixel blocks,
+        but consider a block occupied only if at least 4 pixels are drawn.
+        MOA = (1 / number_of_edges) * (count of occupied 8×8 blocks).
+        """
+        from PIL import Image as PILImage
+        GREY_THRESH = 255
+        BLOCK_SIZE = 8
+        MIN_OCCUPIED_PIXELS = 4  # Only count the block if >= 4 pixels are occupied
+
+        imgBundle = self.getDrawing()  
+        imGrayBundle = np.array(PILImage.fromarray(imgBundle).convert("L"))
+
+        height, width = imGrayBundle.shape
+
+        occupied_blocks = 0
+        vblocks = int(np.ceil(height / BLOCK_SIZE))
+        hblocks = int(np.ceil(width / BLOCK_SIZE))
+
+        for by in range(vblocks):
+            row_start = by * BLOCK_SIZE
+            row_end   = min(row_start + BLOCK_SIZE, height)
+
+            for bx in range(hblocks):
+                col_start = bx * BLOCK_SIZE
+                col_end   = min(col_start + BLOCK_SIZE, width)
+
+                # Extract
+                sub_block = imGrayBundle[row_start:row_end, col_start:col_end]
+
+                # below GREY_THRESH
+                num_occupied_pixels = np.count_nonzero(sub_block < GREY_THRESH)
+                if num_occupied_pixels >= MIN_OCCUPIED_PIXELS:
+                    occupied_blocks += 1
+
+        n_edges = self.G.number_of_edges()
+        moa = occupied_blocks / n_edges if n_edges > 0 else 0.0
+
+        return moa
+
+    def calcEdgeDensityDistribution(self, block_size=8):
+        """
+        Calculates Edge Density Distribution (EDD) by partitioning the
+        canvas into blocks of size 'block_size' x 'block_size'.
+        
+        For each block a, we define p(a) = fraction of pixels in that
+        block that are drawn (non-white). Then,
+        
+            EDD = (1 / #blocks) * sum_{a in A} | p(a) - mean(p(a)) |.
+        """
+        from PIL import Image as PILImage
+        GREY_THRESH = 255
+        
+        imgBundle = self.getDrawing()  
+        imGrayBundle = np.array(PILImage.fromarray(imgBundle).convert("L"))
+        
+        height, width = imGrayBundle.shape
+
+        p_values = []
+        
+        vblocks = int(np.ceil(height / block_size))
+        hblocks = int(np.ceil(width  / block_size))
+        
+        for by in range(vblocks):
+            row_start = by * block_size
+            row_end   = min(row_start + block_size, height)
+            
+            for bx in range(hblocks):
+                col_start = bx * block_size
+                col_end   = min(col_start + block_size, width)
+                
+                # Extract sub-block
+                sub_block = imGrayBundle[row_start:row_end, col_start:col_end]
+                
+                # Count how many pixels are drawn (non-white)
+                num_occupied = np.count_nonzero(sub_block < GREY_THRESH)
+                
+                block_area = (row_end - row_start) * (col_end - col_start)
+                p_block = num_occupied / float(block_area)
+                
+                p_values.append(p_block)
+        
+
+        
+        p_values = np.array(p_values, dtype=np.float32)
+        p_mean = p_values.mean()
+        
+        edd = np.mean(np.abs(p_values - p_mean))
+        return float(edd)
+   
+    
     def calcAmbiguity(self, return_mean=True):
         '''
         Calculate the ambiguity. Store intermediate results in the folder /pickle and reuse. 

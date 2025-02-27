@@ -17,8 +17,8 @@ package.json
 *.a
 *.cu
 *.tiff
-
-
+.xml
+.zip
 output/*
 cubu/CUBu/DATA/
 

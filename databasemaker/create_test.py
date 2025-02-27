@@ -22,11 +22,13 @@ def main():
     airport_id_to_node_id = {}
     node_id = 0  
 
+    definedCountry = 'Indonesia'
+
     country_airport_ids = set()
     
-    with open('airports2.xml', 'w', encoding='UTF-8') as xmlfile:
+    with open(f'{definedCountry}_airports.xml', 'w', encoding='UTF-8') as xmlfile:
         xml_header = '''<?xml version="1.0" encoding="UTF-8"?>
-<xml xmlns="http://graphml.graphdrawing.org/xmlns"
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
   http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
@@ -57,7 +59,7 @@ def main():
                 country = airport_data['Country'].strip().strip('"')
                 
                 # Filter: Only include airports in the specified country
-                if country != 'United States':
+                if country != definedCountry:
                     continue
 
                 if not airport_id or not longitude or not latitude or not iata or iata == '\\N':
@@ -139,7 +141,7 @@ def main():
 
         # Write footer
         xml_footer = '''  </graph>
-</xml>
+</graphml>
 '''
         xmlfile.write(xml_footer)
 

@@ -46,9 +46,9 @@ def main():
     if len(sys.argv) < 2:
         print("Usage: python script.py <Continent>")
         print("Example: python script.py Oceania")
-        sys.exit(1)
+        
 
-    target_continent = "Africa"
+    target_continent = "Oceania"
 
     # CSV headers based on your data
     airport_headers = [
@@ -71,12 +71,12 @@ def main():
     selected_airport_ids = set()
 
     # Output file named by continent
-    output_filename = f"airports_{target_continent}.xml"
+    output_filename = f"{target_continent}_airports.xml"
 
     with open(output_filename, 'w', encoding='UTF-8') as xmlfile:
         # Write GraphML header
         xml_header = '''<?xml version="1.0" encoding="UTF-8"?>
-<xml xmlns="http://graphml.graphdrawing.org/xmlns"
+<graphml xmlns="http://graphml.graphdrawing.org/xmlns"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
   xsi:schemaLocation="http://graphml.graphdrawing.org/xmlns
   http://graphml.graphdrawing.org/xmlns/1.0/graphml.xsd">
@@ -193,7 +193,7 @@ def main():
 
         # Write closing tags
         xml_footer = '''  </graph>
-</xml>
+</graphml>
 '''
         xmlfile.write(xml_footer)
 
