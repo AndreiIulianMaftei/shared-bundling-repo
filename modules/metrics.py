@@ -284,6 +284,36 @@ class Metrics():
         
         edd = np.mean(np.abs(p_values - p_mean))
         return float(edd)
+    
+    def calcMeanEdgeLengthDifference(self, return_mean = True):
+        """
+        Calculate the Mean Edge Length Difference (MELD) by comparing the
+        lengths of the edges in the bundling and the straight line.
+        MELD = (1 / #edges) * sum_{e in E} |len(e) - len(e_straight)|.
+        """
+        edge_lengths = []
+        straight_lengths = []
+        
+        for u, v, data in self.G.edges(data=True):
+            X = np.array(data['X'])
+            Y = np.array(data['Y'])
+            
+            dx = np.diff(X)
+            dy = np.diff(Y)
+            
+            # L2 distance between first and last point on curve
+            lPoly = np.sum(np.sqrt(dx * dx + dy * dy))
+            edge_lengths.append(lPoly)
+            
+            # Straight line length
+            lStraight = np.sqrt((X[-1] - X[0])**2 + (Y[-1] - Y[0])**2)
+            straight_lengths.append(lStraight)
+        
+        edge_lengths = np.array(edge_lengths, dtype=np.float32)
+        straight_lengths = np.array(straight_lengths, dtype=np.float32)
+        
+        meld = np.mean(np.abs(edge_lengths - straight_lengths))
+        return float(meld)
    
     
     def calcAmbiguity(self, return_mean=True):
