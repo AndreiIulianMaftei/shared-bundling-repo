@@ -283,18 +283,25 @@ def bundle_all(dir):
     import tqdm
     if not os.path.isdir("outputs"): os.mkdir("outputs")
 
+    REMOVE_ISOLATES   = True
+    REMOVE_COMPONENTS = True
+
     for file in tqdm.tqdm(os.listdir(dir)):
 
         name = file.split('/')[-1]
         name = name.replace('.graphml','')
 
-        # G = nx.read_graphml(f"{dir}/{file}")
+        G = nx.read_graphml(f'{dir}/{file}')
+        G = nx.Graph(G)
 
-        # component = max(nx.connected_components(G), key=len)
+        if REMOVE_ISOLATES: G.remove_nodes_from(list(nx.isolates(G)))
+        if REMOVE_COMPONENTS:
+            largest_component = max(nx.connected_components(G), key=len)
+            G = G.subgraph(largest_component)
 
-        # G = nx.subgraph(G, component)
+        G = nx.convert_node_labels_to_integers(G)
 
-        # nx.write_graphml(G, f"{dir}/{file}")
+        nx.write_graphml(G,f'{dir}/{file}')
 
         if not os.path.isdir(f"outputs/{name}"): os.mkdir(f"outputs/{name}")
 
