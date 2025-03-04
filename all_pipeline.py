@@ -5,9 +5,9 @@ from bundle_pipeline import bundle_all
 import os 
 if not os.path.isdir("inputs/"): os.mkdir("inputs")
 
-for i in range(10):
-    gen_graphs(i)
-    circular_graph(i, d=(i / 2 + 2))
+# for i in range(10):
+#     gen_graphs(i)
+#     circular_graph(i, d=(i / 2 + 2))
 
 bundle_all("inputs/")
 

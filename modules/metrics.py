@@ -17,11 +17,11 @@ class Metrics():
 
     @staticmethod
     def getGlobalMetrics():
-        return ['inkratio', 'all_intersections', 'ambiguity']
+        return ['inkratio', 'all_intersections', 'ambiguity', 'mean_occupation_area', 'edge_density_distribution']
     
     @staticmethod
     def getLocalMetrics():
-        return ['distortion', 'frechet', 'directionality', 'monotonicity', 'projected_monotonicity', 'SL_angle', 'self_intersections']
+        return ['distortion', 'frechet', 'directionality', 'monotonicity', 'projected_monotonicity', 'SL_angle', 'self_intersections', 'mean_edge_length_difference']
 
     def __init__(self,bundle:RealizedBundling, verbose=True):
         """
@@ -66,6 +66,14 @@ class Metrics():
                 return self.calcMonotonicity(**args)
             case "projected_monotonicity": 
                 return self.calcProjectedMonotonicity(**args)
+            case "mean_occupation_area":
+                return self.calcMeanOccupationArea(**args)
+            case "edge_density_distribution":
+                return self.calcEdgeDensityDistribution(**args)
+            case "mean_edge_length_difference":
+                return self.calcMeanEdgeLengthDifference(**args)
+            case 'mean_edge_length_difference':
+                return self.calcMeanEdgeLengthDifference(**args)
             case _:
                 print("not yet implemented")
                 return 
@@ -194,7 +202,7 @@ class Metrics():
 
         return inkratio
     
-    def calcMeanOccupationArea(self):
+    def calcMeanOccupationArea(self, return_mean = True):
         """
         Calculate the Mean Occupation Area (MOA) using 8×8 pixel blocks,
         but consider a block occupied only if at least 4 pixels are drawn.
@@ -235,7 +243,7 @@ class Metrics():
 
         return moa
 
-    def calcEdgeDensityDistribution(self, block_size=8):
+    def calcEdgeDensityDistribution(self, return_mean = True):
         """
         Calculates Edge Density Distribution (EDD) by partitioning the
         canvas into blocks of size 'block_size' x 'block_size'.
@@ -254,7 +262,7 @@ class Metrics():
         height, width = imGrayBundle.shape
 
         p_values = []
-        
+        block_size=8
         vblocks = int(np.ceil(height / block_size))
         hblocks = int(np.ceil(width  / block_size))
         
@@ -291,10 +299,14 @@ class Metrics():
         lengths of the edges in the bundling and the straight line.
         MELD = (1 / #edges) * sum_{e in E} |len(e) - len(e_straight)|.
         """
+        meld = np.zeros(self.G.number_of_edges())
+
         edge_lengths = []
         straight_lengths = []
         
-        for u, v, data in self.G.edges(data=True):
+        for (index), (u, v, data ) in enumerate(self.G.edges(data=True)):
+            
+            
             X = np.array(data['X'])
             Y = np.array(data['Y'])
             
@@ -303,17 +315,13 @@ class Metrics():
             
             # L2 distance between first and last point on curve
             lPoly = np.sum(np.sqrt(dx * dx + dy * dy))
-            edge_lengths.append(lPoly)
             
             # Straight line length
             lStraight = np.sqrt((X[-1] - X[0])**2 + (Y[-1] - Y[0])**2)
-            straight_lengths.append(lStraight)
-        
-        edge_lengths = np.array(edge_lengths, dtype=np.float32)
-        straight_lengths = np.array(straight_lengths, dtype=np.float32)
-        
-        meld = np.mean(np.abs(edge_lengths - straight_lengths))
-        return float(meld)
+
+            meld[index] = np.abs(lPoly - lStraight)
+            
+        return meld
    
     
     def calcAmbiguity(self, return_mean=True):
