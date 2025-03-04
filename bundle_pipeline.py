@@ -276,15 +276,21 @@ def compute_bundling(file, algorithm,outfile):
     
 def bundle_all(dir):
     import os 
+    import tqdm
+    if not os.path.isdir("outputs"): os.mkdir("outputs")
 
-    for file in os.listdir(dir):
+    for file in tqdm.tqdm(os.listdir(dir)):
 
         name = file.split('/')[-1]
         name = name.replace('.graphml','')
 
         if not os.path.isdir(f"outputs/{name}"): os.mkdir(f"outputs/{name}")
 
-        for alg in ['wr','fd', 'epb', 'sepb', 'cubu']:
+        algs = ['wr','fd', 'epb', 'sepb']
+        if os.path.exists('cubu'): algs += ['cubu']
+
+        for alg in ['wr','fd', 'epb', 'sepb']:
+            if alg != 'fd': continue
             compute_bundling(f"{dir}/{file}", alg, f"outputs/{name}/{alg}.graphml")    
 
 if __name__ == "__main__":

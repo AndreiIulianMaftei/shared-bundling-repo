@@ -45,11 +45,14 @@ class Reader:
         height = (ymax - ymin) * factor
 
         for node, data in G.nodes().data():
-            G.nodes()[node]['X'] = (data['X'] - xmin) * factor
+            data['X'] = (data['X'] - xmin) * factor
             data['Y'] = (data['Y'] - ymin) * factor
 
-            if invertX: G.nodes()[node]['X'] = width - data['X']
+            if invertX: data['X'] = width - data['X']
             if invertY: data['Y'] = height - data['Y']
+
+            data['x'] = data['X']
+            data['y'] = data['Y']
 
         for (u,v,data) in G.edges(data = True):
             d1 = G.nodes[u]

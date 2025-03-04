@@ -75,13 +75,13 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
 
     for metric in metrics_to_compute:
         if metric == "all_intersections" or metric == "ambiguity": continue
-        try:
-            if verbose: print(f"calculating {metric} on {filename}/{algorithm}")
-            mvalue = M.compute_metric(metric,return_mean=False)
-            M.store_metric(metric, mvalue)
-        except:
-            print("Problem with the metric")
-            print(f"Failed on metric {metric} on graph {filename}/{algorithm}")
+        # try:
+        if verbose: print(f"calculating {metric} on {filename}/{algorithm}")
+        mvalue = M.compute_metric(metric,return_mean=False)
+        M.store_metric(metric, mvalue)
+        # except:
+        #     print("Problem with the metric")
+        #     print(f"Failed on metric {metric} on graph {filename}/{algorithm}")
 
     write_json(Bundle, M, f'{output}/{filename}', algorithm)
 
@@ -113,9 +113,11 @@ def main():
     metrics = args.metric
     metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
     
-    for gdata in os.listdir(inputfolder):
+    import tqdm
+    for gdata in tqdm.tqdm(os.listdir(inputfolder)):
         for algfile in os.listdir(f"{inputfolder}/{gdata}"):
             alg = algfile.replace(".graphml", "")
+            if alg != 'fd': continue
 
             process(inputfolder, gdata, alg, metrics=metrics, verbose=args.verbose)
 

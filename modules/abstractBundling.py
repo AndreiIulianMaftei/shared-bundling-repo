@@ -352,6 +352,7 @@ class RealizedBundling(AbstractBundling):
     def __init__(self, G:nx.Graph, name:str):
         self.G = G
         self.name = name
+        self.path = name
 
     def store_metric(self,metricname, metricvalue):
         """
@@ -406,6 +407,7 @@ class GraphLoader(AbstractBundling):
 
         G = nx.read_graphml(to_read)      
         G.graph['filename'] = to_read
+        self.path = path
         
         xmin = sys.maxsize
         xmax = -sys.maxsize - 1

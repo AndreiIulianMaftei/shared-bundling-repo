@@ -380,6 +380,8 @@ class Metrics():
             line = np.array([[x0,y0], [x1,y1]])
             projected_points = project_points_to_line(points, line)
 
+            # print(line, points[0], points[-1])
+
             minx,maxx = min(x0, x1), max(x0,x1)
             miny,maxy = min(y0, y1), max(y0,y1)
 
@@ -401,7 +403,8 @@ class Metrics():
                 outside_distances = np.min(np.linalg.norm(outside_segment[:, np.newaxis, :] - line, axis=2), axis=1)
             else: outside_distances = np.zeros(1)
 
-            frechet[index] = max(np.max(inside_distances), np.max(outside_distances))
+            frechet[index] = max(np.max(inside_distances), np.max(outside_distances)) #/ np.sqrt(np.sum(np.square(line[1]-line[0])))
+            # print(frechet[index], np.sqrt(np.sum(np.square(line[1]-line[0]))))
         
         if return_mean: return np.mean(frechet)
         return frechet    
@@ -471,7 +474,7 @@ class Metrics():
         if return_mean: return np.mean(monotonicities)
         return monotonicities
     
-    def calcMonotonicity(self, return_mean = True,normalize=True):
+    def calcMonotonicity(self, return_mean = True,normalize=False):
         """
         Computes a 'monotonicity' measure for each edge, normalized by the
         number of polyline control points. Returns a list of normalized
@@ -514,19 +517,18 @@ class Metrics():
         if return_mean: return np.mean(monotonicities)
         return monotonicities
     
-    def calcDirectionalityChange(self,return_mean=True,normalize=True):
+    def calcDirectionalityChange(self,return_mean=True,normalize=False):
         dchange = np.zeros(self.G.number_of_edges(),np.float32)
 
         for index, (u,v,data) in enumerate(self.G.edges(data=True)):
             points = np.array([[x,y] for x,y in zip(data['X'], data['Y'])])
 
-            signs = orientationVecTriples(points)
+            diff = np.diff(points,axis=0)
+            # signs = np.sign(np.cross(diff[:-1], diff[1:],axis=1))
+            cross = diff[:-1, 0] * diff[1:,1] - diff[:-1,1] * diff[1:,0]
+            signs = np.sign(cross)
 
-            edgechanges = np.sum(signs[1:] * signs[:-1] < 0)
-
-            if normalize: edgechanges /= (points.shape[0] - 1)
-
-            dchange[index] = edgechanges
+            dchange[index] = np.sum(np.abs(np.diff(signs)) > 0)
         
         if return_mean: return np.mean(dchange)
         return dchange
@@ -551,7 +553,7 @@ def orientationVec(points: np.ndarray, a: np.ndarray, b:np.ndarray):
     ap = points - a 
     return np.sign(np.cross(ab,ap))
 
-def orientationVecTriples(points:np.ndarray):
+def orientationVecTriples(points:np.ndarray,tol=1e-9):
     """
     Computes the orientation of all consecutive pairs of triples in array points.
     """
@@ -563,5 +565,7 @@ def orientationVecTriples(points:np.ndarray):
 
     v1 = p2 - p1 
     v2 = p3 - p1
-
-    return np.sign(np.cross(v1,v2))
+    
+    orientations = np.cross(v1,v2)
+    # orientations = np.where(np.abs(orientations) < tol, 0, orientations)
+    return np.sign(orientations)
