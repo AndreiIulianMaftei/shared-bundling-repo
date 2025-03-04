@@ -155,8 +155,11 @@ def compute_cubu(file, out_path, G_width=None):
             raw_x = [float(x) for x in coords[0::2]]
             raw_y = [float(y) for y in coords[1::2]]
 
-            final_x = [min_x + (val / TARGET_SIZE) * range_x for val in raw_x]
-            final_y = [min_y + (val / TARGET_SIZE) * range_y for val in raw_y]
+            # final_x = [min_x + (val / TARGET_SIZE) * range_x for val in raw_x]
+            # final_y = [min_y + (val / TARGET_SIZE) * range_y for val in raw_y]
+
+            final_x = [val + 100 for val in raw_x]
+            final_y = [val + 100 for val in raw_y]
 
             if edge_id < len(edge_list):
                 u, v = edge_list[edge_id]
@@ -203,7 +206,8 @@ def compute_cubu(file, out_path, G_width=None):
         G.nodes[node]["X"] = avg_x
         G.nodes[node]["Y"] = avg_y
 
-
+    isolated_nodes = [n for n in G.nodes() if G.degree(n) == 0]
+    G.remove_nodes_from(isolated_nodes)
     # ------------------------------------------------------------------
     # 9) Write final .graphml
     # ------------------------------------------------------------------
@@ -281,6 +285,14 @@ def bundle_all(dir):
 
         name = file.split('/')[-1]
         name = name.replace('.graphml','')
+
+        # G = nx.read_graphml(f"{dir}/{file}")
+
+        # component = max(nx.connected_components(G), key=len)
+
+        # G = nx.subgraph(G, component)
+
+        # nx.write_graphml(G, f"{dir}/{file}")
 
         if not os.path.isdir(f"outputs/{name}"): os.mkdir(f"outputs/{name}")
 

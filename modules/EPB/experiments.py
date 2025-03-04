@@ -704,18 +704,7 @@ class Experiment:
                 plt.close()
 
             print(f"PDF created at: {pdf_path}")
-
-        
-  
-
-
-        
-        
-
-        
-       
-
-
+               
         
     def plotHistogram(self, values):
         sbn.displot(x=values)

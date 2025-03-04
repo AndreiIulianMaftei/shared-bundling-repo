@@ -80,7 +80,7 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
             mvalue = M.compute_metric(metric,return_mean=False)
             M.store_metric(metric, mvalue)
         except:
-            print("Problem with the metric")
+            print("Problem with the metric" )
             print(f"Failed on metric {metric} on graph {filename}/{algorithm}")
 
     write_json(Bundle, M, f'{output}/{filename}', algorithm)
@@ -98,11 +98,12 @@ def main():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("folder", type=str, help="Path to input folder")
+    parser.add_argument("--folder", default="outputs/",type=str, help="Path to input folder")
     parser.add_argument("--metric", type=str, default='all', help="which metric/s should be evaluated")
     parser.add_argument("--verbose", type=bool, default=False, help = "verbosity level")
     # parser.add_argument("--algorithm", help="Which algorithm should be evaluated. Default 'all'", default='all')
     # parser.add_argument("--draw", help="Should the bundling be drawn and saved as an image. {0,1}, Default '1'", default='1')
+
 
     args = parser.parse_args()
 
@@ -111,7 +112,7 @@ def main():
         raise("Input folder not found")
     
     metrics = args.metric
-    metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
+    # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
     
     for gdata in os.listdir(inputfolder):
         for algfile in os.listdir(f"{inputfolder}/{gdata}"):
