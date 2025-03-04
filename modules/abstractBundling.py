@@ -407,7 +407,6 @@ class GraphLoader(AbstractBundling):
 
         G = nx.read_graphml(to_read)      
         G.graph['filename'] = to_read
-        self.path = path
         
         xmin = sys.maxsize
         xmax = -sys.maxsize - 1

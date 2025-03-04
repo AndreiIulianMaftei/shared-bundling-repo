@@ -74,7 +74,7 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
     else: metrics_to_compute = metrics
 
     for metric in metrics_to_compute:
-        if metric == "all_intersections" or metric == "ambiguity": continue
+        if metric == "all_intersections" or metric == "ambiguity" or metric == "self_intersections": continue
         # try:
         if verbose: print(f"calculating {metric} on {filename}/{algorithm}")
         mvalue = M.compute_metric(metric,return_mean=False)
@@ -118,7 +118,6 @@ def main():
     for gdata in tqdm.tqdm(os.listdir(inputfolder)):
         for algfile in os.listdir(f"{inputfolder}/{gdata}"):
             alg = algfile.replace(".graphml", "")
-            if alg != 'fd': continue
 
             process(inputfolder, gdata, alg, metrics=metrics, verbose=args.verbose)
 

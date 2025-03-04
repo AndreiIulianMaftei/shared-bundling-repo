@@ -460,7 +460,6 @@ class Metrics():
             y0 = self.G.nodes[u]['Y']
             x1 = self.G.nodes[v]['X']
             y1 = self.G.nodes[v]['Y']
-            assert x0 != x1, "Vertical line"
 
             line = np.array([[x0,y0], [x1,y1]])
             projection = project_points_to_line(points, line)
