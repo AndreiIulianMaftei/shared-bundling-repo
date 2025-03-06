@@ -91,8 +91,9 @@ class Histogram{
         this.stats = stats;
     }
 
-    async load_data(edges, accessor) {
-        this.edges = edges;
+    async load_data(data, accessor) {
+        var edges = data.edges;
+        this.edges = data.edges;
         this.accessor = accessor;
 
         this.extentX = d3.extent(edges, d => d[accessor])
@@ -172,6 +173,35 @@ class Histogram{
     }
 }
 
+class TextElement{
+    constructor(container, name) {
+        this.container = container;
+        this.name = name;       
+    }
+
+    async load_data(data, accessor) {
+        this.data = data.graph;
+        this.accessor = accessor;
+
+ 
+        this.container.append("span").text(this.name + ": " + this.data[accessor].toFixed(3));
+    }
+
+    async draw () {
+        
+    }
+
+    async resize () {
+    }
+
+    get_extent() {
+        return [1000,0];
+    }
+
+    set_extent(extentX, extentY) {
+    }
+}
+
 class Container{
     constructor(file, container, metrics, algorithm) {
         this.algorithm = algorithm;
@@ -186,16 +216,21 @@ class Container{
         this.metrics = {}
 
         metrics.forEach(metric => {
-            var mCTop = this.container.append('div').attr('class', 'metric-container')
-            mCTop.append('h6').text(metric.name);
-            var mCVis = mCTop.append('svg').attr('class', 'metricSVG');
-            var mCStat = mCTop.append('div');
+
+            if(metric.type === 'local') {
+                var mCTop = this.container.append('div').attr('class', 'metric-container')
+                mCTop.append('h6').text(metric.name);
+                var mCVis = mCTop.append('svg').attr('class', 'metricSVG');
+                var mCStat = mCTop.append('div');
+
+                this.metrics[metric.accessor] = new Histogram(mCVis, mCTop, mCStat)
+            } else {
+                var mCTop = this.container.append('div').attr('class', 'metric-container');
+                this.metrics[metric.accessor] = new TextElement(mCTop, metric.name);
+            }
 
             mCTop.style('diplay', 'none');
             mCTop.style('visibility', 'collapse');
-
-
-            this.metrics[metric.accessor] = new Histogram(mCVis, mCTop, mCStat)
         });
     }
 
@@ -207,7 +242,7 @@ class Container{
             tthis.bundling.add_data(data.nodes, data.edges);
 
             for (const [key, value] of Object.entries(tthis.metrics)) {
-                value.load_data(data.edges, key);
+                value.load_data(data, key);
             };
         });
     }
