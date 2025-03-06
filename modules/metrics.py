@@ -6,6 +6,7 @@ from gdMetriX import number_of_crossings
 from modules.abstractBundling import RealizedBundling
 from modules.EPB.straight import StraightLine
 from modules.EPB.experiments import Metrics as EPBMetrics
+from modules import clustering as cl
 
 PATH_TO_PICKLE_FOLDER = "pickle/"
 if not os.path.isdir(PATH_TO_PICKLE_FOLDER): os.mkdir(PATH_TO_PICKLE_FOLDER)
@@ -184,6 +185,22 @@ class Metrics():
 
         if return_mean: return np.mean(distortions)
         else: return distortions
+
+    def calcClusters(self,return_mean=True):
+        Clustering = cl.Clustering(self.G)
+
+        polilines = Clustering.all_edges(self.G)
+
+        vertices = Clustering.init_Points(self.G)
+        matrix = Clustering.cluster_matrix(polilines)
+
+        matrix = Clustering.calcMatrix(matrix)
+
+        maps = Clustering.get_depth_maps(matrix)
+
+        return maps
+
+        
 
     def calcInkRatio(self,return_mean=True):
         '''
