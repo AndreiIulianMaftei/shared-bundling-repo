@@ -118,7 +118,7 @@ def main():
     for gdata in tqdm.tqdm(os.listdir(inputfolder)):
         for algfile in os.listdir(f"{inputfolder}/{gdata}"):
             alg = algfile.replace(".graphml", "")
-
+            print(f"Processing {gdata}/{alg}")
             process(inputfolder, gdata, alg, metrics=metrics, verbose=args.verbose)
 
 if __name__ == "__main__":

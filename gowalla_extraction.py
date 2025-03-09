@@ -226,11 +226,11 @@ def extract_by_location(long, lat, max_diff, city, G):
 
             if len(G_sub.nodes()) > 100 or len(G_sub.edges()) > 100:
             
-		Gcc = sorted(nx.connected_components(G), key=len, reverse=True)
-		G = G.subgraph(Gcc[0]).copy()
+                Gcc = sorted(nx.connected_components(G), key=len, reverse=True)
+                G = G.subgraph(Gcc[0]).copy()
 
-		np.random.seed(0)
-		for u,d1 in G.nodes(data=True):
+        np.random.seed(0)
+        for u,d1 in G.nodes(data=True):
             for v, d2 in G.nodes(data=True):
                 if u == v:
                     continue
@@ -238,13 +238,13 @@ def extract_by_location(long, lat, max_diff, city, G):
                     d2['X'] = d2['X'] + (np.random.rand() - 0.5) * 0.0001
                     d2['Y'] = d2['Y'] + (np.random.rand() - 0.5) * 0.0001
 
-		scaleToWidth(G, GWIDTH)
-		remove_overlap(G, 25)
-		scaleToWidth(G, GWIDTH)
-            
-		outpath = f"output_userstudy/gowalla/gowalla_{city}_{i}"
+        scaleToWidth(G, GWIDTH)
+        remove_overlap(G, 25)
+        scaleToWidth(G, GWIDTH)
 
-		nx.write_graphml(G_sub, outpath + '.graphml')
+        outpath = f"output_userstudy/gowalla/gowalla_{city}_{i}"
+
+        nx.write_graphml(G_sub, outpath + '.graphml')
                 
 if __name__ == "__main__":
     print('starting computing layouts')

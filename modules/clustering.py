@@ -420,14 +420,12 @@ class Clustering:
         """
         depth_maps = {}
         
-        # Find maximum depth in the matrix
         max_depth = 0
         for i in range(len(matrix)):
             for j in range(len(matrix[i])):
                 matrix[i][j] = int(matrix[i][j])
                 max_depth = max(max_depth, matrix[i][j])
         
-        # Create depth maps for each depth level
         for depth in range(int(max_depth) + 1):
             depth_map = np.zeros((IMG_REZ, IMG_REZ))
             
