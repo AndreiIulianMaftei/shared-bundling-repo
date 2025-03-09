@@ -306,7 +306,6 @@ def bundle_all(dir):
         if os.path.exists('cubu'): algs += ['cubu']
 
         for alg in ['wr','fd', 'epb', 'sepb']:
-            if alg != 'fd': continue
             compute_bundling(f"{dir}/{file}", alg, f"outputs/{name}/{alg}.graphml")    
 
 if __name__ == "__main__":
