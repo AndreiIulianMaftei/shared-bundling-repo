@@ -32,7 +32,11 @@ def compute_sepb(file, out_path):
 def compute_fd(file, out_path):
     G = Reader.readGraphML(f'{file}', G_width=GWIDTH, invertY=False, directed=False)
     import os
-    
+
+    for v in G.nodes():
+        G.nodes[v]['x'] = G.nodes[v]['X']
+        G.nodes[v]['y'] = G.nodes[v]['Y']
+
     json_data = nx.node_link_data(G, link='edges')
     with open('tmp.json', 'w') as f:
         json.dump(json_data, f)
