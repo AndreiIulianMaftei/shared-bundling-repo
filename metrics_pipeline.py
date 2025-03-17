@@ -13,6 +13,7 @@ import numpy as np
 import json
 from modules.metrics import Metrics
 import pylab as plt
+import csv
 
 
 from modules.metrics import Metrics
@@ -43,6 +44,10 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
         del data['Xapprox']
         del data['Yapprox']
 
+    if 'Name' in G.graph:
+        del G.graph['Name']
+
+
     for metric in Metrics.getLocalMetrics():
         if metric not in M.metricvalues: continue
 
@@ -55,13 +60,35 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
 
     for metric in Metrics.getGlobalMetrics():
         if metric not in M.metricvalues: continue
-        G.graph[metric] = M.metricvalues[metric]
+        
+        if metric == 'ambiguity':
+            for i in range(0, 5):
+                G.graph[f'ambiguity_{i+1}'] = M.metricvalues[metric][(i * 5)]
+                G.graph[f'accuracy_{i+1}'] = M.metricvalues[metric][(i * 5 + 1)]
+                G.graph[f'precision_{i+1}'] = M.metricvalues[metric][(i * 5 + 2)]
+                G.graph[f'specificity_{i+1}'] = M.metricvalues[metric][(i * 5 + 3)]
+                G.graph[f'FPR_{i+1}'] = M.metricvalues[metric][(i * 5 + 4)]
+        else:
+            G.graph[metric] = M.metricvalues[metric]
    
     data = nx.node_link_data(G, link="edges")
 
     if not os.path.isdir(f"{path}"): os.mkdir(f"{path}")
     with open(f'{path}/{algorithm}.json', 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=4)
+        
+    G.graph['instance'] = path.split('/')[-1]
+    
+    file_exists = os.path.isfile('dashboard/output_dashboard/instances.csv')
+    with open('dashboard/output_dashboard/instances.csv', 'a') as f:    
+        writer = csv.DictWriter(f, delimiter=';', lineterminator='\n',fieldnames=G.graph)
+
+        if not file_exists:
+            writer.writeheader()
+        
+        writer.writerow(G.graph)
+        
+        
 
 def process(input, filename, algorithm, output="dashboard/output_dashboard", metrics='all',verbose=False):
     if not os.path.isdir(output): os.mkdir(output)
@@ -74,7 +101,8 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
     else: metrics_to_compute = metrics
 
     for metric in metrics_to_compute:
-        if metric == "all_intersections" or metric == "ambiguity" or metric == "self_intersections": continue
+        #if metric == "all_intersections" or metric == "ambiguity" or metric == "self_intersections": continue
+        if metric == "all_intersections" or metric == "self_intersections": continue
         # try:
         if verbose: print(f"calculating {metric} on {filename}/{algorithm}")
         mvalue = M.compute_metric(metric,return_mean=False)
