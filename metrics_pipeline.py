@@ -70,18 +70,26 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
 
     M = Metrics(Bundle,verbose=verbose)
     
-    if metrics == 'all': metrics_to_compute = M.getImplementedMetrics()
-    else: metrics_to_compute = metrics
+    fig,ax = M._metricDraw(return_fig=True)
 
-    for metric in metrics_to_compute:
-        if metric == "all_intersections" or metric == "ambiguity" or metric == "self_intersections": continue
-        # try:
-        if verbose: print(f"calculating {metric} on {filename}/{algorithm}")
-        mvalue = M.compute_metric(metric,return_mean=False)
-        M.store_metric(metric, mvalue)
-        # except:
-        #     print("Problem with the metric")
-        #     print(f"Failed on metric {metric} on graph {filename}/{algorithm}")
+    try: 
+        fig.savefig(f"drawings/{filename}-{algorithm}.png")
+    except:
+        plt.show()
+    plt.close(fig)
+
+    # if metrics == 'all': metrics_to_compute = M.getImplementedMetrics()
+    # else: metrics_to_compute = metrics
+
+    # for metric in metrics_to_compute:
+    #     if metric == "all_intersections" or metric == "ambiguity" or metric == "self_intersections": continue
+    #     # try:
+    #     if verbose: print(f"calculating {metric} on {filename}/{algorithm}")
+    #     mvalue = M.compute_metric(metric,return_mean=False)
+    #     M.store_metric(metric, mvalue)
+    #     # except:
+    #     #     print("Problem with the metric")
+    #     #     print(f"Failed on metric {metric} on graph {filename}/{algorithm}")
 
     write_json(Bundle, M, f'{output}/{filename}', algorithm)
 
@@ -113,6 +121,9 @@ def main():
     
     metrics = args.metric
     # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
+
+    import matplotlib 
+    matplotlib.use("TkAgg")
     
     import tqdm
     for gdata in tqdm.tqdm(os.listdir(inputfolder)):
