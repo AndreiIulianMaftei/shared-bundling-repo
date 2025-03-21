@@ -21,29 +21,15 @@
         </ul>
 
     </div>
-    <div id="content" >
-        <div id="graph-title"></div>
-        <svg id="parallel">
-        </svg>
+    <div id="content">
         <div id="content-container">
-            <div id="scatter">
-            </div>
-            <div id="bundles">
-            </div>        
+            <svg id="parallel">
+
+            </svg>
         </div>
     </div>
-
     
     <script>
-        const METRICS = [{'name': "Ink Ratio", "accessor": "inkratio", "type": "global"},
-            {'name': "MOA", "accessor": "mean_occupation_area", "type": "global"},
-            {'name': "EDD", "accessor": "edge_density_distribution", "type": "global"},
-            {'name': "Distortion", "accessor": "distortion", "type": "local"},
-            {'name': "Frechet", "accessor": "frechet", "type": "local"}, 
-            {'name': "Directionality Change", "accessor": "directionality", "type": "local"}, 
-            {'name': "Monotonicity", "accessor": "monotonicity", "type": "local"},
-            {'name': "MELD", "accessor": "mean_edge_length_difference", "type": "local"}  ];
-
         document.getElementById('toggleSidebar').addEventListener('click', function() {
             const sidebar = document.getElementById('sidebar');
             const content = document.getElementById('content');
@@ -55,29 +41,39 @@
             }
         });
 
-        let paralleldiv = document.getElementById("parallel")
-        paralleldiv.style.height = '40vh';
+        //const algorithms = ["S-EPB", "EPB", "WR", "FD", "CUBu"];
+        const ALGORITHMS = ["S-EPB", "EPB", "WR", "FD"]; //, "WR", "FD", "CUBu"
+        //const ALGORITHMS = ["S-EPB", "WR", "FD", "EPB", "CUBu"]; //, "WR", "FD", "CUBu"
+        //const ALGORITHMS = ["S-EPB", "WR"];
+        const METRICS = [{'name': "Ink Ratio", "accessor": "inkratio", "type": "global"},
+            {'name': "MOA", "accessor": "mean_occupation_area", "type": "global"},
+            {'name': "EDD", "accessor": "edge_density_distribution", "type": "global"},
+            {'name': "Distortion", "accessor": "distortion", "type": "local"},
+            {'name': "Frechet", "accessor": "frechet", "type": "local"}, 
+            {'name': "Directionality Change", "accessor": "directionality", "type": "local"}, 
+            {'name': "Monotonicity", "accessor": "monotonicity", "type": "local"},
+            {'name': "MELD", "accessor": "mean_edge_length_difference", "type": "local"}  ];
 
-        let scatterdiv  = document.getElementById("scatter");
-        let bundlediv   = document.getElementById("bundles");
-        
+        const converter = {"S-EPB": 'sepb', "WR": 'wr', "FD": 'fd', "EPB": 'epb', "CUBu": 'cubu'}; 
 
-        d3.json('overview.json').then(data => {
-            // console.log(data);
+        async function initInterface(data) {
+            console.log(data);
 
-            let parallel = new Parallel('#parallel', METRICS, data);
+            // svg = d3.select('#parallel');
+            let parallel_coordinates = new Parallel('#parallel',METRICS,data);
 
-            let svg = d3.select("#scatter").append("svg")
-                    .attr("id", "mainVis")
-                    .attr("class", "scatter")
-                    .style("border", "3px solid black");
+            
+        }      
 
-            let vis = new Scatter("#mainVis");
+        d3.dsv(";", "output_dashboard/instances.csv").then(function(data) {
 
-            vis.add_data(data);
-            vis.draw();
-            vis.hover();
-            vis.click("#bundles", parallel);
+            data.forEach(d => {
+                METRICS.forEach(m => {
+                    d[m.accessor] = + d[m.accessor];
+                });
+            })
+
+            initInterface(data)
         })
         
 

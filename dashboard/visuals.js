@@ -293,7 +293,7 @@ class Scatter{
 */
     #nodeRadiusLarge = 15;
     #nodeRadiusSmall = 5;
-    #colors = ["#4e79a7","#f28e2c","#e15759","#76b7b2","#59a14f","#edc949","#af7aa1","#ff9da7","#9c755f","#bab0ab"];
+    #colors = [ "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"];
     #margin = {top: 15, bottom: 15, left:15, right:15};    
 
     constructor(svgid){
@@ -321,8 +321,8 @@ class Scatter{
         let xscale = d3.scaleLinear().domain(xextent).range([this.#margin.left, this.width  - this.#margin.right] );
         let yscale = d3.scaleLinear().domain(yextent).range([this.height - this.#margin.bottom, this.#margin.top]);
 
-        let unqAlgs = Array.from(new Set(nodes.map(d => d.alg)))
-        let cscale = d3.scaleOrdinal().domain(unqAlgs).range(d3.range(unqAlgs.length));
+        let unqAlgs = Array.from(new Set(nodes.map(d => d.alg))).sort();
+        let cscale = d3.scaleOrdinal().domain(["sepb", "wr", "fd", "cubu", "epb" ]).range([ "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"]);
 
         this.nodes.forEach(d => {
             d.x = xscale(d.tsnex);
@@ -338,7 +338,7 @@ class Scatter{
                 enter => enter.append('circle')
                     .attr("class", 'nodes')
                     .attr("stroke", 'black')
-                    .attr("fill", d => this.#colors[d.class])
+                    .attr("fill", d => d.class)
                     .attr("cx", d => d.x)
                     .attr("cy", d => d.y)
                     .attr("r", this.#nodeRadiusSmall), 
@@ -351,10 +351,139 @@ class Scatter{
         var tthis = this;
         this.layer1.selectAll(".nodes")
             .on("mouseenter", function(e,d) {
+                document.getElementById("graph-title").innerHTML = d.graph;
+
                 tthis.layer1.selectAll(".nodes")
                     .filter(u => u.graph === d.graph)
                     .classed("hover", true)
             })
             .on("mouseleave", () => tthis.layer1.selectAll(".nodes").classed("hover", false))
+    }
+
+    click(bundleid, parallel){
+        let bundlediv = d3.select(bundleid);
+        const ALGORITHMS = ["S-EPB", "WR", "FD", "EPB", "CUBu"].sort(); 
+        const converter = {"S-EPB": 'sepb', "WR": 'wr', "FD": 'fd', "EPB": 'epb', "CUBu": 'cubu'}; 
+        var bundlebox = [];
+
+        this.layer1.selectAll(".nodes")
+            .on("click", (e,d) => {
+
+                bundlediv.selectAll("*").remove();
+                console.log(d);
+                ALGORITHMS.forEach(al => {               
+                    var container = bundlediv.append('div').attr('class', 'algorithm-container');
+                    var file = `output_dashboard/${d.graph}/${converter[al]}.json`;
+        
+                    var obj = new Container(file, container, [], al);
+                    bundlebox.push(obj);
+                });
+        
+                bundlebox.forEach(obj => {
+                    obj.load_data().then(() => obj.draw_network())
+                    .catch(error => console.error("Error:", error));
+                });              
+                parallel.filterLines(d.graph);       
+            })
+
+   
+
+    }
+}
+
+class Parallel{
+    constructor(svgid, METRICS,data){
+        let svg = d3.select(svgid);
+
+        let unqAlgs = Array.from(new Set(data.map(d => d.alg))).sort();
+
+        data.forEach(n => {
+            n.name = n.alg;
+        })
+
+
+        var width = svg.node().getBoundingClientRect().width - 50;
+            var height = svg.node().getBoundingClientRect().height - 50;
+
+            svg = svg.append("g").attr("transform", "translate(25,25)")
+            this.svg = svg;
+
+            var color = d3.scaleOrdinal().domain(["sepb", "wr", "fd", "cubu", "epb" ]).range([ "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"])
+
+            var y = {};
+            var metrics = [];
+
+            for (let i in METRICS) {
+              let name = METRICS[i].accessor;
+              metrics.push(name);
+
+              var extent = d3.extent(data, d => d[name]);
+
+
+              y[name] = d3.scaleLinear()
+                .domain( extent )
+                .range([height, 0])
+            }
+
+            let x = d3.scalePoint()
+            .range([0, width])
+            .domain(metrics);
+
+            function path(d) {
+                return d3.line()(metrics.map(function(p) { return [x(p), y[p](d[p])]; }));
+            }
+
+            this.lines = svg
+            .selectAll("myPath")
+            .data(data)
+            .enter()
+            .append("path")
+              .attr("class", function (d) { return "line " + d.name } ) // 2 class for each line: 'line' and the group name
+              .classed("myPath", true)
+              .attr("d",  path)
+              .style("fill", "none" )
+              .style("stroke", function(d){ return( color(d.name))} )
+              .style("opacity", 0.5)
+              
+            svg.selectAll("myAxis")
+              .data(METRICS).enter()
+              .append("g")
+              .attr("class", "axis")
+              .attr("transform", function(d) {  return "translate(" + x(d.accessor) + ")"; })
+              .each(function(d) { d3.select(this).call(d3.axisLeft().ticks(5).scale(y[d.accessor])); })
+              .append("text")
+                .style("text-anchor", "middle")
+                .attr("y", -9)
+                .text(function(d) { return d.name; })
+                .style("fill", "black")
+
+            var group = svg.selectAll("legend")
+                .data(unqAlgs).enter()
+                .append("g")
+                .attr("transform", (d,i) => "translate(" + i * 100 + "," + (height + 15) + ")")
+                
+            group.append("line")
+                .attr("x1", 0)
+                .attr("y1", 0)
+                .attr("x2", 10)
+                .attr("y2", 0)
+                .style("fill", "none" )
+                .style("stroke", function(d){ return( color(d))} )
+                .style("stroke-width", 5)
+
+            group.append("text")
+                .text(d => d)
+                .attr("transform", "translate(" + 15 + "," + 5 + ")")
+                .attr("font-size", 14)
+    }
+
+    filterLines(graph){
+        console.log("hello")
+        this.lines
+            .style("opacity", l => l.graph === graph ? 1.0 : 0.01)
+            .style("stroke-width", 3)
+            // .remove();
+        
+        this.lines.filter(l => l.graph === graph).raise();
     }
 }
