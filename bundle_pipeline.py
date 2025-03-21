@@ -234,7 +234,7 @@ def compute_wr(file, out_path):
 
     G.applyAlgorithm("Edge bundling", params1)
     G.applyAlgorithm("Curve edges", params2)
-    G.applyAlgorithm("Edge bundling", params1)
+    # G.applyAlgorithm("Edge bundling", params1)
 
     for n in G.getNodes():
         G_out.add_node(n.id, X=x.getNodeValue(n), Y=y.getNodeValue(n))
@@ -307,11 +307,14 @@ def bundle_all(dir):
         if not os.path.isdir(f"outputs/{name}"): os.mkdir(f"outputs/{name}")
 
         algs = ['wr','fd', 'epb', 'sepb']
-        if os.path.exists('cubu'): algs += ['cubu']
+        # if os.path.exists('cubu'): algs += ['cubu']
 
         for alg in algs:
             print(f"Computing {alg} for {file}")
-            compute_bundling(f"{dir}/{file}", alg, f"outputs/{name}/{alg}.graphml")    
+            try:
+                compute_bundling(f"{dir}/{file}", alg, f"outputs/{name}/{alg}.graphml")    
+            except:
+                print(Exception)
 
 if __name__ == "__main__":
-    bundle_all("inputs")
+    bundle_all("tsne_res")

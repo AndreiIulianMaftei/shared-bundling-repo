@@ -406,9 +406,10 @@ class Metrics():
             projected_points = project_points_to_line(points, line)
 
             # print(line, points[0], points[-1])
+            print((x0,y0), points[0])
 
-            minx,maxx = min(x0, x1), max(x0,x1)
-            miny,maxy = min(y0, y1), max(y0,y1)
+            minx,maxx = min(points[0,0], points[-1,0]), max(points[0,0], points[-1,0])
+            miny,maxy = min(points[0,1], points[-1,1]), max(points[0,1], points[-1,1])
 
             inside_segment_mask = (
                 (minx <= projected_points[:,0]) & (projected_points[:,0] <= maxx) & 
@@ -422,6 +423,7 @@ class Metrics():
             ab = line[1] - line[0]
             ab_norm = np.sqrt(np.sum(np.square(ab)))
             inside_distances = np.abs(np.cross(inside_segment - line[0], ab)) / ab_norm 
+            
 
             if outside_segment.size > 0: 
                 #For outside the segment, get the minimum distance to either endpoint

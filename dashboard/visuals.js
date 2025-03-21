@@ -282,3 +282,79 @@ class Container{
     }
 
 }
+
+class Scatter{
+/*
+    Initiate with:      
+    svg = d3.select("#visualization-container").append("svg")
+                    .attr("id", "mainVis")
+                    .style("border", "3px solid black");            
+            vis = new EuclideanVis("#mainVis", data.nodes, null, null);
+*/
+    #nodeRadiusLarge = 15;
+    #nodeRadiusSmall = 5;
+    #colors = ["#4e79a7","#f28e2c","#e15759","#76b7b2","#59a14f","#edc949","#af7aa1","#ff9da7","#9c755f","#bab0ab"];
+    #margin = {top: 15, bottom: 15, left:15, right:15};    
+
+    constructor(svgid){
+        this.svg = d3.select(svgid);
+
+        this.layer1 = this.svg.append("g");
+        this.width = this.svg.node().getBoundingClientRect().width;
+        this.height = this.svg.node().getBoundingClientRect().height;
+    }
+
+    add_data(nodes){
+
+        this.nodes = nodes;
+
+        this.idMap = new Map();
+        this.nodes.forEach((n,index) => {
+            n.id = n.id.toString();
+            this.idMap.set(n.id, index)
+        });
+
+        let xextent = d3.extent(this.nodes, d => d.tsnex);
+        let yextent = d3.extent(this.nodes, d => d.tsney);
+
+        
+        let xscale = d3.scaleLinear().domain(xextent).range([this.#margin.left, this.width  - this.#margin.right] );
+        let yscale = d3.scaleLinear().domain(yextent).range([this.height - this.#margin.bottom, this.#margin.top]);
+
+        let unqAlgs = Array.from(new Set(nodes.map(d => d.alg)))
+        let cscale = d3.scaleOrdinal().domain(unqAlgs).range(d3.range(unqAlgs.length));
+
+        this.nodes.forEach(d => {
+            d.x = xscale(d.tsnex);
+            d.y = yscale(d.tsney);
+            d.class = cscale(d.alg);
+        })
+    }
+
+    draw(){
+        this.layer1.selectAll(".nodes")
+            .data(this.nodes, d => d.id)
+            .join(
+                enter => enter.append('circle')
+                    .attr("class", 'nodes')
+                    .attr("stroke", 'black')
+                    .attr("fill", d => this.#colors[d.class])
+                    .attr("cx", d => d.x)
+                    .attr("cy", d => d.y)
+                    .attr("r", this.#nodeRadiusSmall), 
+                update => update, 
+                exit => exit.remove()
+            )
+    }
+
+    hover(){
+        var tthis = this;
+        this.layer1.selectAll(".nodes")
+            .on("mouseenter", function(e,d) {
+                tthis.layer1.selectAll(".nodes")
+                    .filter(u => u.graph === d.graph)
+                    .classed("hover", true)
+            })
+            .on("mouseleave", () => tthis.layer1.selectAll(".nodes").classed("hover", false))
+    }
+}
