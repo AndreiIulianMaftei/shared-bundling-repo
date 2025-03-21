@@ -22,7 +22,7 @@ from typing import List
 import pylab
 from networkx.drawing.nx_pydot import graphviz_layout
 
-matplotlib.use('qt5Agg')
+#matplotlib.use('qt5Agg')
 
 BIG_Threshold = 10   #Threshlods for the numbers of connected nodes when to consider a cluster big, medium or small
 MEDIUM_Threshold = 5

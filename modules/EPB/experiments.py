@@ -18,7 +18,7 @@ import numpy as np
 from plotnine import ggplot, aes, geom_violin, geom_boxplot, theme, element_text, labs, element_blank
 import math
 
-matplotlib.use('qt5Agg')
+#matplotlib.use('qt5Agg')
 
 GREY_THRESH = 255                       #Threshold when a pixel is considered as 'occupied'
 ANGLE_THRESHOLD = 2 * np.pi * 7.5 / 360  #Angle threshold when two edges crossing are considered ambiguous
@@ -1145,10 +1145,21 @@ class Metrics:
         '''
         Calculate the ambiguity. Store intermediate results in the folder /pickle and reuse. 
         Important if parameters for the ambiguity are changed then delete the files.
+        
+        returns an array of the following format: [amb1, acc1, prec1, spec1, FPR1, amb2, acc2, ... ,FPR5]
+        
+        ambiguity = (FP + TP) / (FP + TP + TN)
+        accuracy = (TP + TN) / N
+        precision = TP / (TP + FP)
+        specificity = TN / (TN + FP)
+        FPR = FP / (N - TP)
+
+        Remember, it will compute the ambituity up to a Delta of 5
+
         '''
         try:
-            edgeEdgeSet = pickle.load(open(f'{path}/pickle/{name}.ees', 'rb'))
-            edgeSet = pickle.load(open(f'{path}/pickle/{name}.es', 'rb'))
+            edgeEdgeSet = pickle.load(open(f'{path}/pickle/{(G.graph["filename"]).split('/')[-2]}_{name}.ees', 'rb'))
+            edgeSet = pickle.load(open(f'{path}/pickle/{G.graph["filename"].split('/')[-2]}_{name}.es', 'rb'))
             print(f'{name} pickle found, processing now')
 
             return Metrics.ambiguityCalculation(G, edgeSet, edgeEdgeSet)
@@ -1237,19 +1248,48 @@ class Metrics:
                 reachable1[(s1,t1)].add(t1)
                 reachable1[(t1,s1)].add(s1)
 
-            oben = 0
-            unten = 0
+            # oben = 0
+            # unten = 0
+
+            N = len(G.nodes())
 
             ambVAmbiguity = []
+            specificityV = []
+            accuracyV = []
+            FPR_V = []
+            precisionV = []
+            
             for n in G.nodes():
-                oben += len(vDictUnreachable[n])
-                unten += len(vDictUnreachable[n]) + len(vDictReachable[n])
+                TP = G.degree(n)
+                FP = len(vDictReachable[n]) - TP
+                TN = len(vDictUnreachable[n])
 
-                lie1 = len(vDictUnreachable[n]) / (len(vDictUnreachable[n]) + len(vDictReachable[n]))
+                ambiguity = (FP + TP) / (FP + TP + TN)
+                accuracy = (TP + TN) / N
+                precision = TP / (TP + FP)
+                
+                if TN == 0 and FP == 0:
+                    specificity = 0
+                else:
+                    specificity = TN / (TN + FP)
+                FPR = FP / (N - TP)
+                
+                # oben += len(vDictUnreachable[n])
+                # unten += len(vDictUnreachable[n]) + len(vDictReachable[n])
 
-                ambVAmbiguity.append(lie1)
+                # lie1 = len(vDictUnreachable[n]) / (len(vDictUnreachable[n]) + len(vDictReachable[n]))
+
+                ambVAmbiguity.append(ambiguity)
+                specificityV.append(specificity)
+                accuracyV.append(accuracy)
+                precisionV.append(precision)
+                FPR_V.append(FPR)
 
             Ambiguities.append(np.mean(ambVAmbiguity))
+            Ambiguities.append(np.mean(accuracyV))
+            Ambiguities.append(np.mean(precisionV))
+            Ambiguities.append(np.mean(specificityV))
+            Ambiguities.append(np.mean(FPR_V))
         
         return Ambiguities
 
@@ -1435,8 +1475,8 @@ class Metrics:
         if not os.path.exists(out):
             os.makedirs(out)
 
-        pickle.dump(edgeEdgeAmbSet, open(f'{out}{name}.ees', 'wb'))
-        pickle.dump(edgeAmbSet, open(f'{out}{name}.es', 'wb'))
+        pickle.dump(edgeEdgeAmbSet, open(f'{out}{G.graph["filename"].split('/')[-2]}_{name}.ees', 'wb'))
+        pickle.dump(edgeAmbSet, open(f'{out}{G.graph["filename"].split('/')[-2]}_{name}.es', 'wb'))
 
         return edgeAmbSet, edgeEdgeAmbSet
 
