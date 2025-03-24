@@ -5,6 +5,7 @@ experiment/other_code/FD/node_modules
 package-lock.json
 package.json
 # node_modules/
+error_log.csv
 
 *.vscode
 *.png
