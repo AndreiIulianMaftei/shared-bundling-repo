@@ -98,6 +98,7 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
     M = Metrics(Bundle,verbose=verbose)
     
     if metrics == 'all': metrics_to_compute = Metrics.getImplementedMetrics()
+    elif metrics == 'long': metrics_to_compute = ['all_intersections', "self_intersections", "ambiguity"]
     else: metrics_to_compute = metrics
 
     for metric in metrics_to_compute:
@@ -128,6 +129,7 @@ def main():
     parser.add_argument("--folder", default="outputs/",type=str, help="Path to input folder")
     parser.add_argument("--metric", type=str, default='all', help="which metric/s should be evaluated")
     parser.add_argument("--verbose", type=bool, default=False, help = "verbosity level")
+    parser.add_argument("--smartorder", type=bool, default=True, help="Whether to order graphs from smallest to largest")
     # parser.add_argument("--algorithm", help="Which algorithm should be evaluated. Default 'all'", default='all')
     # parser.add_argument("--draw", help="Should the bundling be drawn and saved as an image. {0,1}, Default '1'", default='1')
 
@@ -141,11 +143,19 @@ def main():
     metrics = args.metric
     # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
 
-    import matplotlib 
-    matplotlib.use("TkAgg")
+    inputlist = os.listdir(inputfolder)
+    if args.smartorder:
+        tmplist = list()
+        for gdata in inputlist:
+            for algfile in os.listdir(f"{inputfolder}/{gdata}"):
+                G = nx.read_graphml(f'{inputfolder}/{gdata}/{algfile}')
+                tmplist.append((G.number_of_nodes(), gdata))
+                break
+        inputlist = [g for n,g in sorted(tmplist)]
+        del G
     
     import tqdm
-    for gdata in tqdm.tqdm(os.listdir(inputfolder)):
+    for gdata in tqdm.tqdm(inputlist):
         for algfile in os.listdir(f"{inputfolder}/{gdata}"):
             alg = algfile.replace(".graphml", "")
             print(f"Processing {gdata}/{alg}")
