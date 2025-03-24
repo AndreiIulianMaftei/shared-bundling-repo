@@ -39,10 +39,8 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
     G = Bundle.G
 
     for u,v,data in G.edges(data=True):
-        del data['Spline_X']
-        del data['Spline_Y']
-        del data['Xapprox']
-        del data['Yapprox']
+        for key in ['Spline_X', 'Spline_Y', 'Xapprox', 'Yapprox']:
+            if key in data: del data[key]
 
     if 'Name' in G.graph:
         del G.graph['Name']
@@ -57,8 +55,6 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
             counter += 1
 
         G.graph[metric] = np.mean(M.metricvalues[metric])
-    
-
 
     for metric in Metrics.getGlobalMetrics():
         if metric not in M.metricvalues: continue
@@ -89,32 +85,45 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
             writer.writeheader()
         
         writer.writerow(G.graph)
+
+def log_error(gname, algname, metric):
+    from datetime import datetime
+    fileexists = os.path.isfile('error_log.csv')
+    with open("error_log.csv", 'a') as fdata:
+        writer = csv.DictWriter(fdata, delimiter=',',lineterminator='\n',
+            fieldnames=['date', 'graph', 'algorithm', 'metric'])
         
-        
+        if not fileexists: 
+            writer.writeheader()
+
+        writer.writerow({
+            "date": datetime.now().isoformat(), 
+            'graph': gname, 
+            "algorithm": algname,
+            'metric': metric
+        })
 
 def process(input, filename, algorithm, output="dashboard/output_dashboard", metrics='all',verbose=False):
     if not os.path.isdir(output): os.mkdir(output)
 
     Bundle = read_bundling(f"{input}/{filename}/{algorithm}.graphml")
-
-    if filename.startswith("Germany"):
-        ok = 1
-    else:
-        return
     M = Metrics(Bundle,verbose=verbose)
     
+
     if metrics == 'all': metrics_to_compute = Metrics.getImplementedMetrics()
+    elif metrics == 'long': metrics_to_compute = ['all_intersections', "self_intersections", "ambiguity"]
     else: metrics_to_compute = metrics
 
     for metric in metrics_to_compute:
-        if metric == "all_intersections" or metric == "self_intersections": continue
-        # try:
-        if verbose: print(f"calculating {metric} on {filename}/{algorithm}")
-        mvalue = M.compute_metric(metric,return_mean=False)
-        M.store_metric(metric, mvalue)
-        # except:
-        #     print("Problem with the metric")
-        #     print(f"Failed on metric {metric} on graph {filename}/{algorithm}")
+        if metric == "all_intersections" or metric == "self_intersections" or metric == "ambiguity" or metric == "clustering": continue
+        try:
+            if verbose: print(f"calculating {metric} on {filename}/{algorithm}")
+            mvalue = M.compute_metric(metric,return_mean=False)
+            M.store_metric(metric, mvalue)
+        except:
+            print("Problem with the metric")
+            print(f"Failed on metric {metric} on graph {filename}/{algorithm}")
+            log_error(filename,algorithm,metric)
 
     write_json(Bundle, M, f'{output}/{filename}', algorithm)
 
@@ -134,9 +143,9 @@ def main():
     parser.add_argument("--folder", default="outputs/",type=str, help="Path to input folder")
     parser.add_argument("--metric", type=str, default='all', help="which metric/s should be evaluated")
     parser.add_argument("--verbose", type=bool, default=False, help = "verbosity level")
+    parser.add_argument("--smartorder", type=bool, default=True, help="Whether to order graphs from smallest to largest")
     # parser.add_argument("--algorithm", help="Which algorithm should be evaluated. Default 'all'", default='all')
     # parser.add_argument("--draw", help="Should the bundling be drawn and saved as an image. {0,1}, Default '1'", default='1')
-
 
     args = parser.parse_args()
 
@@ -145,14 +154,22 @@ def main():
         raise("Input folder not found")
     
     metrics = args.metric
-    metrics = ['geometric_clustering', 'clustering']
+    # metrics = ['geometric_clustering', 'clustering']
     # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
 
-    import matplotlib 
-    matplotlib.use("TkAgg")
+    inputlist = os.listdir(inputfolder)
+    if args.smartorder:
+        tmplist = list()
+        for gdata in inputlist:
+            for algfile in os.listdir(f"{inputfolder}/{gdata}"):
+                G = nx.read_graphml(f'{inputfolder}/{gdata}/{algfile}')
+                tmplist.append((G.number_of_nodes(), gdata))
+                break
+        inputlist = [g for n,g in sorted(tmplist)]
+        del G
     
     import tqdm
-    for gdata in tqdm.tqdm(os.listdir(inputfolder)):
+    for gdata in tqdm.tqdm(inputlist):
         for algfile in os.listdir(f"{inputfolder}/{gdata}"):
             alg = algfile.replace(".graphml", "")
             print(f"Processing {gdata}/{alg}")

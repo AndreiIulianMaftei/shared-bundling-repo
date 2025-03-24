@@ -436,7 +436,6 @@ class Metrics():
             projected_points = project_points_to_line(points, line)
 
             # print(line, points[0], points[-1])
-            print((x0,y0), points[0])
 
             minx,maxx = min(points[0,0], points[-1,0]), max(points[0,0], points[-1,0])
             miny,maxy = min(points[0,1], points[-1,1]), max(points[0,1], points[-1,1])
