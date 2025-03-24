@@ -22,7 +22,7 @@ from typing import List
 import pylab
 from networkx.drawing.nx_pydot import graphviz_layout
 
-#matplotlib.use('qt5Agg')
+matplotlib.use('qt5Agg')
 
 BIG_Threshold = 10   #Threshlods for the numbers of connected nodes when to consider a cluster big, medium or small
 MEDIUM_Threshold = 5
@@ -31,7 +31,7 @@ SMALL_Threshold = 2
 TIDE_MAX = 100  # Range for TIDE - Number that represents how much space is allowed between a
 TIDE_MIN = 1    # node and an edge to be considered in that edges cluster
 
-IMG_REZ = 1600  # Resolution of the image
+IMG_REZ = 2000  # Resolution of the image
 EDGE_REZ = 100  # Resolution of the edge
 
 CONVOLUTION = 50 # How many times the matrix is convoluted
@@ -39,8 +39,8 @@ CONVOLUTION = 50 # How many times the matrix is convoluted
 class Clustering:
 
     def __init__(self, G): 
-        self.G = G.G
-        self.name = G.name
+        self.G = G
+        
 
     class Pixel:
         x: int
@@ -51,12 +51,14 @@ class Clustering:
         x: int
         y: int
         depth: int
+        id: int
     class Cluster:
+        id: int
         depth: int
         x: int
+        y: int
         children: List['Clustering.Cluster']
         parent: List['Clustering.Cluster']
-        parent: []
         contains: int
 
     def draw_heatMaps(self, matrix, verticies):
@@ -100,46 +102,34 @@ class Clustering:
         Draws all clusters as nodes in a directed tree, 
         using the last cluster in the list as the root.
         """
-        # Build a directed graph
         G = nx.DiGraph()
 
-        # Map each cluster object to an integer ID
         cluster_map = {}
         for i, cluster in enumerate(clusters):
             cluster_map[cluster] = i
 
-        # Add each cluster as a node, storing the depth
         for cluster in clusters:
             G.add_node(cluster_map[cluster], depth=cluster.depth)
 
-        # Add edges from parent -> child (or child -> parent, as needed)
         for cluster in clusters:
             for child in cluster.children:
                 if child in cluster_map:
-                    # Directed edge from this cluster -> child
                     G.add_edge(cluster_map[cluster], cluster_map[child])
 
-        # The last cluster in 'clusters' will be our "root"
         root_idx = cluster_map[clusters[-1]]
 
-        # Layout: use graphviz "dot" to create a hierarchical tree
-        # root is the node we want at the top.
         pos = graphviz_layout(G, prog='dot', root=root_idx)
 
-        # Extract depths (for coloring)
         depths = [c.depth for c in clusters]
         min_depth = min(depths)
         max_depth = max(depths)
 
-        # Create colormap
         cmap = plt.cm.viridis
         norm = matplotlib.colors.Normalize(vmin=min_depth, vmax=max_depth)
         node_colors = [norm(d) for d in depths]
 
-        # Prepare figure/axes
         fig, ax = plt.subplots(figsize=(8, 6))
 
-        # Draw
         nx.draw_networkx_nodes(
             G, pos,
             node_color=node_colors,
@@ -147,7 +137,6 @@ class Clustering:
             cmap=cmap,
             ax=ax
         )
-        # Use arrows for the directed edges
         nx.draw_networkx_edges(
             G, pos,
             arrowstyle='-|>',
@@ -161,7 +150,6 @@ class Clustering:
             ax=ax
         )
 
-        # Colorbar
         sm = matplotlib.cm.ScalarMappable(cmap=cmap, norm=norm)
         sm.set_array([])
         cbar = fig.colorbar(sm, ax=ax)
@@ -192,14 +180,15 @@ class Clustering:
         #     [0,0,0,0,0,0,0,0,0,0,0,0],
         #     [0,0,0,0,0,0,0,0,0,0,0,0]
         # ]
+        print("computing max depth")
         for i in range(0, len(matrix)):
             for j in range(0, len(matrix[i])):
                 matrix[i][j] = int(matrix[i][j])
                 max_depth = max(max_depth, matrix[i][j])
-        
-        vertices = [(0,0), (1,1), (0,8), (2,4), (3,4), (4,2), (6,9), (7,9), (9,10)]
+        print("Max depth: ", max_depth)
         for i in range(0, len(vertices)):
             cluster = self.Cluster()
+            cluster.id = i
             cluster.x = vertices[i][0]
             cluster.y = vertices[i][1]
             cluster.depth = matrix[vertices[i][0]][vertices[i][1]]
@@ -209,9 +198,9 @@ class Clustering:
             cluster.contains = 1
             current_clusters.append(cluster)
             overall_clusters.append(cluster)
-
+        print("Current clusters: ", len(current_clusters))
         for depth in range(int(max_depth), -1, -1):
-            
+            print("Processing depth: ", depth)
             checkMatrix = np.zeros((IMG_REZ,IMG_REZ))
             for i in range(0, min(matrix.__len__() , IMG_REZ)):
                 for j in range(0, min(matrix[i].__len__(), IMG_REZ)):
@@ -246,6 +235,7 @@ class Clustering:
                         cluster = self.Cluster()
                         if(len(brother_clusters) != 0):
                             
+                            cluster.id = len(overall_clusters)
                             cluster.x = brother_clusters[0].x
                             cluster.y = brother_clusters[0].y
                             cluster.depth = matrix[brother_clusters[0].x][brother_clusters[0].y]+1
@@ -267,7 +257,42 @@ class Clustering:
                                 current_clusters.remove(brother_clusters[x])
                             current_clusters.append(cluster)
 
-        return overall_clusters
+        clusters_by_level = {}
+        for depth in range(int(max_depth) + 1):
+            clusters_by_level[depth] = {}
+            for node in vertices:
+                node_id = node[2]
+                for cluster in overall_clusters:
+                    if cluster.depth == depth:
+                        #check if node is anywhere in cluster, check all the children 
+                        if cluster.contains > 1:
+                            for child in cluster.children:
+                                if child.x == node[0] and child.y == node[1]:
+                                    if node_id not in clusters_by_level[depth]:
+                                        clusters_by_level[depth][node_id] = []
+                                    clusters_by_level[depth][node_id].append(cluster.id)
+
+                
+                if node_id not in clusters_by_level[depth]:     
+                    clusters_by_level[depth][node_id] = []
+                    
+
+
+        
+        """clusters_array = {}
+        for depth in range(max_depth + 1):
+            if clusters_by_level[depth]:
+                
+            for node_id in range(max_node_id + 1):
+                if node_id in clusters_by_level[depth] and clusters_by_level[depth][node_id]:
+                    clusters_array[depth][node_id] = clusters_by_level[depth][node_id][0]
+                else:
+                    clusters_array[depth][node_id] = -1
+
+        print(clusters_array)"""
+        
+        
+        return clusters_by_level  
                             
     """
     def get_clusters(self, polilines, matrix, vertices):
@@ -341,7 +366,7 @@ class Clustering:
 
     
 
-    def all_edges(self):
+    def all_edges(self, G):
         list_edges = list(self.G.edges(data = True))
         polylines = []
         for index, (u,v,data) in enumerate(list_edges):
@@ -393,16 +418,17 @@ class Clustering:
         return matrix
     
     def init_Points(self):
-        list_edges = list(self.G.edges(data = True))
         vetices = []
-        for index, (u,v,data) in enumerate(list_edges):
-            numbers_y = []
-            numbers_x = []
-            numbers_x = [float(num) for num in data.get('X')]
-            numbers_y = [float(num) for num in data.get('Y')]
-            for i in range(0, len(numbers_x)):
-                #append the integere value of the coordonates
-                vetices.append((int(numbers_x[i]), int(numbers_y[i])))
+            
+        for node_id, node_data in self.G.nodes(data=True):
+            
+            nodeX = node_data.get('X')
+            nodeY = node_data.get('Y')
+            nodeId = node_data.get('id')
+            vertex = (int(nodeX), int(nodeY), int(node_id))
+            vetices.append(vertex)
+
+        
         return vetices
         
     

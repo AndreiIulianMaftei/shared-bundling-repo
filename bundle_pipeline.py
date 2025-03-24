@@ -307,7 +307,7 @@ def bundle_all(dir):
         if not os.path.isdir(f"outputs/{name}"): os.mkdir(f"outputs/{name}")
 
         algs = ['wr','fd', 'epb', 'sepb']
-        # if os.path.exists('cubu'): algs += ['cubu']
+        if os.path.exists('cubu'): algs += ['cubu']
 
         for alg in algs:
             print(f"Computing {alg} for {file}")
@@ -317,4 +317,4 @@ def bundle_all(dir):
                 print(Exception)
 
 if __name__ == "__main__":
-    bundle_all("tsne_res")
+    bundle_all("inputs")

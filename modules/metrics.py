@@ -7,6 +7,7 @@ from modules.abstractBundling import RealizedBundling
 from modules.EPB.straight import StraightLine
 from modules.EPB.experiments import Metrics as EPBMetrics
 from modules import clustering as cl
+from sklearn.cluster import DBSCAN
 
 PATH_TO_PICKLE_FOLDER = "pickle/"
 if not os.path.isdir(PATH_TO_PICKLE_FOLDER): os.mkdir(PATH_TO_PICKLE_FOLDER)
@@ -18,7 +19,7 @@ class Metrics():
 
     @staticmethod
     def getGlobalMetrics():
-        return ['inkratio', 'all_intersections', 'ambiguity', 'mean_occupation_area', 'edge_density_distribution']
+        return ['inkratio', 'all_intersections', 'ambiguity', 'mean_occupation_area', 'edge_density_distribution', 'geometric_clustering', 'clustering']
     
     @staticmethod
     def getLocalMetrics():
@@ -44,7 +45,8 @@ class Metrics():
             self.G[u][v]['id'] = i
 
         self.metricvalues = dict()
-
+        self.G = nx.convert_node_labels_to_integers(self.G)
+    
     def compute_metric(self,metric, **args):
         match metric:
             case "distortion":
@@ -75,6 +77,10 @@ class Metrics():
                 return self.calcMeanEdgeLengthDifference(**args)
             case 'mean_edge_length_difference':
                 return self.calcMeanEdgeLengthDifference(**args)
+            case 'clustering':
+                return self.calcClusters(**args)
+            case 'geometric_clustering':
+                return self.calcGeometricClustering(**args)
             case _:
                 print("not yet implemented")
                 return 
@@ -186,21 +192,45 @@ class Metrics():
         if return_mean: return np.mean(distortions)
         else: return distortions
 
+    def calcGeometricClustering(self, return_mean=True):
+
+        X = np.zeros((len(self.G.nodes()), 2)
+                     )
+        for n, data in self.G.nodes(data=True):
+            X[n] = np.array([data['X'], data['Y']])
+
+        clust = DBSCAN(eps=500, min_samples=5, metric='euclidean')
+        labels = clust.fit_predict(X)
+
+        numClusters = len(clust.labels_)
+
+        for n, data in self.G.nodes(data=True):
+            data['geometric_cluster'] = clust.labels_[n]
+
+        return numClusters
+    
     def calcClusters(self,return_mean=True):
         Clustering = cl.Clustering(self.G)
 
         polilines = Clustering.all_edges(self.G)
 
-        vertices = Clustering.init_Points(self.G)
-        matrix = Clustering.cluster_matrix(polilines)
+        vertices = Clustering.init_Points()
+
+        matrix = Clustering.init_matrix(polilines)
 
         matrix = Clustering.calcMatrix(matrix)
 
-        maps = Clustering.get_depth_maps(matrix)
+        maps = Clustering.get_clusters(polilines, matrix, vertices)
 
-        return maps
+        for depth in maps:
+            for nodesID in maps[depth]:
+                if maps[depth][nodesID]:
+                    self.G.nodes[nodesID][f'cluster_{depth}'] = maps[depth][nodesID][0]
+                else:
+                    self.G.nodes[nodesID][f'cluster_{depth}'] = -1
 
-        
+        ok = 1
+        return 0 
 
     def calcInkRatio(self,return_mean=True):
         '''
