@@ -57,6 +57,8 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
             counter += 1
 
         G.graph[metric] = np.mean(M.metricvalues[metric])
+    
+
 
     for metric in Metrics.getGlobalMetrics():
         if metric not in M.metricvalues: continue
@@ -95,6 +97,10 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
 
     Bundle = read_bundling(f"{input}/{filename}/{algorithm}.graphml")
 
+    if filename.startswith("Germany"):
+        ok = 1
+    else:
+        return
     M = Metrics(Bundle,verbose=verbose)
     
     if metrics == 'all': metrics_to_compute = Metrics.getImplementedMetrics()
@@ -141,6 +147,7 @@ def main():
         raise("Input folder not found")
     
     metrics = args.metric
+    metrics = ['geometric_clustering', 'clustering']
     # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
 
     inputlist = os.listdir(inputfolder)
