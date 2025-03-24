@@ -115,7 +115,8 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
     else: metrics_to_compute = metrics
 
     for metric in metrics_to_compute:
-        if metric == "all_intersections" or metric == "self_intersections" or metric == "ambiguity" or metric == "clustering": continue
+        if metrics != "long":
+            if metric == "all_intersections" or metric == "self_intersections" or metric == "ambiguity" or metric == "clustering": continue
         try:
             if verbose: print(f"calculating {metric} on {filename}/{algorithm}")
             mvalue = M.compute_metric(metric,return_mean=False)
