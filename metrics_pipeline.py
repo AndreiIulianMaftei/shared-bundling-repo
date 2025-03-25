@@ -36,7 +36,7 @@ def read_bundling(fname, invertX=False, invertY=False):
     return bundling
 
 def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
-    G = Bundle.G
+    G = M.G
 
     for u,v,data in G.edges(data=True):
         for key in ['Spline_X', 'Spline_Y', 'Xapprox', 'Yapprox']:
@@ -155,6 +155,11 @@ def main():
         raise("Input folder not found")
     
     metrics = args.metric
+    metrics = args.metric
+    if "[" in metrics: 
+        import json 
+        print(metrics)
+        metrics = json.loads(metrics.replace("\'", "\""))    
     # metrics = ['geometric_clustering', 'clustering']
     # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
 
