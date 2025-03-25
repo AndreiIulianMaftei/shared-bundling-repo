@@ -17,4 +17,4 @@ setuptools==75.1.0
 wand==0.6.13
 tulip-python==6.0.0
 PyQt==5.15.11
-gdMetriX==0.0.2
+gdMetriX==0.0.3
