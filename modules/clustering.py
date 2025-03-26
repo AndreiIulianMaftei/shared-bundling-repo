@@ -185,7 +185,15 @@ class Clustering:
             for j in range(0, len(matrix[i])):
                 matrix[i][j] = int(matrix[i][j])
                 max_depth = max(max_depth, matrix[i][j])
-        print("Max depth: ", max_depth)
+
+        # Normalize matrix values to be between 0 and 10
+        if max_depth > 0:
+            for i in range(0, len(matrix)):
+                for j in range(0, len(matrix[i])):
+                    if matrix[i][j] > 0:
+                        matrix[i][j] = (matrix[i][j] / max_depth) * 10
+                        matrix[i][j] = int(matrix[i][j])
+        print("Max depth: ", max_depth, "but normalised to 10")
         for i in range(0, len(vertices)):
             cluster = self.Cluster()
             cluster.id = i
