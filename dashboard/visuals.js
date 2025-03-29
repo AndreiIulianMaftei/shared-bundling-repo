@@ -408,7 +408,6 @@ class Scatter{
                 n.y = n.y < m-5 ? m-5 : n.y;
             })
         
-        console.log(this.simulation);
           this.layer1.selectAll(".nodes")
             .attr("cx", d => d.x)
             .attr("cy", d => d.y)
