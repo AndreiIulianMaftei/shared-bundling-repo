@@ -9,6 +9,7 @@ from modules.EPB.straight import StraightLine
 from modules.EPB.experiments import Metrics as EPBMetrics
 from modules import clustering as cl
 from sklearn.cluster import DBSCAN
+from frechetdist import frdist
 
 PATH_TO_PICKLE_FOLDER = "pickle/"
 if not os.path.isdir(PATH_TO_PICKLE_FOLDER): os.mkdir(PATH_TO_PICKLE_FOLDER)
@@ -433,7 +434,31 @@ class Metrics():
         return ncrossings
     
     def calcFrechet(self,return_mean=True):
+        frechet = np.zeros(self.G.number_of_edges())
+        for index, (u,v,data) in enumerate(self.G.edges(data=True)):
+            points_curve = np.array([[x,y] for x,y in zip(data['X'], data['Y'])])
+            if points_curve.shape[0] <= 2: 
+                frechet[index] = 0.0
+                continue            
+
+            #Interpolate the curve to as many poitns as the bundled line
+            start = points_curve[0]
+            end   = points_curve[-1]
+            if abs((start - end).sum()) <= 1e-7: #line is a point. Technically the curve could start and end at the same place, but this shouldnt happen
+                frechet[index] = 0.0
+                continue
+
+            k = points_curve.shape[0]
+            points_straight = np.array([(1-t) * start + t * end for t in np.linspace(0,1,k)])
+
+            frechet[index] = frdist(points_curve, points_straight)
+
+        if return_mean: return np.mean(frechet)
+        return frechet    
+
+    def calcFrechetBad(self,return_mean=True):
         """
+        TODO Fix this
         Implements 'fastFrechet'. Since we always compare to a straight line 
         it suffices to compute distances of the curve from outside and inside 
         the line segment, both of which can be simplified.
