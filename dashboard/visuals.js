@@ -2,6 +2,31 @@ const margin = 10;
 const romaO = ["#733957", "#743956", "#753954", "#753853", "#763851", "#773850", "#77384f", "#78384d", "#79384c", "#79384b", "#7a3849", "#7b3848", "#7c3847", "#7c3946", "#7d3945", "#7e3943", "#7e3942", "#7f3a41", "#803a40", "#813b3f", "#813b3e", "#823c3d", "#833c3c", "#843d3b", "#843d3a", "#853e39", "#863f38", "#874037", "#874037", "#884136", "#894235", "#8a4334", "#8b4433", "#8c4533", "#8c4632", "#8d4731", "#8e4831", "#8f4930", "#904a30", "#914c2f", "#924d2f", "#934e2e", "#94502e", "#94512d", "#95522d", "#96542d", "#97552c", "#98572c", "#99582c", "#9a5a2c", "#9b5b2c", "#9c5d2b", "#9d5f2b", "#9e602b", "#9f622b", "#a0642c", "#a2662c", "#a3672c", "#a4692c", "#a56b2d", "#a66d2d", "#a76f2d", "#a8712e", "#a9732e", "#aa752f", "#ab7730", "#ad7930", "#ae7b31", "#af7d32", "#b07f33", "#b18134", "#b28335", "#b48636", "#b58837", "#b68a39", "#b78c3a", "#b88e3b", "#b9913d", "#bb933f", "#bc9540", "#bd9842", "#be9a44", "#bf9c46", "#c19f47", "#c2a149", "#c3a34b", "#c4a54e", "#c5a850", "#c6aa52", "#c8ac54", "#c9af57", "#cab159", "#cbb35c", "#ccb55e", "#cdb761", "#ceba63", "#cfbc66", "#cfbe68", "#d0c06b", "#d1c26e", "#d2c470", "#d2c673", "#d3c876", "#d4c978", "#d4cb7b", "#d4cd7e", "#d5ce81", "#d5d083", "#d5d186", "#d6d388", "#d6d48b", "#d6d58e", "#d6d790", "#d6d893", "#d5d995", "#d5da98", "#d5db9a", "#d4dc9c", "#d4dd9f", "#d3dda1", "#d3dea3", "#d2dfa5", "#d1dfa7", "#d0e0a9", "#cfe0ab", "#cee0ad", "#cde1af", "#cce1b1", "#cbe1b3", "#cae1b5", "#c8e1b6", "#c7e1b8", "#c5e1b9", "#c4e1bb", "#c2e1bc", "#c1e1be", "#bfe1bf", "#bde0c0", "#bbe0c2", "#b9dfc3", "#b8dfc4", "#b6dec5", "#b4dec6", "#b1ddc7", "#afdcc8", "#addcc8", "#abdbc9", "#a9daca", "#a7d9cb", "#a4d8cb", "#a2d7cc", "#a0d6cc", "#9dd5cd", "#9bd4cd", "#99d3ce", "#96d1ce", "#94d0ce", "#92cfce", "#8fcecf", "#8dcccf", "#8bcbcf", "#88c9cf", "#86c8cf", "#84c6cf", "#81c5cf", "#7fc3cf", "#7dc2ce", "#7bc0ce", "#78bece", "#76bdce", "#74bbcd", "#72b9cd", "#70b8cd", "#6eb6cc", "#6cb4cc", "#6ab2cb", "#68b1cb", "#67afca", "#65adca", "#63abc9", "#62a9c9", "#60a8c8", "#5fa6c7", "#5da4c7", "#5ca2c6", "#5aa0c5", "#599ec4", "#589cc4", "#579bc3", "#5699c2", "#5597c1", "#5495c0", "#5393bf", "#5291be", "#528fbd", "#518dbc", "#508bbb", "#508aba", "#4f88b9", "#4f86b8", "#4f84b7", "#4f82b6", "#4e80b4", "#4e7eb3", "#4e7cb2", "#4e7ab0", "#4f78af", "#4f76ae", "#4f75ac", "#4f73ab", "#5071a9", "#506fa8", "#516da6", "#516ba4", "#5269a3", "#5267a1", "#53669f", "#54649e", "#54629c", "#55609a", "#565f98", "#575d96", "#575b94", "#585993", "#595891", "#5a568f", "#5b558d", "#5c538b", "#5c5289", "#5d5087", "#5e4f85", "#5f4d83", "#604c81", "#614b7f", "#62497d", "#63487b", "#634779", "#644677", "#654576", "#664474", "#674372", "#684270", "#68416e", "#69406c", "#6a3f6b", "#6b3f69", "#6c3e67", "#6c3d65", "#6d3d64", "#6e3c62", "#6f3b60", "#6f3b5f", "#703a5d", "#713a5c", "#723a5a", "#723959"];
 const colormap = d3.interpolateRgbBasis(romaO);
 
+function collide(node, quad) {
+    var r = node.r + 16,
+        nx1 = node.x - r,
+        nx2 = node.x + r,
+        ny1 = node.y - r,
+        ny2 = node.y + r;
+    return function(quad, x1, y1, x2, y2) {
+        console.log(quad, x1, x2)
+      if (quad.point && (quad.point !== node)) {
+        var x = node.x - quad.point.x,
+            y = node.y - quad.point.y,
+            l = Math.sqrt(x * x + y * y),
+            r = node.radius + quad.point.radius;
+        if (l < r) {
+          l = (l - r) / l * .5;
+          node.x -= x *= l;
+          node.y -= y *= l;
+          quad.point.x += x;
+          quad.point.y += y;
+        }
+      }
+      return x1 > nx2 || x2 < nx1 || y1 > ny2 || y2 < ny1;
+    };
+}
+
 class Bundling {
     constructor(svg) {
         this.svg = svg;
@@ -292,7 +317,7 @@ class Scatter{
             vis = new EuclideanVis("#mainVis", data.nodes, null, null);
 */
     #nodeRadiusLarge = 15;
-    #nodeRadiusSmall = 5;
+    #nodeRadiusSmall = 4;
     #colors = [ "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"];
     #margin = {top: 15, bottom: 15, left:15, right:15};    
 
@@ -326,9 +351,13 @@ class Scatter{
 
         this.nodes.forEach(d => {
             d.x = xscale(d.tsnex);
+            d.ox = xscale(d.tsnex);
             d.y = yscale(d.tsney);
+            d.oy = yscale(d.tsney);
             d.class = cscale(d.alg);
-        })
+        });
+
+
     }
 
     draw(){
@@ -358,6 +387,33 @@ class Scatter{
                     .classed("hover", true)
             })
             .on("mouseleave", () => tthis.layer1.selectAll(".nodes").classed("hover", false))
+    }
+
+    overlap(){
+        const astr = 1;
+        const repstr = 2;
+        this.simulation = d3.forceSimulation(this.nodes)
+            .force("charge", d3.forceCollide().radius(this.#nodeRadiusSmall+1).iterations(3))
+            // .force("attract", d3.forceManyBody().strength(astr))
+            .force("attract", d3.forceX(n => n.ox).strength(0.1))
+            .force("attract2", d3.forceY(n => n.oy).strength(0.1));
+            
+        this.simulation.on("tick", () => {
+            this.nodes.forEach(n => {
+                let m = 10;
+                n.x = n.x > this.width - m ? this.width - m : n.x;
+                n.y = n.y > this.height - m ? this.height - m : n.y;
+                
+                n.x = n.x < m-5 ? m-5 : n.x; 
+                n.y = n.y < m-5 ? m-5 : n.y;
+            })
+        
+        console.log(this.simulation);
+          this.layer1.selectAll(".nodes")
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y)
+        });
+
     }
 
     click(bundleid, parallel){

@@ -44,6 +44,33 @@
             {'name': "Monotonicity", "accessor": "monotonicity", "type": "local"},
             {'name': "MELD", "accessor": "mean_edge_length_difference", "type": "local"}  ];
 
+            let metric_list = ['distortion',
+            'frechet',
+            'directionality',
+            'monotonicity',
+            'projected_monotonicity',
+            'mean_edge_length_difference',
+            'inkratio',
+            'mean_occupation_area',
+            'edge_density_distribution',
+            'self_intersections',
+            'ambiguity_1',
+            'precision_1',
+            'specificity_1',
+            'FPR_1',
+            'ambiguity_2',
+            'precision_2',
+            'specificity_2',
+            'FPR_2',
+            'ambiguity_3',
+            'precision_3',
+            'specificity_3',
+            'FPR_3',
+            'ambiguity_4',
+            'precision_4',
+            'specificity_4',
+            'FPR_4'];       
+
         document.getElementById('toggleSidebar').addEventListener('click', function() {
             const sidebar = document.getElementById('sidebar');
             const content = document.getElementById('content');
@@ -75,6 +102,7 @@
             let vis = new Scatter("#mainVis");
 
             vis.add_data(data);
+            vis.overlap();
             vis.draw();
             vis.hover();
             vis.click("#bundles", parallel);
