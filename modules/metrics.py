@@ -186,6 +186,10 @@ class Metrics():
         for index, (source, target, data) in enumerate(self.G.edges(data=True)):
             X = np.array(data['X'])
             Y = np.array(data['Y'])
+            if X.shape[0] <= 2: 
+                distortions[index] = 1.0
+                continue            
+
 
             dx = np.diff(X)
             dy = np.diff(Y)
@@ -212,7 +216,7 @@ class Metrics():
         numClusters = len(clust.labels_)
 
         for n, data in self.G.nodes(data=True):
-            data['geometric_cluster'] = clust.labels_[n]
+            data['geometric_cluster'] = int(clust.labels_[n])
 
         return numClusters
     
@@ -363,7 +367,11 @@ class Metrics():
             
             X = np.array(data['X'])
             Y = np.array(data['Y'])
-            
+            if X.shape[0] <= 2: 
+                meld[index] = 0.0
+                continue            
+
+
             dx = np.diff(X)
             dy = np.diff(Y)
             
@@ -396,7 +404,7 @@ class Metrics():
             H.add_edges_from([(i,i+1) for i in range(ncontrol_points-1)])
             pos = {i: (data['X'][i], data['Y'][i]) for i in range(ncontrol_points)}
 
-            intersections[index] = number_of_crossings(H,pos)
+            intersections[index] = number_of_crossings(H,pos) / (ncontrol_points - 3)
         
         if return_mean: return np.mean(intersections)
         return intersections
@@ -434,6 +442,9 @@ class Metrics():
         for index, (u,v,data) in enumerate(self.G.edges(data=True)):
 
             points = np.array([[x,y] for x,y in zip(data['X'], data['Y'])])
+            if points.shape[0] <= 2: 
+                frechet[index] = 0.0
+                continue
             x0 = self.G.nodes[u]['X']
             y0 = self.G.nodes[u]['Y']
             x1 = self.G.nodes[v]['X']
@@ -536,7 +547,7 @@ class Metrics():
         if return_mean: return np.mean(monotonicities)
         return monotonicities
     
-    def calcMonotonicity(self, return_mean = True,normalize=False):
+    def calcMonotonicity(self, return_mean = True,normalize=True):
         """
         Computes a 'monotonicity' measure for each edge, normalized by the
         number of polyline control points. Returns a list of normalized
@@ -590,7 +601,7 @@ class Metrics():
             cross = diff[:-1, 0] * diff[1:,1] - diff[:-1,1] * diff[1:,0]
             signs = np.sign(cross)
 
-            dchange[index] = np.sum(np.abs(np.diff(signs)) > 0)
+            dchange[index] = np.sum(np.abs(np.diff(signs)) > 0) / points.shape[0]
         
         if return_mean: return np.mean(dchange)
         return dchange
