@@ -69,7 +69,7 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
         else:
             G.graph[metric] = M.metricvalues[metric]
    
-    data = nx.node_link_data(G, link="edges")
+    data = nx.node_link_data(G, edges="edges")
 
     if not os.path.isdir(f"{path}"): os.mkdir(f"{path}")
     with open(f'{path}/{algorithm}.json', 'w', encoding='utf-8') as f:
@@ -112,11 +112,11 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
 
     if metrics == 'all': metrics_to_compute = Metrics.getImplementedMetrics()
     elif metrics == 'long': metrics_to_compute = ['all_intersections', "self_intersections", "ambiguity"]
-    else: metrics_to_compute = metrics
+    else: metrics_to_compute = [metrics] if isinstance(metrics,str) else metrics
 
     for metric in metrics_to_compute:
         if metrics != "long":
-            if metric == "all_intersections" or metric == "self_intersections" or metric == "ambiguity" or metric == "clustering": continue
+            if metric == "all_intersections"  or metric == "ambiguity" or metric == "clustering": continue
         try:
             if verbose: print(f"calculating {metric} on {filename}/{algorithm}")
             mvalue = M.compute_metric(metric,return_mean=False)
@@ -160,6 +160,7 @@ def main():
         import json 
         print(metrics)
         metrics = json.loads(metrics.replace("\'", "\""))    
+        print(type(metrics))
     # metrics = ['geometric_clustering', 'clustering']
     # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
 
@@ -179,7 +180,7 @@ def main():
         for algfile in os.listdir(f"{inputfolder}/{gdata}"):
             alg = algfile.replace(".graphml", "")
             print(f"Processing {gdata}/{alg}")
-            process(inputfolder, gdata, alg, metrics=metrics, verbose=args.verbose)
+            process(inputfolder, gdata, alg, metrics=metrics, verbose=args.verbose,output="short_outputs")
 
 if __name__ == "__main__":
     main()
