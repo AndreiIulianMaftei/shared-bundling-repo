@@ -58,7 +58,7 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
 
     for metric in Metrics.getLocalMetrics():
         if metric not in M.metricvalues: 
-            G.graph[metric] = np.nan
+            G.graph[metric] = -1
             continue
 
         counter = 0
@@ -69,7 +69,9 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
         G.graph[metric] = np.mean(M.metricvalues[metric])
 
     for metric in Metrics.getGlobalMetrics():
-        if metric not in M.metricvalues: continue
+        if metric not in M.metricvalues: 
+            G.graph[metric] = -1
+            continue
         
         if metric == 'ambiguity':
             for i in range(0, 5):
