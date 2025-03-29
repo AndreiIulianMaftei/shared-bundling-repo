@@ -23,7 +23,7 @@ class Metrics():
     
     @staticmethod
     def getLocalMetrics():
-        return ['distortion', 'frechet', 'directionality', 'monotonicity', 'projected_monotonicity', 'SL_angle', 'self_intersections', 'mean_edge_length_difference']
+        return ['distortion', 'frechet', 'directionality', 'monotonicity', 'projected_monotonicity', 'SL_angle', 'self_intersections', 'mean_edge_length_difference', 'directionality_mag']
 
     def __init__(self,bundle:RealizedBundling, verbose=True):
         """
@@ -81,6 +81,8 @@ class Metrics():
                 return self.calcClusters(**args)
             case 'geometric_clustering':
                 return self.calcGeometricClustering(**args)
+            case 'directionality_mag':
+                return self.calcPathQuality(**args)
             case _:
                 print("not yet implemented")
                 return 
@@ -599,6 +601,49 @@ class Metrics():
         if return_mean: return np.mean(dchange)
         return dchange
 
+    def calcPathQuality(self,return_mean=True,normalize=False):
+        pqual = np.zeros(self.G.number_of_edges(),np.float32)
+
+        for index, (u,v,data) in enumerate(self.G.edges(data=True)):
+            points = np.array([[x,y] for x,y in zip(data['X'], data['Y'])])
+
+            pq = 0
+            for i in range(2,len(points)):
+                p1 = points[i-2]
+                p2 = points[i-1]
+                p3 = points[i]
+
+                p1p2 = p2 - p1
+                p2p3 = p3 - p2
+
+                # assume general position otherwise don't count angle
+                n12 = np.linalg.norm(p1p2)
+                n23 = np.linalg.norm(p2p3)
+
+                if n12 <= 0.0 or n23 <= 0.0:
+                    continue
+
+                p1p2_norm = p1p2 / n12
+                p2p3_norm = p2p3 / n23
+
+                dot = p1p2_norm[0] * p2p3_norm[0] + p1p2_norm[1] * p2p3_norm[1]
+
+                # prevent rounding errors for coliniar points
+                dot = min(dot, 1.0)
+                dot = max(dot, -1.0)
+
+                pq += np.degrees(np.arccos(dot)) 
+
+                # if np.isnan(pq):
+                #     pq
+
+            if len(points) == 2:
+                pqual[index] = 0
+            else:
+                pqual[index] = pq / (len(points) - 2)
+        
+        if return_mean: return np.mean(pqual)
+        return pqual
 
 
 ##################################################
