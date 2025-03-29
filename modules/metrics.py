@@ -2,6 +2,7 @@ import os
 import networkx as nx
 import numpy as np
 from gdMetriX import number_of_crossings
+from datetime import datetime
 
 from modules.abstractBundling import RealizedBundling
 from modules.EPB.straight import StraightLine
@@ -45,6 +46,7 @@ class Metrics():
             self.G[u][v]['id'] = i
 
         self.metricvalues = dict()
+        self.metrictime = dict()
         self.G = nx.convert_node_labels_to_integers(self.G)
     
     def compute_metric(self,metric, **args):
@@ -90,6 +92,9 @@ class Metrics():
     def store_metric(self,metricname,metricvalue):
         if isinstance(metricvalue,np.ndarray): metricvalue = [float(x) for x in metricvalue]
         self.metricvalues[metricname] = metricvalue
+
+    def store_time(self,metricname,time):
+        self.metrictime[metricname] = time
 
     def write_to_file(self,path):
         import json 

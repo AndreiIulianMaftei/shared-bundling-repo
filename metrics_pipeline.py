@@ -2,6 +2,7 @@ import argparse
 import csv
 import glob
 import os.path
+import time
 from modules.abstractBundling import GWIDTH, GraphLoader, RealizedBundling
 from modules.EPB.experiments import Experiment
 from modules.EPB.straight import StraightLine
@@ -18,6 +19,15 @@ import csv
 
 from modules.metrics import Metrics
 
+class NpEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        if isinstance(obj, np.floating):
+            return float(obj)
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return super(NpEncoder, self).default(obj)
 
 def read_bundling(fname, invertX=False, invertY=False):
     graph_name = os.path.basename(fname).replace(".graphml", "")
@@ -42,12 +52,14 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
         for key in ['Spline_X', 'Spline_Y', 'Xapprox', 'Yapprox']:
             if key in data: del data[key]
 
-    if 'Name' in G.graph:
-        del G.graph['Name']
-
+    for m in ['filename', 'edge_default', 'node_default', 'Name']:
+        if m in G.graph:
+            del G.graph[m]
 
     for metric in Metrics.getLocalMetrics():
-        if metric not in M.metricvalues: continue
+        if metric not in M.metricvalues: 
+            G.graph[metric] = np.nan
+            continue
 
         counter = 0
         for u,v,data in G.edges(data=True):
@@ -69,11 +81,19 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
         else:
             G.graph[metric] = M.metricvalues[metric]
    
-    data = nx.node_link_data(G, edges="edges")
+    G.graph['n'] = len(G.nodes())
+    G.graph['m'] = len(G.edges())
+
+    for metric in Metrics.getGlobalMetrics() + Metrics.getLocalMetrics():
+        if metric not in M.metrictime: continue
+
+        G.graph[f'{metric}_t'] = M.metrictime[metric]
+
+    data = nx.node_link_data(G, link="edges")
 
     if not os.path.isdir(f"{path}"): os.mkdir(f"{path}")
     with open(f'{path}/{algorithm}.json', 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=4)
+        json.dump(data, f, ensure_ascii=False, indent=4, cls=NpEncoder)
         
     G.graph['instance'] = path.split('/')[-1]
     
@@ -119,9 +139,18 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
             if metric == "all_intersections"  or metric == "ambiguity" or metric == "clustering": continue
         try:
             if verbose: print(f"calculating {metric} on {filename}/{algorithm}")
+            start = time.time()
+            
             mvalue = M.compute_metric(metric,return_mean=False)
+            
+            end = time.time()
+            delta = (end-start) * 1000
+
+            M.store_time(metric, delta)
             M.store_metric(metric, mvalue)
         except:
+            M.store_time(metric, 0)
+            M.store_metric(metric, mvalue)
             print("Problem with the metric")
             print(f"Failed on metric {metric} on graph {filename}/{algorithm}")
             log_error(filename,algorithm,metric)
@@ -155,7 +184,7 @@ def main():
         raise("Input folder not found")
     
     metrics = args.metric
-    metrics = args.metric
+
     if "[" in metrics: 
         import json 
         print(metrics)
