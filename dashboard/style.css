@@ -12,6 +12,7 @@ body {
     position: fixed;
     transition: width 0.3s;
     overflow: hidden;
+    overflow-y: scroll;
 }
 #sidebar.collapsed {
     width: 60px;
