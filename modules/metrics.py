@@ -86,6 +86,8 @@ class Metrics():
                 return self.calcGeometricClustering(**args)
             case 'directionality_mag':
                 return self.calcPathQuality(**args)
+            case 'visual_clustering':
+                return self.calcVisualClustering(**args)
             case _:
                 print("not yet implemented")
                 return 
@@ -260,6 +262,50 @@ class Metrics():
         inkratio = (imGrayBundle < GREY_THRESH).sum() / (imGrayStraight < GREY_THRESH).sum()
 
         return inkratio
+    
+    def calcVisualClustering(self,return_mean=True):
+        '''
+        Calculate the ink ratio.
+        '''
+        from PIL import Image as PILImage
+        from skimage.segmentation import felzenszwalb
+        GREY_THRESH = 255            
+
+        imgBundle = self.getDrawing()
+        imGrayBundle  = np.array(PILImage.fromarray(imgBundle).convert("L"))
+
+        imStraight = self.getStraightDrawing()
+        imGrayStraight = np.array(PILImage.fromarray(imStraight).convert("L"))
+
+        segment1 = felzenszwalb(imGrayStraight,scale = 11,
+                                  sigma=13,
+                                  min_size=50)
+
+        segment2 = felzenszwalb(imGrayBundle,scale = 11,
+                                        sigma=13,
+                                        min_size=50)
+
+        nodes = self.G.nodes()
+        
+        visCount = 0
+        for i1 in range(len(nodes)):
+            for i2 in range(i1 + 1, len(nodes)):
+                n1 = nodes[i1]
+                n2 = nodes[i2]
+                
+                x1 = int(self.G.nodes[n1]['X'])
+                y1 = int(self.G.nodes[n1]['Y'])
+                
+                x2 = int(self.G.nodes[n2]['X'])
+                y2 = int(self.G.nodes[n2]['Y'])
+
+                if (segment1[x1][y1] == segment1[x2][y2]) and (segment2[x1][y1] == segment2[x2][y2]):
+                    visCount += 1
+                    
+
+        return visCount / len(nodes)
+    
+
     
     def calcMeanOccupationArea(self, return_mean = True):
         """
