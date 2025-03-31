@@ -348,6 +348,9 @@ class Scatter{
 
         let unqAlgs = Array.from(new Set(nodes.map(d => d.alg))).sort();
         let cscale = d3.scaleOrdinal().domain(["sepb", "wr", "fd", "cubu", "epb" ]).range([ "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"]);
+        // let thing = "directionality_mag";
+        // let cscale = d3.scaleLinear().domain(d3.extent(this.nodes, d => d[thing]))
+        //     .range(["red", "blue"]);
 
         this.nodes.forEach(d => {
             d.x = xscale(d.tsnex);

@@ -175,7 +175,7 @@
             });
         });
 
-        d3.csv("output_dashboard/instances.csv").then(function(data) {
+        d3.dsv(";", "output_dashboard/instances.csv").then(function(data) {
             FILES = data;
 
             FILES.forEach(f => {
@@ -186,7 +186,8 @@
                 
                 document.getElementById('file-select').appendChild(opt);
             });
-    
+            
+            console.log(FILES[0])
             initInterface(FILES[0].instance)
         })
         
