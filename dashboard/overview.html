@@ -42,7 +42,13 @@
             {'name': "Frechet", "accessor": "frechet", "type": "local"}, 
             {'name': "Directionality Change", "accessor": "directionality", "type": "local"}, 
             {'name': "Monotonicity", "accessor": "monotonicity", "type": "local"},
-            {'name': "MELD", "accessor": "mean_edge_length_difference", "type": "local"}  ];
+            {'name': "MELD", "accessor": "mean_edge_length_difference", "type": "local"},
+            {'name': "Projected Monotonicity", "accessor": "projected_monotonicity", "type": "local"}        ,
+            {'name': "Self Intersections", "accessor": "self_intersections", "type": "local"},
+            {'name': "Ambiguity", "accessor": "ambiguity_1", "type": "local"},
+            {'name': "Specificity", "accessor": "specificity_1", "type": "local"},   
+            {"name": "Path Quality", "accessor": "directionality_mag", "type": "local"}                    
+        ];
 
             let metric_list = ['distortion',
             'frechet',
