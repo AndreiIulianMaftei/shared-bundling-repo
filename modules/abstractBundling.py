@@ -1,5 +1,5 @@
 import numpy as np
-from nx2ipe.nx2ipe import IpeConverter, SplineC
+# from nx2ipe.nx2ipe import IpeConverter, SplineC
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -425,19 +425,22 @@ class GraphLoader(AbstractBundling):
             ymin = min(ymin, data['Y'])
             ymax = max(ymax, data['Y'])
 
-        ## TODO fix the factor
-        factor = GWIDTH / (xmax - xmin)
-        width = GWIDTH
+        xscale = GWIDTH / (xmax - xmin)
+        yscale = GWIDTH / (ymax - ymin)
+        factor = min(xscale, yscale)
+
+        width =  (xmax - xmin) * factor
         height = (ymax - ymin) * factor
 
+
         G.graph['xmin'] = 0
-        G.graph['xmax'] = GWIDTH
+        G.graph['xmax'] = width
         G.graph['ymin'] = 0
         G.graph['ymax'] = height
 
         for node, data in G.nodes().data():
             
-            G.nodes()[node]['X'] = (data['X'] - xmin) * factor
+            data['X'] = (data['X'] - xmin) * factor
             data['Y'] = (data['Y'] - ymin) * factor
 
             if invertX: G.nodes()[node]['X'] = width - data['X']
