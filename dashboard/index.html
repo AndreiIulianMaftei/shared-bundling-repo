@@ -66,11 +66,18 @@
         const METRICS = [{'name': "Ink Ratio", "accessor": "inkratio", "type": "global"},
             {'name': "MOA", "accessor": "mean_occupation_area", "type": "global"},
             {'name': "EDD", "accessor": "edge_density_distribution", "type": "global"},
+            {'name': "Ambiguity", "accessor": "ambiguity_1", "type": "global"},
+            {'name': "Accuracy", "accessor": "accuracy_1", "type": "global"}, 
+            {'name': "Specificity", "accessor": "specificity_1", "type": "global"},
+            {'name': "False-Positive Rate", "accessor": "FPR_1", "type": "global"},
             {'name': "Distortion", "accessor": "distortion", "type": "local"},
             {'name': "Frechet", "accessor": "frechet", "type": "local"}, 
             {'name': "Directionality Change", "accessor": "directionality", "type": "local"}, 
+            //{'name': "Dir. Change Magnitude", "accessor": "directionality_mag", "type": "local"}, 
             {'name': "Monotonicity", "accessor": "monotonicity", "type": "local"},
-            {'name': "MELD", "accessor": "mean_edge_length_difference", "type": "local"}  ];
+            {'name': "Projected Monotonicity", "accessor": "projected_monotonicity", "type": "local"},
+            {'name': "Self-Intersections", "accessor": "self_intersections", "type": "local"},
+            {'name': "MELD", "accessor": "mean_edge_length_difference", "type": "local"} ];
         var FILES = [ 'g0', 'g1', 'migration', 'airlines'];
         
         const converter = {"S-EPB": 'sepb', "WR": 'wr', "FD": 'fd', "EPB": 'epb', "CUBu": 'cubu'}; 
@@ -81,7 +88,6 @@
         function initInterface(path) {
             var content = d3.select("#content-container")
             content.selectAll("*").remove();
-            console.log(content);
 
             ALGORITHMS.forEach(al => {               
                 var container = content.append('div').attr('class', 'algorithm-container');
@@ -176,19 +182,21 @@
         });
 
         d3.dsv(";", "output_dashboard/instances.csv").then(function(data) {
+            data = [...new Set(data.map(d => d.instance))]
+            console.log(data)
+
             FILES = data;
 
             FILES.forEach(f => {
             
                 var opt = document.createElement('option');
-                opt.value = f.instance;
-                opt.innerHTML = f.instance;
+                opt.value = f;
+                opt.innerHTML = f;
                 
                 document.getElementById('file-select').appendChild(opt);
             });
-            
-            console.log(FILES[0])
-            initInterface(FILES[0].instance)
+    
+            initInterface(FILES[0])
         })
         
         document.getElementById('file-select').addEventListener('change', (input) => {

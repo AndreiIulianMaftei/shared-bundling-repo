@@ -9,6 +9,7 @@ from modules.EPB.straight import StraightLine
 from modules.EPB.experiments import Metrics as EPBMetrics
 from modules import clustering as cl
 from sklearn.cluster import DBSCAN
+from frechetdist import frdist
 
 PATH_TO_PICKLE_FOLDER = "pickle/"
 if not os.path.isdir(PATH_TO_PICKLE_FOLDER): os.mkdir(PATH_TO_PICKLE_FOLDER)
@@ -85,6 +86,8 @@ class Metrics():
                 return self.calcGeometricClustering(**args)
             case 'directionality_mag':
                 return self.calcPathQuality(**args)
+            case 'visual_clustering':
+                return self.calcVisualClustering(**args)
             case _:
                 print("not yet implemented")
                 return 
@@ -260,6 +263,50 @@ class Metrics():
 
         return inkratio
     
+    def calcVisualClustering(self,return_mean=True):
+        '''
+        Calculate the ink ratio.
+        '''
+        from PIL import Image as PILImage
+        from skimage.segmentation import felzenszwalb
+        GREY_THRESH = 255            
+
+        imgBundle = self.getDrawing()
+        imGrayBundle  = np.array(PILImage.fromarray(imgBundle).convert("L"))
+
+        imStraight = self.getStraightDrawing()
+        imGrayStraight = np.array(PILImage.fromarray(imStraight).convert("L"))
+
+        segment1 = felzenszwalb(imGrayStraight,scale = 11,
+                                  sigma=13,
+                                  min_size=50)
+
+        segment2 = felzenszwalb(imGrayBundle,scale = 11,
+                                        sigma=13,
+                                        min_size=50)
+
+        nodes = self.G.nodes()
+        
+        visCount = 0
+        for i1 in range(len(nodes)):
+            for i2 in range(i1 + 1, len(nodes)):
+                n1 = nodes[i1]
+                n2 = nodes[i2]
+                
+                x1 = int(self.G.nodes[n1]['X'])
+                y1 = int(self.G.nodes[n1]['Y'])
+                
+                x2 = int(self.G.nodes[n2]['X'])
+                y2 = int(self.G.nodes[n2]['Y'])
+
+                if (segment1[x1][y1] == segment1[x2][y2]) and (segment2[x1][y1] == segment2[x2][y2]):
+                    visCount += 1
+                    
+
+        return visCount / len(nodes)
+    
+
+    
     def calcMeanOccupationArea(self, return_mean = True):
         """
         Calculate the Mean Occupation Area (MOA) using 8×8 pixel blocks,
@@ -433,7 +480,31 @@ class Metrics():
         return ncrossings
     
     def calcFrechet(self,return_mean=True):
+        frechet = np.zeros(self.G.number_of_edges())
+        for index, (u,v,data) in enumerate(self.G.edges(data=True)):
+            points_curve = np.array([[x,y] for x,y in zip(data['X'], data['Y'])])
+            if points_curve.shape[0] <= 2: 
+                frechet[index] = 0.0
+                continue            
+
+            #Interpolate the curve to as many poitns as the bundled line
+            start = points_curve[0]
+            end   = points_curve[-1]
+            if abs((start - end).sum()) <= 1e-7: #line is a point. Technically the curve could start and end at the same place, but this shouldnt happen
+                frechet[index] = 0.0
+                continue
+
+            k = points_curve.shape[0]
+            points_straight = np.array([(1-t) * start + t * end for t in np.linspace(0,1,k)])
+
+            frechet[index] = frdist(points_curve, points_straight)
+
+        if return_mean: return np.mean(frechet)
+        return frechet    
+
+    def calcFrechetBad(self,return_mean=True):
         """
+        TODO Fix this
         Implements 'fastFrechet'. Since we always compare to a straight line 
         it suffices to compute distances of the curve from outside and inside 
         the line segment, both of which can be simplified.
