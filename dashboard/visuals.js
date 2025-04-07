@@ -180,7 +180,7 @@ class Histogram{
         var height = this.svg.node().getBoundingClientRect().height;
         var xScale = d3.scaleLinear().domain(this.extentX).range([3 * margin, width - margin]);
         var yScale = d3.scaleLinear().range([height - 2 * margin, margin]).domain(this.extentY); 
-        console.log(xScale.domain(), xScale.range())
+        console.log("histo", width, height);
 
         this.svg.selectAll("rect")
             .attr("transform", function(d) { return "translate(" + xScale(d.x0) + "," + (yScale(d.length)) + ")"; })
@@ -282,6 +282,11 @@ class Container{
 
     async resize() {
         this.bundling.resize();
+
+        for (const [key, value] of Object.entries(this.metrics)) {
+            console.log(key, value)
+            value.draw();
+        };
     }
 
     async draw_network() {

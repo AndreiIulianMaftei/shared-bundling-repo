@@ -83,7 +83,7 @@ body {
 }
 
 .text-metric {
-    justify-content: space-around;
+    justify-content: space-between;
     display: flex;
     flex-direction: row;
     font-size: 12px;
