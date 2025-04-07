@@ -262,7 +262,7 @@ class Container{
                 this.metrics[metric.accessor] = new TextElement(mCTop, metric.name);
             }
 
-            mCTop.style('diplay', 'none');
+            mCTop.style('display', 'none');
             mCTop.style('visibility', 'collapse');
         });
     }
@@ -291,6 +291,7 @@ class Container{
     visibility(flag) {
         console.log(flag ? 'none' : 'visible')
         this.container.style('visibility', flag ? 'visible' : 'collapse');
+        this.container.style('display', flag ? 'block' : 'none');
     }
 
     metric_extent(metric) {
@@ -303,8 +304,6 @@ class Container{
 
     metric_visibility(metric, flag) {
         var mC = this.metrics[metric]
-
-        console.log(metric);
 
         mC.container.style('display', flag ? 'block' : 'none');
         mC.container.style('visibility', flag ? 'visible' : 'collapse');
