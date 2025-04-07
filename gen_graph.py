@@ -16,6 +16,29 @@ def gen_graphs(index):
     nx.write_graphml(G,f"inputs/g{index}.graphml")
 
 def blockgraph():
+    """
+    Processes a graph from a GraphML file, computes shortest path distances, 
+    applies t-SNE for dimensionality reduction, and saves the updated graph 
+    with new node attributes.
+    The function performs the following steps:
+    1. Reads a graph from "input_data/block5_n1000.graphml".
+    2. Converts node labels to integers for consistency.
+    3. Computes the shortest path lengths between all pairs of nodes.
+    4. Constructs a distance matrix based on the shortest path lengths.
+    5. Applies t-SNE to reduce the dimensionality of the distance matrix.
+    6. Updates the graph nodes with the t-SNE coordinates ('x' and 'y').
+    7. Writes the updated graph to "inputs/block.graphml".
+    Dependencies:
+        - NetworkX (imported as nx)
+        - NumPy (imported as np)
+        - scikit-learn (TSNE from sklearn.manifold)
+    Raises:
+        FileNotFoundError: If the input GraphML file does not exist.
+        ValueError: If t-SNE fails due to invalid input data.
+    Notes:
+        - The t-SNE initialization is set to 'random'.
+        - The t-SNE metric is set to 'precomputed', as it uses the distance matrix.
+    """
     G = nx.read_graphml("input_data/block5_n1000.graphml")
     G = nx.convert_node_labels_to_integers(G)
     n = G.number_of_nodes()
