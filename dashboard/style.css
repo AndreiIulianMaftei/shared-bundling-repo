@@ -47,9 +47,10 @@ body {
 
 .algorithm-container {
     margin: 5px;
+    width: 100%;
     /* flex: 1; */
     padding: 5px;
-    height: 200px;
+    /*height: 200px;*/
     /* background-color: red; */
 }
 
@@ -63,12 +64,29 @@ body {
 .metricSVG {
     /* background-color: beige; */
     width: 100%;
+    height: 150px;
     
 }
 
-.metric-container {
-    margin-bottom: 20px;
+.metric-histo {
+    margin-bottom: 5px;
     display: flex;
+    margin-top: 15px;
+}
+
+.metric-histo h6 {
+    margin-bottom: 0px;
+}
+
+.text-global {
+    font-size: 14px;
+}
+
+.text-metric {
+    justify-content: space-around;
+    display: flex;
+    flex-direction: row;
+    font-size: 12px;
 }
 
 .node {

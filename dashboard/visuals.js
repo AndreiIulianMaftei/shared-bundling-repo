@@ -85,6 +85,7 @@ class Bundling {
         var b_height = extentY[1] - extentY[0] 
 
         console.log(b_width, b_height)
+        console.log(this.svg.node().parentNode.parentNode)
 
         var width = this.svg.node().getBoundingClientRect().width;
         var height = width * b_height / b_width;
@@ -129,19 +130,22 @@ class Histogram{
         var mean = d3.mean(edges, d => d[accessor]);
         var median = d3.median(edges, d => d[accessor]);
 
-        this.stats.append('span').text(`mean: ${mean.toFixed(3)}   median: ${median.toFixed(3)}`)
+        var text = this.stats.append('div').attr('class', 'text-metric')
+        text.append("div").text(`mean: ${mean.toFixed(3)}`)
+        text.append("div").text(`median: ${median.toFixed(3)}`)
 
     }
 
     async draw () {
         this.svg.selectAll('*').remove();
         var width = this.svg.node().getBoundingClientRect().width;
-        this.svg.attr('height', 300);
+        var height = this.svg.node().getBoundingClientRect().height;
+        //this.svg.attr('height', 300);
 
         var xScale = d3.scaleLinear().domain(this.extentX).range([3 * margin, width - margin]);
 
         this.axisBottom = this.svg.append("g")
-            .attr("transform", "translate(" + 0 * margin + "," + (width - 2 * margin) + ")")
+            .attr("transform", "translate(" + 0 * margin + "," + (height - 2 * margin) + ")")
             .call(d3.axisBottom(xScale).ticks(5));
 
         this.histogram = d3.histogram()
@@ -152,7 +156,7 @@ class Histogram{
         this.bins = this.histogram(this.edges);
         this.extentY = [0, d3.max(this.bins, function(d) { return d.length; })];
 
-        var yScale = d3.scaleLinear().range([width - 2 * margin, margin]).domain([0, d3.max(this.bins, function(d) { return d.length; })]); 
+        var yScale = d3.scaleLinear().range([height - 2 * margin, margin]).domain([0, d3.max(this.bins, function(d) { return d.length; })]); 
         this.svg.append("g")
             .attr("transform", "translate(" + 3 * margin + "," + 0 + ")")
             .call(d3.axisLeft(yScale).ticks(5));
@@ -173,14 +177,15 @@ class Histogram{
     async resize () {
 
         var width = this.svg.node().getBoundingClientRect().width;
+        var height = this.svg.node().getBoundingClientRect().height;
         var xScale = d3.scaleLinear().domain(this.extentX).range([3 * margin, width - margin]);
-        var yScale = d3.scaleLinear().range([width - 2 * margin, margin]).domain(this.extentY); 
+        var yScale = d3.scaleLinear().range([height - 2 * margin, margin]).domain(this.extentY); 
         console.log(xScale.domain(), xScale.range())
 
         this.svg.selectAll("rect")
             .attr("transform", function(d) { return "translate(" + xScale(d.x0) + "," + (yScale(d.length)) + ")"; })
             .attr("width", function(d) {return xScale(d.x1) - xScale(d.x0); })
-            .attr("height", function(d) {return width - 2 * margin - yScale(d.length); })
+            .attr("height", function(d) {return height - 2 * margin - yScale(d.length); })
 
         // this.svg.append("g")
         //     .attr("transform", "translate(" + 3 * margin + "," + margin + ")")
@@ -246,18 +251,18 @@ class Container{
         metrics.forEach(metric => {
 
             if(metric.type === 'local') {
-                var mCTop = this.container.append('div').attr('class', 'metric-container')
+                var mCTop = this.container.append('div').attr('class', 'metric-container').attr('class', 'metric-histo')
                 mCTop.append('h6').text(metric.name);
                 var mCVis = mCTop.append('svg').attr('class', 'metricSVG');
                 var mCStat = mCTop.append('div');
 
                 this.metrics[metric.accessor] = new Histogram(mCVis, mCTop, mCStat)
             } else {
-                var mCTop = this.container.append('div').attr('class', 'metric-container');
+                var mCTop = this.container.append('div').attr('class', 'metric-container').attr('class', 'text-global');
                 this.metrics[metric.accessor] = new TextElement(mCTop, metric.name);
             }
 
-            mCTop.style('diplay', 'none');
+            mCTop.style('display', 'none');
             mCTop.style('visibility', 'collapse');
         });
     }
@@ -286,6 +291,7 @@ class Container{
     visibility(flag) {
         console.log(flag ? 'none' : 'visible')
         this.container.style('visibility', flag ? 'visible' : 'collapse');
+        this.container.style('display', flag ? 'block' : 'none');
     }
 
     metric_extent(metric) {
@@ -298,8 +304,6 @@ class Container{
 
     metric_visibility(metric, flag) {
         var mC = this.metrics[metric]
-
-        console.log(metric);
 
         mC.container.style('display', flag ? 'block' : 'none');
         mC.container.style('visibility', flag ? 'visible' : 'collapse');

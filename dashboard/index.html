@@ -15,9 +15,9 @@
         <button class="btn btn-primary mb-3" id="toggleSidebar">☰</button>
         <h4 class="text-center">Dashboard</h4>
         <ul class="nav flex-column">
-            <li class="nav-item"><a href="/dashboard" class="nav-link text-white">Detail</a></li>
-            <li class="nav-item"><a href="/dashboard/parallel.html" class="nav-link text-white">Summary</a></li>
             <li class="nav-item"><a href="/dashboard/overview.html" class="nav-link text-white">Overview</a></li>
+            <li class="nav-item"><a href="/dashboard" class="nav-link text-white">Detail</a></li>
+            <!--<li class="nav-item"><a href="/dashboard/parallel.html" class="nav-link text-white">Summary</a></li>-->
         </ul>
 
         <h3>File</h3>
@@ -87,7 +87,7 @@
         var interface = []
 
 
-        function initInterface(path) {
+        async function initInterface(path) {
             var content = d3.select("#content-container")
             content.selectAll("*").remove();
 
@@ -97,7 +97,7 @@
 
                 var obj = new Container(file, container, METRICS, al);
                 interface.push(obj);
-            });
+            }); 
 
             interface.forEach(obj => {
                 obj.load_data().then(() => obj.draw_network())
@@ -183,23 +183,28 @@
             });
         });
 
-        d3.dsv(";", "output_dashboard/instances.csv").then(function(data) {
-            data = [...new Set(data.map(d => d.instance))]
-            console.log(data)
-
-            FILES = data;
-
-            FILES.forEach(f => {
-            
-                var opt = document.createElement('option');
-                opt.value = f;
-                opt.innerHTML = f;
-                
-                document.getElementById('file-select').appendChild(opt);
-            });
+        window.addEventListener("load", function(){
+            console.log('here')
+            d3.dsv(";", "output_dashboard/instances.csv").then(function(data) {
+                data = [...new Set(data.map(d => d.instance))]
+                console.log(data)
     
-            initInterface(FILES[0])
-        })
+                FILES = data;
+    
+                FILES.forEach(f => {
+                
+                    var opt = document.createElement('option');
+                    opt.value = f;
+                    opt.innerHTML = f;
+                    
+                    document.getElementById('file-select').appendChild(opt);
+                });
+        
+                initInterface("geo_mafia")
+            })
+
+        });
+        
         
         document.getElementById('file-select').addEventListener('change', (input) => {
             initInterface(input.target.value);
