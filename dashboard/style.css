@@ -105,8 +105,8 @@ body {
 }
 
 #scatter {
-    width: 100vw;  /* Take up remaining width of #content */
-    height: 80vh;
+    width: 40vw;  /* Take up remaining width of #content */
+    height: 50vh;
 }
 
 #scatter svg {
@@ -121,10 +121,15 @@ body {
     stroke-width: 3px;
 }
 
-#bundles {
+.overview-bundles {
     display: flex;
     /* grid-template-columns: repeat(3, 2fr); */
     grid-gap: 5px;
     width: 100%;
     /* height: 100%; */
+}
+
+#overviewcontainer{
+    display: flex;
+    width: 100%;
 }

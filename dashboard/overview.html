@@ -20,22 +20,44 @@
             <!--<li class="nav-item"><a href="/dashboard/parallel.html" class="nav-link text-white">Summary</a></li>-->
         </ul>
 
+        <h3>Settings</h3>
+        <div>
+            <input type="checkbox" id="show-pc-check" name="show-pc" checked/>
+            <label for="show-pc">Show Parallel Coordinates</label>
+        </div>
+        <div>
+            <input type="checkbox" id="show-scatter-check" name="show-scatter" checked/>
+            <label for="show-scatter">Show Scatterplot</label>
+        </div>
+
+        <h3>Control</h3>
+        <div>
+            <button type="button" id="keep-bundle-button">Keep Bundle</button>
+        </div>
+        <div>
+            <button type="button" id="clear-button">Clear Selection</button>
+        </div>        
+
     </div>
     <div id="content" >
-        <div id="graph-title"></div>
+        <div id="graph-title" style="height: 18px;"></div>
         <svg id="parallel">
         </svg>
         <div id="content-container">
             <div id="scatter">
             </div>
-            <div id="bundles">
-            </div>        
+            <div style="width: 100%; display: block;">
+                <div id="bundles" class="overview-bundles">
+                </div>        
+                <div id="bundles2" class="overview-bundles"></div>
+            </div>
         </div>
     </div>
 
     
     <script>
-        const METRICS = [{'name': "Ink Ratio", "accessor": "inkratio", "type": "global"},
+        const METRICS = [
+            {'name': "Ink Ratio", "accessor": "inkratio", "type": "global"},
             {'name': "MOA", "accessor": "mean_occupation_area", "type": "global"},
             {'name': "EDD", "accessor": "edge_density_distribution", "type": "global"},
             {'name': "Distortion", "accessor": "distortion", "type": "local"},
@@ -47,7 +69,7 @@
             {'name': "Self Intersections", "accessor": "self_intersections", "type": "local"},
             {'name': "Ambiguity", "accessor": "ambiguity_1", "type": "local"},
             {'name': "Specificity", "accessor": "specificity_1", "type": "local"},   
-            {"name": "Path Quality", "accessor": "directionality_mag", "type": "local"}                    
+            {"name": "Edge Curvature", "accessor": "directionality_mag", "type": "local"}                    
         ];
 
             let metric_list = ['distortion',
@@ -99,20 +121,39 @@
             // console.log(data);
 
             let parallel = new Parallel('#parallel', METRICS, data);
+            parallel.click();
 
             let svg = d3.select("#scatter").append("svg")
                     .attr("id", "mainVis")
                     .attr("class", "scatter")
                     .style("border", "3px solid black");
 
-            let vis = new Scatter("#mainVis");
+            let vis = new Scatter("#mainVis",parallel);
 
             vis.add_data(data);
             vis.overlap();
             vis.draw();
             vis.hover();
             vis.click("#bundles", parallel);
-        })
+
+            document.getElementById("keep-bundle-button").addEventListener('click', (input) => {
+                vis.saveCurrent('#bundles2');
+             });
+             
+             document.getElementById("clear-button").addEventListener('click', (input) => {
+                vis.clear("#bundles", "#bundles2", parallel);
+             });             
+        });
+
+        document.getElementById("show-pc-check").addEventListener('change', (input) => {
+            document.getElementById("parallel").style.display = input.target.checked ? "flex" : "none";
+        });
+
+        document.getElementById("show-scatter-check").addEventListener('change', (input) => {
+            document.getElementById("scatter").style.display = input.target.checked ? "flex" : "none";
+        });        
+
+
         
 
     </script>
