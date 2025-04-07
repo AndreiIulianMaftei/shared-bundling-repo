@@ -87,8 +87,8 @@ body {
 }
 
 #scatter {
-    width: 100vw;  /* Take up remaining width of #content */
-    height: 80vh;
+    width: 50vw;  /* Take up remaining width of #content */
+    height: 50vh;
 }
 
 #scatter svg {

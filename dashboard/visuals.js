@@ -326,12 +326,14 @@ class Scatter{
     #colors = [ "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"];
     #margin = {top: 15, bottom: 15, left:15, right:15};    
 
-    constructor(svgid){
+    constructor(svgid,parallel){
         this.svg = d3.select(svgid);
 
         this.layer1 = this.svg.append("g");
         this.width = this.svg.node().getBoundingClientRect().width;
         this.height = this.svg.node().getBoundingClientRect().height;
+
+        this.parallel = parallel;
     }
 
     add_data(nodes){
@@ -393,6 +395,7 @@ class Scatter{
                 tthis.layer1.selectAll(".nodes")
                     .filter(u => u.graph === d.graph)
                     .classed("hover", true)
+                tthis.parallel.filterLines('id', d.id);   
             })
             .on("mouseleave", () => tthis.layer1.selectAll(".nodes").classed("hover", false))
     }
@@ -433,7 +436,6 @@ class Scatter{
             .on("click", (e,d) => {
 
                 bundlediv.selectAll("*").remove();
-                console.log(d);
                 ALGORITHMS.forEach(al => {               
                     var container = bundlediv.append('div').attr('class', 'algorithm-container');
                     var file = `output_dashboard/${d.graph}/${converter[al]}.json`;
@@ -446,7 +448,7 @@ class Scatter{
                     obj.load_data().then(() => obj.draw_network())
                     .catch(error => console.error("Error:", error));
                 });              
-                parallel.filterLines(d.graph);       
+                parallel.filterLines('graph', d.graph);       
             })
 
    
@@ -540,13 +542,12 @@ class Parallel{
                 .attr("font-size", 14)
     }
 
-    filterLines(graph){
-        console.log("hello")
+    filterLines(prop, val){
         this.lines
-            .style("opacity", l => l.graph === graph ? 1.0 : 0.01)
+            .style("opacity", l => l[prop] === val ? 1.0 : 0.01)
             .style("stroke-width", 3)
             // .remove();
         
-        this.lines.filter(l => l.graph === graph).raise();
+        this.lines.filter(l => l[prop] === val).raise();
     }
 }

@@ -22,7 +22,7 @@
 
     </div>
     <div id="content" >
-        <div id="graph-title"></div>
+        <div id="graph-title" style="height: 18px;"></div>
         <svg id="parallel">
         </svg>
         <div id="content-container">
@@ -35,7 +35,8 @@
 
     
     <script>
-        const METRICS = [{'name': "Ink Ratio", "accessor": "inkratio", "type": "global"},
+        const METRICS = [
+            {'name': "Ink Ratio", "accessor": "inkratio", "type": "global"},
             {'name': "MOA", "accessor": "mean_occupation_area", "type": "global"},
             {'name': "EDD", "accessor": "edge_density_distribution", "type": "global"},
             {'name': "Distortion", "accessor": "distortion", "type": "local"},
@@ -47,7 +48,7 @@
             {'name': "Self Intersections", "accessor": "self_intersections", "type": "local"},
             {'name': "Ambiguity", "accessor": "ambiguity_1", "type": "local"},
             {'name': "Specificity", "accessor": "specificity_1", "type": "local"},   
-            {"name": "Path Quality", "accessor": "directionality_mag", "type": "local"}                    
+            {"name": "Edge Curvature", "accessor": "directionality_mag", "type": "local"}                    
         ];
 
             let metric_list = ['distortion',
@@ -98,6 +99,8 @@
         d3.json('overview.json').then(data => {
             // console.log(data);
 
+            console.log(data);
+            console.log(METRICS)
             let parallel = new Parallel('#parallel', METRICS, data);
 
             let svg = d3.select("#scatter").append("svg")
@@ -105,7 +108,7 @@
                     .attr("class", "scatter")
                     .style("border", "3px solid black");
 
-            let vis = new Scatter("#mainVis");
+            let vis = new Scatter("#mainVis",parallel);
 
             vis.add_data(data);
             vis.overlap();
