@@ -63,9 +63,8 @@
         //const ALGORITHMS = ["S-EPB", "EPB", "WR", "FD"]; //, "WR", "FD", "CUBu"
         const ALGORITHMS = ["S-EPB", "WR", "FD", "EPB", "CUBu"]; //, "WR", "FD", "CUBu"
         //const ALGORITHMS = ["S-EPB", "WR"];
-        const METRICS = [
-        {'name': "Clustering", "accessor": "cluster", "type": "global"},    
-        {'name': "Ink Ratio", "accessor": "inkratio", "type": "global"},
+        const METRICS = [ 
+            {'name': "Ink Ratio", "accessor": "inkratio", "type": "global"},
             {'name': "MOA", "accessor": "mean_occupation_area", "type": "global"},
             {'name': "EDD", "accessor": "edge_density_distribution", "type": "global"},
             {'name': "Ambiguity", "accessor": "ambiguity_1", "type": "global"},
@@ -75,11 +74,11 @@
             {'name': "Distortion", "accessor": "distortion", "type": "local"},
             {'name': "Frechet", "accessor": "frechet", "type": "local"}, 
             {'name': "Directionality Change", "accessor": "directionality", "type": "local"}, 
-            //{'name': "Dir. Change Magnitude", "accessor": "directionality_mag", "type": "local"}, 
+            {'name': "Edge Curvature", "accessor": "directionality_mag", "type": "local"}, 
             {'name': "Monotonicity", "accessor": "monotonicity", "type": "local"},
             {'name': "Projected Monotonicity", "accessor": "projected_monotonicity", "type": "local"},
             {'name': "Self-Intersections", "accessor": "self_intersections", "type": "local"},
-            {'name': "MELD", "accessor": "mean_edge_length_difference", "type": "local"} ];
+            {'name': "ELD", "accessor": "mean_edge_length_difference", "type": "local"} ];
         var FILES = [ 'g0', 'g1', 'migration', 'airlines'];
         
         const converter = {"S-EPB": 'sepb', "WR": 'wr', "FD": 'fd', "EPB": 'epb', "CUBu": 'cubu'}; 
@@ -197,6 +196,10 @@
                     opt.innerHTML = f;
                     
                     document.getElementById('file-select').appendChild(opt);
+
+                    if(f === "geo_mafia") {
+                        opt.selected = true;
+                    }   
                 });
         
                 initInterface("geo_mafia")

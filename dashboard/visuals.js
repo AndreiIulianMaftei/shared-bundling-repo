@@ -189,7 +189,7 @@ class TextElement{
     async load_data(data, accessor) {
         this.data = data.graph;
         this.accessor = accessor;
-
+        console.log(this.data, accessor);
  
         this.container.text(this.name + ": " + this.data[accessor].toFixed(3));
     }
