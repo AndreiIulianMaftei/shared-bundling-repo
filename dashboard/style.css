@@ -117,7 +117,7 @@ body {
 }
 
 .hover {
-    fill: #190A0B;
+    fill: red;
     stroke-width: 3px;
 }
 

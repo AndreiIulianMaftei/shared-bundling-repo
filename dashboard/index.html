@@ -80,7 +80,9 @@
             {'name': "Self-Intersections", "accessor": "self_intersections", "type": "local"},
             {'name': "ELD", "accessor": "mean_edge_length_difference", "type": "local"} ];
         var FILES = [ 'g0', 'g1', 'migration', 'airlines'];
-        
+        const METRIC_SELECT = {};
+        const ALGO_SELECT = {};
+
         const converter = {"S-EPB": 'sepb', "WR": 'wr', "FD": 'fd', "EPB": 'epb', "CUBu": 'cubu'}; 
 
         var interface = []
@@ -96,12 +98,58 @@
 
                 var obj = new Container(file, container, METRICS, al);
                 interface.push(obj);
+
+                obj.visibility(ALGO_SELECT[al]);
             }); 
 
+            /*
             interface.forEach(obj => {
                 obj.load_data().then(() => obj.draw_network())
                 .catch(error => console.error("Error:", error));
             });
+            */
+            const runAll = (onComplete) => {
+                Promise.all(
+                  interface.map(obj =>
+                    obj.load_data()
+                      .then(() => obj.draw_network())
+                      .catch(error => {
+                        console.error("Error:", error);
+                      })
+                  )
+                ).then(() => {
+                  if (onComplete) {
+                    onComplete();
+                  }
+                });
+              };
+              
+              runAll(() => {
+                METRICS.forEach(m => {
+                    if(METRIC_SELECT[m.accessor]){
+                        var min = 1000;
+                        var max = 0;
+                        var ymax = 0;
+                        var ymin = 100000;
+    
+                        interface.forEach(i => {
+                            extent = i.metric_extent(m.accessor);
+                            min = d3.min([min, extent[0][0]]);
+                            max = d3.max([max, extent[0][1]]);
+                            ymin = d3.min([ymin, extent[1][0]]);
+                            ymax = d3.max([ymax, extent[1][1]]);
+                        });
+        
+                        interface.forEach(i => {
+                            i.metric_set_extent(m.accessor, [min,max]);
+                        });
+        
+                        interface.forEach(i => {
+                            i.metric_visibility(m.accessor, true);
+                        });
+                    }
+                });
+              });
         }
 
         function updateInterface(){
@@ -118,7 +166,7 @@
                 i.resize();
             });
 
-            console.log(interface)
+            ALGO_SELECT[event.target.value] = event.target.checked;
         }
 
         function handleCheck_metric(event) {
@@ -127,6 +175,8 @@
 
             var checked = event.target.checked;
             var metric = event.target.value;
+
+            METRIC_SELECT[metric] = checked;
 
             if (event.target.checked) {
                 interface.forEach(i => {
@@ -153,8 +203,18 @@
             
 
             var algo = ''
-            if (isAlgo)
+            if (isAlgo){
                 var algo = 'checked';
+            
+                ALGORITHMS.forEach(al => {
+                    ALGO_SELECT[al] = true;
+                });    
+
+            } else {
+                METRICS.forEach(metric => {
+                    METRIC_SELECT[metric.accessor] = false;
+                });
+            }
 
 
             items.forEach(item => {

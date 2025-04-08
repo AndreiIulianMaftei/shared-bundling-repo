@@ -32,7 +32,7 @@ class Bundling {
         }
 
         const zoom = d3.zoom().on('zoom', handleZoom);
-        // this.svg.call(zoom);
+        this.svg.call(zoom);
         
         this.draw_area.selectAll('.edge')
             .data(this.edges)
@@ -107,16 +107,15 @@ class Histogram{
         var text = this.stats.append('div').attr('class', 'text-metric')
         text.append("div").text(`mean: ${mean.toFixed(3)}`)
         text.append("div").text(`median: ${median.toFixed(3)}`)
-
     }
 
-    async draw () {
+    async draw (parent) {
         this.svg.selectAll('*').remove();
         var width = this.svg.node().getBoundingClientRect().width;
         var height = this.svg.node().getBoundingClientRect().height;
         //this.svg.attr('height', 300);
 
-        var xScale = d3.scaleLinear().domain(this.extentX).range([3 * margin, width - margin]);
+        var xScale = d3.scaleLinear().domain(this.extentX).range([4 * margin, width - margin]);
 
         this.axisBottom = this.svg.append("g")
             .attr("transform", "translate(" + 0 * margin + "," + (height - 2 * margin) + ")")
@@ -125,15 +124,27 @@ class Histogram{
         this.histogram = d3.histogram()
                             .value(d => {return d[this.accessor]})
                             .domain(xScale.domain())
-                            .thresholds(xScale.ticks(50));
+                            .thresholds(xScale.ticks(30));
 
         this.bins = this.histogram(this.edges);
+        console.log(this.bins)
         this.extentY = [0, d3.max(this.bins, function(d) { return d.length; })];
 
         var yScale = d3.scaleLinear().range([height - 2 * margin, margin]).domain([0, d3.max(this.bins, function(d) { return d.length; })]); 
         this.svg.append("g")
-            .attr("transform", "translate(" + 3 * margin + "," + 0 + ")")
+            .attr("transform", "translate(" + 4 * margin + "," + 0 + ")")
             .call(d3.axisLeft(yScale).ticks(5));
+
+        var tthis = this;
+        var mouseover = function (e,bin) {
+            d3.select(this).style('fill', '#C7A138')
+            parent.bundling.svg.selectAll('.edge').style('opacity', d => (d[tthis.accessor] >= bin.x0 && d[tthis.accessor] <= bin.x1) ? 0.4 : 0)
+        }
+
+        var mouseout = function (e,d) {
+            d3.select(this).style('fill', HISTO_COLOR)
+            parent.bundling.svg.selectAll('.edge').style('stroke', d => colormap(d['SL_angle'])).style('opacity', 0.4)
+        }
 
         this.svg.selectAll("rect")
         .data(this.bins)
@@ -142,6 +153,8 @@ class Histogram{
             .attr('x', 1)
             .attr('y', 0)
             .style("fill", HISTO_COLOR)
+            .on("mouseover", mouseover)
+            .on("mouseout", mouseout);
 
         this.resize();
     }
@@ -152,9 +165,8 @@ class Histogram{
 
         var width = this.svg.node().getBoundingClientRect().width;
         var height = this.svg.node().getBoundingClientRect().height;
-        var xScale = d3.scaleLinear().domain(this.extentX).range([3 * margin, width - margin]);
+        var xScale = d3.scaleLinear().domain(this.extentX).range([4 * margin, width - margin]);
         var yScale = d3.scaleLinear().range([height - 2 * margin, margin]).domain(this.extentY); 
-        console.log("histo", width, height);
 
         this.svg.selectAll("rect")
             .attr("transform", function(d) { return "translate(" + xScale(d.x0) + "," + (yScale(d.length)) + ")"; })
@@ -171,10 +183,22 @@ class Histogram{
     }
 
     get_extent() {
-        return [d3.extent(this.edges, d => d[this.accessor]), this.extentY];
+        var extentX = d3.extent(this.edges, d => d[this.accessor]);
+        var meanX = d3.mean(this.edges, d => d[this.accessor]);
+
+        var xmin = meanX - extentX[0];
+        var xmax = extentX[1] - meanX;
+
+        if (xmax > 5 * xmin)
+            extentX[1] = meanX + 5 * xmin;
+
+        console.log(extentX, meanX, xmin, xmax, meanX + 8 * xmin);
+
+        return [extentX, this.extentY];
     }
 
     set_extent(extentX, extentY) {
+        console.log(extentX, extentY);
         this.extentX = extentX;
         this.extentY = extentY;
     }
@@ -189,12 +213,12 @@ class TextElement{
     async load_data(data, accessor) {
         this.data = data.graph;
         this.accessor = accessor;
-        console.log(this.data, accessor);
+        //console.log(this.data, accessor);
  
         this.container.text(this.name + ": " + this.data[accessor].toFixed(3));
     }
 
-    async draw () {
+    async draw (parent) {
         
     }
 
@@ -278,7 +302,7 @@ class Container{
     }
 
     metric_set_extent(metric, extent) {
-        return this.metrics[metric].set_extent(extent);
+        return this.metrics[metric].set_extent(extent, [0, 1000]);
     }
 
     metric_visibility(metric, flag) {
@@ -287,7 +311,7 @@ class Container{
         mC.container.style('display', flag ? 'block' : 'none');
         mC.container.style('visibility', flag ? 'visible' : 'collapse');
 
-        mC.draw();
+        mC.draw(this);
     }
 
     async show_nodes(value) {
