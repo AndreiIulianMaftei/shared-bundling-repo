@@ -167,6 +167,35 @@ def read_edge_file(path):
     return G
 
 def extract_by_location(long, lat, max_diff, city, G):
+    """
+    Extracts and processes location-based data from a Gowalla dataset, filters nodes 
+    based on proximity to a specified longitude and latitude, and generates subgraphs 
+    for further analysis and visualization.
+    Args:
+        long (float): Longitude of the target location.
+        lat (float): Latitude of the target location.
+        max_diff (float): Maximum allowable difference in longitude and latitude 
+                          for filtering nodes.
+        city (str): Name of the city for output file naming.
+        G (networkx.Graph): Input graph containing nodes and edges.
+    Workflow:
+        1. Reads the Gowalla dataset from a file.
+        2. Filters nodes based on proximity to the specified longitude and latitude.
+        3. Groups nodes by month and updates their coordinates in the graph.
+        4. Creates subgraphs for each month and processes them:
+            - Ensures subgraphs meet size criteria (nodes or edges > 100).
+            - Extracts the largest connected component if applicable.
+        5. Adjusts overlapping node coordinates to ensure uniqueness.
+        6. Scales and removes overlap in the graph for visualization purposes.
+        7. Saves the processed subgraphs to GraphML files.
+    Outputs:
+        - GraphML files for each processed subgraph, saved in the 
+          "output_userstudy/gowalla" directory with filenames based on the city 
+          and month.
+    Notes:
+        - The function uses randomization to adjust overlapping node coordinates.
+        - The graph is scaled and adjusted multiple times for visualization purposes.
+    """
 
     cur_date = datetime.utcnow().date()
     

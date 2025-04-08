@@ -11,6 +11,40 @@ def escape_xml(text):
                 .replace(">", "&gt;"))
 
 def main():
+    """
+    This script processes airport and route data to generate a GraphML file representing
+    airports as nodes and routes as edges for a specified country. The generated GraphML
+    file can be used for graph-based visualizations and analyses.
+    Functions:
+        main():
+            Reads airport and route data from CSV files, filters the data for a specified
+            country, and generates a GraphML file containing nodes (airports) and edges
+            (routes). The nodes include attributes such as coordinates and tooltips, while
+            the edges represent connections between airports.
+    File Structure:
+        - Input files:
+            - `./databasemaker/airport_data.csv`: Contains airport data with headers such as
+              "Airport ID", "Name", "City", "Country", "IATA", "Longitude", "Latitude", etc.
+            - `./databasemaker/routes_data.csv`: Contains route data with headers such as
+              "Source airport ID", "Destination airport ID", etc.
+        - Output file:
+            - `{definedCountry}_airports.xml`: A GraphML file containing the graph representation
+              of airports and routes for the specified country.
+    Key Features:
+        - Filters airports and routes based on the specified country (`definedCountry`).
+        - Converts longitude and latitude to x and y coordinates for graph visualization.
+        - Avoids duplicate edges in the graph.
+        - Escapes special characters in tooltips to ensure valid XML.
+    Dependencies:
+        - Requires the `csv` module for reading CSV files.
+        - Assumes the existence of input files in the specified paths.
+    Usage:
+        Run the script to generate a GraphML file for the specified country. Update the
+        `definedCountry` variable to change the target country.
+    Note:
+        Ensure that the input CSV files are properly formatted and contain the required
+        headers for successful execution.
+    """
     airport_headers = ["Airport ID", "Name", "City", "Country", "IATA", "ICAO",
                        "Latitude", "Longitude", "Altitude", "Timezone", "DST",
                        "Tz database timezone", "Type", "Source"]

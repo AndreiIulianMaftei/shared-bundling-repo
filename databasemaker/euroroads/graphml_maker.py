@@ -34,6 +34,29 @@ def geocode_city(city_name, geolocator, max_retries=3, delay=2):
                 return (None, None)
 
 def main():
+    # Main function to generate a GraphML file representing a graph of cities and their connections.
+    # Steps:
+    # 1. Reads city names from a file and stores them in a list.
+    # 2. Geocodes each city to obtain latitude and longitude coordinates using the Nominatim geocoder.
+    # 3. Reads edges (connections between cities) from a second file and filters out invalid or incomplete edges.
+    # 4. Generates a GraphML representation of the graph, including nodes (cities) and edges (connections).
+    # 5. Writes the GraphML content to an output file.
+    # Files:
+    # - Input:
+    #     - `databasemaker/euroroads/cities.txt`: Contains city names, one per line.
+    #     - `databasemaker/euroroads/edges.txt`: Contains edges in the format "source target", where source and target are city IDs.
+    # - Output:
+    #     - `output.graphml`: The generated GraphML file.
+    # Dependencies:
+    # - Requires the `geopy` library for geocoding.
+    # - Assumes the input files are properly formatted and accessible.
+    # Notes:
+    # - Skips cities that cannot be geocoded (missing latitude/longitude).
+    # - Skips edges referencing unknown or invalid city IDs.
+    # - Coordinates are transformed for GraphML representation (negated and scaled).
+    # Raises:
+    # - FileNotFoundError: If the input files are not found.
+    # - ValueError: If the input files contain invalid data.
     # 1. Read city names from file
     city_file = "databasemaker/euroroads/cities.txt"
     with open(city_file, "r", encoding="utf-8") as f:
