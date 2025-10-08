@@ -306,9 +306,9 @@ def bundle_all(dir):
 
         if not os.path.isdir(f"outputs/{name}"): os.mkdir(f"outputs/{name}")
 
-        algs = ['wr']
-        #algs = ['wr','fd', 'epb', 'sepb']
-        #if os.path.exists('cubu'): algs += ['cubu']
+        #algs = ['wr']
+        algs = ['wr','fd', 'epb', 'sepb']
+        if os.path.exists('cubu'): algs += ['cubu']
 
         for alg in algs:
             print(f"Computing {alg} for {file}")

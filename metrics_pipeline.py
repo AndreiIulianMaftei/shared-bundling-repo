@@ -3,6 +3,11 @@ import csv
 import glob
 import os.path
 import time
+
+# Set matplotlib backend before importing any matplotlib modules
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
+
 from modules.abstractBundling import GWIDTH, GraphLoader, RealizedBundling
 from modules.EPB.experiments import Experiment
 from modules.EPB.straight import StraightLine
@@ -13,7 +18,7 @@ import networkx as nx
 import numpy as np
 import json
 from modules.metrics import Metrics
-import pylab as plt
+import matplotlib.pyplot as plt
 import csv
 
 
@@ -91,7 +96,7 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
 
         G.graph[f'{metric}_t'] = M.metrictime[metric]
 
-    data = nx.node_link_data(G, link="edges")
+    data = nx.node_link_data(G, edges="edges")
 
     if not os.path.isdir(f"{path}"): os.mkdir(f"{path}")
     with open(f'{path}/{algorithm}.json', 'w', encoding='utf-8') as f:

@@ -6,8 +6,9 @@ from scipy import signal
 from PIL import Image as Image
 import pickle
 import seaborn as sbn
+import matplotlib
+matplotlib.use('Agg')  # Use non-interactive backend
 import matplotlib.pyplot as plt
-import matplotlib 
 from frechetdist import frdist
 import re
 from matplotlib.backends.backend_pdf import PdfPages
@@ -21,8 +22,6 @@ from modules.EPB.experiments import Experiment
 from typing import List
 import pylab
 from networkx.drawing.nx_pydot import graphviz_layout
-
-matplotlib.use('qt5Agg')
 
 BIG_Threshold = 10   #Threshlods for the numbers of connected nodes when to consider a cluster big, medium or small
 MEDIUM_Threshold = 5

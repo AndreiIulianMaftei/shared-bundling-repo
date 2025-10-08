@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Graph Bundling Visualizer</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container-fluid">
+        <!-- Header -->
+        <header class="navbar navbar-dark bg-dark px-3 mb-4">
+            <div class="navbar-brand">
+                <i class="fas fa-project-diagram me-2"></i>
+                Graph Bundling Visualizer
+            </div>
+            <div class="navbar-nav flex-row">
+                <div class="nav-item me-3">
+                    <span class="text-light">View Mode:</span>
+                </div>
+                <div class="btn-group" role="group">
+                    <button type="button" class="btn btn-outline-light btn-sm" id="gridViewBtn" title="Small Multiples View">
+                        <i class="fas fa-th"></i> Grid
+                    </button>
+                    <button type="button" class="btn btn-outline-light btn-sm" id="sliderViewBtn" title="Slider View">
+                        <i class="fas fa-images"></i> Slider
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <!-- Controls Panel -->
+        <div class="controls-panel mb-4">
+            <div class="row">
+                <div class="col-md-4">
+                    <label for="imageFolder" class="form-label">Image Directory:</label>
+                    <input type="file" class="form-control" id="imageFolder" webkitdirectory multiple accept="image/*">
+                </div>
+                <div class="col-md-4">
+                    <label for="imageFilter" class="form-label">Filter Images:</label>
+                    <input type="text" class="form-control" id="imageFilter" placeholder="Filter by filename...">
+                </div>
+                <div class="col-md-4">
+                    <label for="sortBy" class="form-label">Sort By:</label>
+                    <select class="form-select" id="sortBy">
+                        <option value="name">Name</option>
+                        <option value="date">Date Modified</option>
+                        <option value="size">File Size</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Image Counter -->
+        <div class="image-counter mb-3">
+            <span class="badge bg-secondary" id="imageCount">0 images loaded</span>
+        </div>
+
+        <!-- Grid View Container -->
+        <div id="gridView" class="view-container">
+            <div class="row" id="imageGrid">
+                <!-- Grid items will be populated here -->
+            </div>
+        </div>
+
+        <!-- Slider View Container -->
+        <div id="sliderView" class="view-container d-none">
+            <div class="slider-container">
+                <!-- Current Image Display -->
+                <div class="current-image-container mb-3">
+                    <img id="currentImage" src="" alt="Current Image" class="current-image">
+                    <div class="image-info">
+                        <h5 id="currentImageTitle">No Image Selected</h5>
+                        <p id="currentImageDetails" class="text-muted">Select images to begin</p>
+                    </div>
+                </div>
+
+                <!-- Slider Controls -->
+                <div class="slider-controls">
+                    <div class="d-flex align-items-center gap-3">
+                        <button class="btn btn-primary" id="prevBtn" disabled>
+                            <i class="fas fa-chevron-left"></i> Previous
+                        </button>
+                        
+                        <div class="flex-grow-1">
+                            <input type="range" class="form-range" id="imageSlider" min="0" max="0" value="0" disabled>
+                            <div class="d-flex justify-content-between text-muted small">
+                                <span id="sliderMin">1</span>
+                                <span id="sliderCurrent">1 of 1</span>
+                                <span id="sliderMax">1</span>
+                            </div>
+                        </div>
+                        
+                        <button class="btn btn-primary" id="nextBtn" disabled>
+                            Next <i class="fas fa-chevron-right"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Thumbnail Strip -->
+                <div class="thumbnail-strip mt-3">
+                    <div class="d-flex justify-content-center">
+                        <div id="thumbnailContainer" class="thumbnail-container">
+                            <!-- Thumbnails will be populated here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Spinner -->
+        <div id="loadingSpinner" class="text-center d-none">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="mt-2">Loading images...</p>
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="text-center text-muted py-5">
+            <i class="fas fa-images fa-3x mb-3"></i>
+            <h4>No Images Loaded</h4>
+            <p>Select a directory containing images to get started</p>
+        </div>
+    </div>
+
+    <!-- Image Modal for Full View -->
+    <div class="modal fade" id="imageModal" tabindex="-1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalImageTitle">Image Viewer</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body text-center">
+                    <img id="modalImage" src="" alt="Full Size Image" class="img-fluid">
+                </div>
+                <div class="modal-footer">
+                    <div class="modal-image-info text-start flex-grow-1">
+                        <small id="modalImageDetails" class="text-muted"></small>
+                    </div>
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
