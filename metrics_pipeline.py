@@ -130,7 +130,7 @@ def log_error(gname, algname, metric):
             'metric': metric
         })
 
-def process(input, filename, algorithm, output="dashboard/output_dashboard", metrics='all',verbose=False):
+def process(input, filename, algorithm, output="dashboard/output_dashboard", metrics='long',verbose=False):
     if not os.path.isdir(output): os.mkdir(output)
 
     Bundle = read_bundling(f"{input}/{filename}/{algorithm}.graphml")
@@ -142,9 +142,9 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
     else: metrics_to_compute = [metrics] if isinstance(metrics,str) else metrics
 
     for metric in metrics_to_compute:
-        if metrics != "long":
-            if metric == "all_intersections"  or metric == "ambiguity" or metric == "clustering": continue
-        try:
+        # if metrics != "long":
+        #     if metric == "all_intersections"  or metric == "ambiguity" or metric == "clustering": continue
+        
             if verbose: print(f"calculating {metric} on {filename}/{algorithm}")
             start = time.time()
             
@@ -155,12 +155,12 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
 
             M.store_time(metric, delta)
             M.store_metric(metric, mvalue)
-        except:
-            M.store_time(metric, 0)
-            M.store_metric(metric, mvalue)
-            print("Problem with the metric")
-            print(f"Failed on metric {metric} on graph {filename}/{algorithm}")
-            log_error(filename,algorithm,metric)
+        # except:
+        #     M.store_time(metric, 0)
+        #     M.store_metric(metric, mvalue)
+        #     print("Problem with the metric")
+        #     print(f"Failed on metric {metric} on graph {filename}/{algorithm}")
+        #     log_error(filename,algorithm,metric)
 
     write_json(Bundle, M, f'{output}/{filename}', algorithm)
 
@@ -197,7 +197,7 @@ def main():
         print(metrics)
         metrics = json.loads(metrics.replace("\'", "\""))    
         print(type(metrics))
-    # metrics = ['geometric_clustering', 'clustering']
+    metrics = ['geometric_clustering', 'clustering']
     # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
 
     inputlist = os.listdir(inputfolder)

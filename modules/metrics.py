@@ -259,7 +259,6 @@ class Metrics():
         imStraight = self.getStraightDrawing()
         imGrayStraight = np.array(PILImage.fromarray(imStraight).convert("L"))
 
-        # Save the bundled image after bundling
         bundled_img = PILImage.fromarray(imgBundle)
         output_path = f"bundled_output_{self.G.graph.get('name', 'graph')}.png"
         bundled_img.save(output_path)

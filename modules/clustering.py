@@ -1,6 +1,6 @@
 import copy
 import os
-import networkx as nx
+import networkx 
 import numpy as np
 from scipy import signal
 from PIL import Image as Image
@@ -30,7 +30,7 @@ SMALL_Threshold = 2
 TIDE_MAX = 100  # Range for TIDE - Number that represents how much space is allowed between a
 TIDE_MIN = 1    # node and an edge to be considered in that edges cluster
 
-IMG_REZ = 2000  # Resolution of the image
+IMG_REZ = 1700  # Resolution of the image
 EDGE_REZ = 100  # Resolution of the edge
 
 CONVOLUTION = 50 # How many times the matrix is convoluted
@@ -101,7 +101,7 @@ class Clustering:
         Draws all clusters as nodes in a directed tree, 
         using the last cluster in the list as the root.
         """
-        G = nx.DiGraph()
+        G = networkx.DiGraph()
 
         cluster_map = {}
         for i, cluster in enumerate(clusters):
@@ -129,20 +129,20 @@ class Clustering:
 
         fig, ax = plt.subplots(figsize=(8, 6))
 
-        nx.draw_networkx_nodes(
+        networkx.draw_networkx_nodes(
             G, pos,
             node_color=node_colors,
             node_size=400,
             cmap=cmap,
             ax=ax
         )
-        nx.draw_networkx_edges(
+        networkx.draw_networkx_edges(
             G, pos,
             arrowstyle='-|>',
             arrowsize=12,
             ax=ax
         )
-        nx.draw_networkx_labels(
+        networkx.draw_networkx_labels(
             G, pos,
             labels={cluster_map[c]: f"d={c.depth}" for c in clusters},
             font_color='white',
@@ -193,95 +193,273 @@ class Clustering:
                         matrix[i][j] = (matrix[i][j] / max_depth) * 10
                         matrix[i][j] = int(matrix[i][j])
         print("Max depth: ", max_depth, "but normalised to 10")
-        for i in range(0, len(vertices)):
-            cluster = self.Cluster()
-            cluster.id = i
-            cluster.x = vertices[i][0]
-            cluster.y = vertices[i][1]
-            cluster.depth = matrix[vertices[i][0]][vertices[i][1]]
-            cluster.children = []
-            matrix_with_clusters[vertices[i][0]][vertices[i][1]] = cluster
-            cluster.parent = []
-            cluster.contains = 1
-            current_clusters.append(cluster)
-            overall_clusters.append(cluster)
-        print("Current clusters: ", len(current_clusters))
-        for depth in range(int(max_depth), -1, -1):
-            print("Processing depth: ", depth)
-            checkMatrix = np.zeros((IMG_REZ,IMG_REZ))
-            for i in range(0, min(matrix.__len__() , IMG_REZ)):
-                for j in range(0, min(matrix[i].__len__(), IMG_REZ)):
-                    if(matrix[i][j] == depth):
-                        searchedPos = []
-                        searchedPos.append((i,j))
-                        searchStack = []
-                        searchStack.append((i,j))
-                        brother_clusters = []
-                        if(matrix_with_clusters[i][j] != 0):
-                            brother_clusters.append(matrix_with_clusters[i][j])
-                        
-                        while(len(searchStack) != 0):
-                            currentPos = searchStack.pop()
-                            I = currentPos[0]
-                            J = currentPos[1]
-                            
-                            for x in range (-1, 2):
-                                for y in range (-1, 2):
-                                    if(I + x >= 0 and I + x < min(matrix.__len__() , IMG_REZ) and J + y >= 0 and J + y < min(matrix[i].__len__(), IMG_REZ) and checkMatrix[I + x][J + y] == 0):
-                                        if(matrix[I + x][J + y] >= depth):
-                                            searchedPos.append((I + x, J + y))
-                                            searchStack.append((I + x, J + y))
-                                            checkMatrix[I + x][J + y] = 1
-                                            if(matrix_with_clusters[I + x][J + y] != 0):
-                                                brother_clusters.append(matrix_with_clusters[I + x][J + y])
-                                                checkMatrix[I + x][J + y] = 1
-                                    checkMatrix[I][J] = 1
+
+        for i in range(len(matrix)):
+            for j in range(len(matrix[i])):
+                if matrix[i][j] > 0:
+                    matrix[i][j] = 10 - matrix[i][j]
+                else:
+                    matrix[i][j] = 10
+
+
+        graphs_by_depth = []
+        whatCluster = np.zeros((IMG_REZ,IMG_REZ))
+        for i in range (0, int(max_depth)):
+             
+            matrix_graph = networkx.Graph()
+
+            for x in range(0, len(matrix)):
+                for y in range(0, len(matrix[x])):
+                    matrix_graph.add_node((x,y))
             
-                        for x in range(0, len(searchedPos)):
-                            matrix[searchedPos[x][0]][searchedPos[x][1]] -= 1
-                        cluster = self.Cluster()
-                        if(len(brother_clusters) != 0):
+            for x in range(0, len(matrix)):
+                for y in range(0, len(matrix[x])):
+
+                    for dx in [-1, 0, 1]:
+                        for dy in [-1, 0, 1]:
+                            if dx == 0 and dy == 0:
+                                continue
+                            nx = x + dx
+                            ny = y + dy
+                            if 0 <= nx < len(matrix) and 0 <= ny < len(matrix[x]):
+                                if matrix[nx][ny] == matrix[x][y]:
+                                    matrix_graph.add_edge((x,y), (nx,ny))
+            
+            # Detect connected components in the graph
+            connected_components = list(networkx.connected_components(matrix_graph))
+            # Filter connected components to keep only those that contain vertices
+            vertex_positions = set((v[0], v[1]) for v in vertices)
+            filtered_components = []
+            for component in connected_components:
+                if any(pos in vertex_positions for pos in component):
+                    filtered_components.append(component)
+            connected_components = filtered_components
+            graphs_by_depth.append({
+                'depth': i,
+                'graph': matrix_graph,
+                'components': connected_components,
+                'num_components': len(connected_components)
+            })
+            print(f"Depth {i}: Found {len(connected_components)} connected components")
+                                    
+        return graphs_by_depth
+            
+        # for i in range(0, len(vertices)):
+        #     cluster = self.Cluster()
+        #     cluster.id = i
+        #     cluster.x = vertices[i][0]
+        #     cluster.y = vertices[i][1]
+        #     cluster.depth = matrix[vertices[i][0]][vertices[i][1]]
+        #     cluster.children = []
+        #     matrix_with_clusters[vertices[i][0]][vertices[i][1]] = cluster
+        #     cluster.parent = []
+        #     cluster.contains = 1
+        #     current_clusters.append(cluster)
+        #     overall_clusters.append(cluster)
+        # print("Current clusters: ", len(current_clusters))
+        # for depth in range(int(max_depth), -1, -1):
+        #     print("Processing depth: ", depth)
+        #     checkMatrix = np.zeros((IMG_REZ,IMG_REZ))
+        #     for i in range(0, min(matrix.__len__() , IMG_REZ)):
+        #         for j in range(0, min(matrix[i].__len__(), IMG_REZ)):
+        #             if(matrix[i][j] == depth):
+        #                 searchedPos = []
+        #                 searchedPos.append((i,j))
+        #                 searchStack = []
+        #                 searchStack.append((i,j))
+        #                 brother_clusters = []
+        #                 if(matrix_with_clusters[i][j] != 0):
+        #                     brother_clusters.append(matrix_with_clusters[i][j])
+                        
+        #                 while(len(searchStack) != 0):
+        #                     currentPos = searchStack.pop()
+        #                     I = currentPos[0]
+        #                     J = currentPos[1]
                             
-                            cluster.id = len(overall_clusters)
-                            cluster.x = brother_clusters[0].x
-                            cluster.y = brother_clusters[0].y
-                            cluster.depth = matrix[brother_clusters[0].x][brother_clusters[0].y]+1
-                            cluster.children = []
-                            cluster.parent = []
-                            cluster.contains = 0
-                            for x in range(0, len(brother_clusters)):
-                                cluster.children.append(brother_clusters[x])
-                                cluster.contains += brother_clusters[x].contains
-                                for y in range(0, len(brother_clusters[x].children)):
-                                    brother_clusters[x].children[y].parent = cluster
-                            overall_clusters.append(cluster)
+        #                     for x in range (-1, 2):
+        #                         for y in range (-1, 2):
+        #                             if(I + x >= 0 and I + x < min(matrix.__len__() , IMG_REZ) and J + y >= 0 and J + y < min(matrix[i].__len__(), IMG_REZ) and checkMatrix[I + x][J + y] == 0):
+        #                                 if(matrix[I + x][J + y] >= depth):
+        #                                     searchedPos.append((I + x, J + y))
+        #                                     searchStack.append((I + x, J + y))
+        #                                     checkMatrix[I + x][J + y] = 1
+        #                                     if(matrix_with_clusters[I + x][J + y] != 0):
+        #                                         brother_clusters.append(matrix_with_clusters[I + x][J + y])
+        #                                         checkMatrix[I + x][J + y] = 1
+        #                             checkMatrix[I][J] = 1
+            
+        #                 for x in range(0, len(searchedPos)):
+        #                     matrix[searchedPos[x][0]][searchedPos[x][1]] -= 1
+        #                 cluster = self.Cluster()
+        #                 if(len(brother_clusters) != 0):
+                            
+        #                     cluster.id = len(overall_clusters)
+        #                     cluster.x = brother_clusters[0].x
+        #                     cluster.y = brother_clusters[0].y
+        #                     cluster.depth = matrix[brother_clusters[0].x][brother_clusters[0].y]+1
+        #                     cluster.children = []
+        #                     cluster.parent = []
+        #                     cluster.contains = 0
+        #                     for x in range(0, len(brother_clusters)):
+        #                         cluster.children.append(brother_clusters[x])
+        #                         cluster.contains += brother_clusters[x].contains
+        #                         for y in range(0, len(brother_clusters[x].children)):
+        #                             brother_clusters[x].children[y].parent = cluster
+        #                     overall_clusters.append(cluster)
 
-                            for x in range(0, len(brother_clusters)):
-                                matrix_with_clusters[brother_clusters[x].x][brother_clusters[x].y] = 0
-                                if (x == 0):
-                                    matrix_with_clusters[brother_clusters[x].x][brother_clusters[x].y] = cluster
+        #                     for x in range(0, len(brother_clusters)):
+        #                         matrix_with_clusters[brother_clusters[x].x][brother_clusters[x].y] = 0
+        #                         if (x == 0):
+        #                             matrix_with_clusters[brother_clusters[x].x][brother_clusters[x].y] = cluster
                                 
-                                current_clusters.remove(brother_clusters[x])
-                            current_clusters.append(cluster)
+        #                         current_clusters.remove(brother_clusters[x])
+        #                     current_clusters.append(cluster)
 
-        clusters_by_level = {}
-        for depth in range(int(max_depth) + 1):
-            clusters_by_level[depth] = {}
-            for node in vertices:
-                node_id = node[2]
-                for cluster in overall_clusters:
-                    if cluster.depth == depth:
-                        #check if node is anywhere in cluster, check all the children 
-                        if cluster.contains > 1:
-                            for child in cluster.children:
-                                if child.x == node[0] and child.y == node[1]:
-                                    if node_id not in clusters_by_level[depth]:
-                                        clusters_by_level[depth][node_id] = []
-                                    clusters_by_level[depth][node_id].append(cluster.id)
+        # clusters_by_level = {}
+        # for depth in range(int(max_depth) + 1):
+        #     clusters_by_level[depth] = {}
+        #     for node in vertices:
+        #         node_id = node[2]
+        #         for cluster in overall_clusters:
+        #             if cluster.depth == depth:
+        #                 #check if node is anywhere in cluster, check all the children 
+        #                 if cluster.contains > 1:
+        #                     for child in cluster.children:
+        #                         if child.x == node[0] and child.y == node[1]:
+        #                             if node_id not in clusters_by_level[depth]:
+        #                                 clusters_by_level[depth][node_id] = []
+        #                             clusters_by_level[depth][node_id].append(cluster.id)
 
                 
-                if node_id not in clusters_by_level[depth]:     
-                    clusters_by_level[depth][node_id] = []
+        #         if node_id not in clusters_by_level[depth]:     
+        #             clusters_by_level[depth][node_id] = []
+        
+        # return clusters_by_level  
+
+                    
+
+    # def get_clusters(self, polilines, matrix, vertices):
+        
+
+    #     overall_clusters = []
+    #     current_clusters = []
+    #     matrix_with_clusters = np.zeros((IMG_REZ,IMG_REZ), dtype=object)
+    #     max_depth = 0
+    #     # matrix = [
+    #     #     [1,1,1,1,1,1,1,0,0,0,0,0],
+    #     #     [1,2,2,2,2,2,1,0,0,0,0,0],
+    #     #     [1,2,3,3,3,2,1,0,0,0,0,0],
+    #     #     [1,2,4,3,3,2,1,0,0,0,0,0],
+    #     #     [1,2,4,4,3,2,1,0,0,0,0,0],
+    #     #     [1,2,2,2,2,2,1,0,2,2,2,0],
+    #     #     [1,1,1,1,1,1,1,0,2,3,2,0],
+    #     #     [0,0,0,0,0,0,0,0,2,2,2,0],
+    #     #     [0,0,0,0,0,0,0,0,0,0,0,0],
+    #     #     [0,0,0,0,0,0,0,0,0,0,0,0]
+    #     # ]
+    #     print("computing max depth")
+    #     for i in range(0, len(matrix)):
+    #         for j in range(0, len(matrix[i])):
+    #             matrix[i][j] = int(matrix[i][j])
+    #             max_depth = max(max_depth, matrix[i][j])
+
+    #     # Normalize matrix values to be between 0 and 10
+    #     if max_depth > 0:
+    #         for i in range(0, len(matrix)):
+    #             for j in range(0, len(matrix[i])):
+    #                 if matrix[i][j] > 0:
+    #                     matrix[i][j] = (matrix[i][j] / max_depth) * 10
+    #                     matrix[i][j] = int(matrix[i][j])
+    #     print("Max depth: ", max_depth, "but normalised to 10")
+    #     for i in range(0, len(vertices)):
+    #         cluster = self.Cluster()
+    #         cluster.id = i
+    #         cluster.x = vertices[i][0]
+    #         cluster.y = vertices[i][1]
+    #         cluster.depth = matrix[vertices[i][0]][vertices[i][1]]
+    #         cluster.children = []
+    #         matrix_with_clusters[vertices[i][0]][vertices[i][1]] = cluster
+    #         cluster.parent = []
+    #         cluster.contains = 1
+    #         current_clusters.append(cluster)
+    #         overall_clusters.append(cluster)
+    #     print("Current clusters: ", len(current_clusters))
+    #     for depth in range(int(max_depth), -1, -1):
+    #         print("Processing depth: ", depth)
+    #         checkMatrix = np.zeros((IMG_REZ,IMG_REZ))
+    #         for i in range(0, min(matrix.__len__() , IMG_REZ)):
+    #             for j in range(0, min(matrix[i].__len__(), IMG_REZ)):
+    #                 if(matrix[i][j] == depth):
+    #                     searchedPos = []
+    #                     searchedPos.append((i,j))
+    #                     searchStack = []
+    #                     searchStack.append((i,j))
+    #                     brother_clusters = []
+    #                     if(matrix_with_clusters[i][j] != 0):
+    #                         brother_clusters.append(matrix_with_clusters[i][j])
+                        
+    #                     while(len(searchStack) != 0):
+    #                         currentPos = searchStack.pop()
+    #                         I = currentPos[0]
+    #                         J = currentPos[1]
+                            
+    #                         for x in range (-1, 2):
+    #                             for y in range (-1, 2):
+    #                                 if(I + x >= 0 and I + x < min(matrix.__len__() , IMG_REZ) and J + y >= 0 and J + y < min(matrix[i].__len__(), IMG_REZ) and checkMatrix[I + x][J + y] == 0):
+    #                                     if(matrix[I + x][J + y] >= depth):
+    #                                         searchedPos.append((I + x, J + y))
+    #                                         searchStack.append((I + x, J + y))
+    #                                         checkMatrix[I + x][J + y] = 1
+    #                                         if(matrix_with_clusters[I + x][J + y] != 0):
+    #                                             brother_clusters.append(matrix_with_clusters[I + x][J + y])
+    #                                             checkMatrix[I + x][J + y] = 1
+    #                                 checkMatrix[I][J] = 1
+            
+    #                     for x in range(0, len(searchedPos)):
+    #                         matrix[searchedPos[x][0]][searchedPos[x][1]] -= 1
+    #                     cluster = self.Cluster()
+    #                     if(len(brother_clusters) != 0):
+                            
+    #                         cluster.id = len(overall_clusters)
+    #                         cluster.x = brother_clusters[0].x
+    #                         cluster.y = brother_clusters[0].y
+    #                         cluster.depth = matrix[brother_clusters[0].x][brother_clusters[0].y]+1
+    #                         cluster.children = []
+    #                         cluster.parent = []
+    #                         cluster.contains = 0
+    #                         for x in range(0, len(brother_clusters)):
+    #                             cluster.children.append(brother_clusters[x])
+    #                             cluster.contains += brother_clusters[x].contains
+    #                             for y in range(0, len(brother_clusters[x].children)):
+    #                                 brother_clusters[x].children[y].parent = cluster
+    #                         overall_clusters.append(cluster)
+
+    #                         for x in range(0, len(brother_clusters)):
+    #                             matrix_with_clusters[brother_clusters[x].x][brother_clusters[x].y] = 0
+    #                             if (x == 0):
+    #                                 matrix_with_clusters[brother_clusters[x].x][brother_clusters[x].y] = cluster
+                                
+    #                             current_clusters.remove(brother_clusters[x])
+    #                         current_clusters.append(cluster)
+
+    #     clusters_by_level = {}
+    #     for depth in range(int(max_depth) + 1):
+    #         clusters_by_level[depth] = {}
+    #         for node in vertices:
+    #             node_id = node[2]
+    #             for cluster in overall_clusters:
+    #                 if cluster.depth == depth:
+    #                     #check if node is anywhere in cluster, check all the children 
+    #                     if cluster.contains > 1:
+    #                         for child in cluster.children:
+    #                             if child.x == node[0] and child.y == node[1]:
+    #                                 if node_id not in clusters_by_level[depth]:
+    #                                     clusters_by_level[depth][node_id] = []
+    #                                 clusters_by_level[depth][node_id].append(cluster.id)
+
+                
+    #             if node_id not in clusters_by_level[depth]:     
+    #                 clusters_by_level[depth][node_id] = []
                     
 
 
