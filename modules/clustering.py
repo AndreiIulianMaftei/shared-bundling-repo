@@ -34,7 +34,7 @@ SMALL_Threshold = 2
 TIDE_MAX = 100  # Range for TIDE - Number that represents how much space is allowed between a
 TIDE_MIN = 1    # node and an edge to be considered in that edges cluster
 
-IMG_REZ = 400  # Resolution of the image
+IMG_REZ = 1550  # Resolution of the image
 EDGE_REZ = 100  # Resolution of the edge
 
 CONVOLUTION = 1 # How many times the matrix is convoluted
@@ -210,17 +210,19 @@ class Clustering:
                             if 0 <= x < IMG_REZ and 0 <= y < IMG_REZ:
                                 depths.append(matrix[x][y])
                         pairwise_avg_depth[i][j] = np.mean(depths) if depths else 0
+                        pairwise_avg_depth[j][i] = np.mean(depths) if depths else 0
         
         normalized_depth = pairwise_avg_depth / 10.0
+        normalized_depth = normalized_depth / np.max(normalized_depth)
         
         # Normalize distance to [0, 1]
         max_distance = np.max(pairwise_distance)
         normalized_distance = pairwise_distance / max_distance if max_distance > 0 else pairwise_distance
         
-        c1 = 1.0  # Weight for depth (higher depth = nodes are more connected)
+        c1 = 0.0  # Weight for depth (higher depth = nodes are more connected)
         c2 = 1.0  # Weight for distance (higher distance = nodes are farther apart)
         
-        pairwise_distance_score = c1 * (1 - normalized_depth) + c2 * normalized_distance
+        pairwise_distance_score = c1 * (1 - normalized_depth) + (1-c1) * normalized_distance
 
         # Create graph with all vertices and pairwise edges
         G = networkx.Graph()
@@ -234,7 +236,7 @@ class Clustering:
             for j in range(i + 1, num_nodes):
                 weight = pairwise_distance_score[i][j]
                 G.add_edge(i, j, weight=weight)
-        
+
         # Compute Minimum Spanning Tree
         mst = networkx.minimum_spanning_tree(G, weight='weight')
         
@@ -242,7 +244,7 @@ class Clustering:
         
         # Detect inconsistent edges and remove them to find clusters
         k_sigma = 2.0  # Tunable parameter: edge is inconsistent if weight > mean + k*std
-        neighborhood_depth = 2  # How many tree steps to consider for neighborhood
+        neighborhood_depth = 5  # How many tree steps to consider for neighborhood
         
         inconsistent_edges = []
         
@@ -343,29 +345,35 @@ class Clustering:
                             y = int(y1 + t * (y2 - y1))
                             if 0 <= x < IMG_REZ and 0 <= y < IMG_REZ:
                                 depths.append(matrix[x][y])
-                        pairwise_avg_depth[i][j] = np.mean(depths) if depths else 0
+                        pairwise_avg_depth[i][j] = np.mean(depths)if depths else 0
+                        pairwise_avg_depth[j][i] = np.mean(depths)if depths else 0
+                        
         
         normalized_depth = pairwise_avg_depth / 10.0
-        
+        normalized_depth = normalized_depth / np.max(normalized_depth)
+
         # Normalize distance to [0, 1]
         max_distance = np.max(pairwise_distance)
         normalized_distance = pairwise_distance / max_distance if max_distance > 0 else pairwise_distance
         
-        c1 = 1.0  # Weight for depth (higher depth = nodes are more connected)
-        c2 = 1.0  # Weight for distance (higher distance = nodes are farther apart)
+        c1 = 0  # Weight for depth (higher depth = nodes are more connected)
+        c2 = 0.1  # Weight for distance (higher distance = nodes are farther apart)
         
+        from scipy.linalg import issymmetric
+        print(issymmetric(normalized_distance))
+        print("symmetric depth: ", issymmetric(normalized_depth))
 
-        pairwise_distance_score = c1 * (1 - normalized_depth) + c2 * normalized_distance
+        pairwise_distance_score = c1 * (1 - normalized_depth) + (1- c1) * normalized_distance
 
         # Cluster vertices using DBSCAN with the combined distance score
         from sklearn.cluster import DBSCAN
         
         # DBSCAN parameters (tunable)
-        eps = 0.3  # Maximum distance for two nodes to be in same neighborhood
-        min_samples = 2  # Minimum nodes to form a dense region
-        
+        eps = 0.65  # Maximum distance for two nodes to be in same neighborhood
+        min_samples = 4  # Minimum nodes to form a dense region
+        from sklearn.cluster import HDBSCAN
         # Run DBSCAN with precomputed distance matrix
-        dbscan = DBSCAN(eps=eps, min_samples=min_samples, metric='precomputed')
+        dbscan = HDBSCAN(min_samples=min_samples, metric='precomputed')
         vertex_clusters = dbscan.fit_predict(pairwise_distance_score)
         
         num_clusters = len(np.unique(vertex_clusters[vertex_clusters != -1]))

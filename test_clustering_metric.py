@@ -8,7 +8,7 @@ import seaborn as sns
 from matplotlib.patches import Rectangle
 import os
 
-IMG_REZ = 400
+IMG_REZ = 1550
 EDGE_REZ = 100
 
 def create_sample_graph(num_nodes=10, graph_type='bundled', seed=42):
@@ -115,13 +115,8 @@ def visualize_graph(G, save_path='sample_graph.png'):
         ax.plot(data['X'], data['Y'], 'b-', alpha=0.5, linewidth=1)
     
     for node, data in G.nodes(data=True):
-        ax.plot(data['X'], data['Y'], 'ro', markersize=8)
-        if G.number_of_nodes() <= 20:
-            ax.text(data['X'], data['Y'], str(node), fontsize=10, 
-                    ha='center', va='center', color='white', weight='bold')
-        else:
-            ax.text(data['X'], data['Y'], str(node), fontsize=6, 
-                    ha='center', va='center', color='white', weight='bold')
+        ax.plot(data['X'], data['Y'], 'ro', markersize=1)
+        
     
     ax.set_xlim(0, IMG_REZ)
     ax.set_ylim(0, IMG_REZ)
@@ -193,15 +188,14 @@ def visualize_vertex_clusters(G, vertex_clusters, vertices, save_path='vertex_cl
             cluster_mask = vertex_clusters == cluster_id
             cluster_vertices = [vertices[i] for i in range(len(vertices)) if cluster_mask[i]]
             for v in cluster_vertices:
-                ax.plot(v[0], v[1], 'x', color='black', markersize=12, markeredgewidth=2)
+                ax.plot(v[0], v[1], 'x', color='black', markersize=1, markeredgewidth=2)
         else:
             cluster_mask = vertex_clusters == cluster_id
             cluster_vertices = [vertices[i] for i in range(len(vertices)) if cluster_mask[i]]
             color = colors[cluster_id % len(colors)]
             for v in cluster_vertices:
-                ax.plot(v[0], v[1], 'o', color=color, markersize=15, markeredgecolor='black', markeredgewidth=2)
-                ax.text(v[0], v[1], str(cluster_id), fontsize=8, 
-                       ha='center', va='center', color='white', weight='bold')
+                ax.plot(v[0], v[1], 'o', color=color, markersize=1)
+                
     
     ax.set_xlim(0, IMG_REZ)
     ax.set_ylim(0, IMG_REZ)
@@ -239,38 +233,81 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
     print(f"\nOutput directory: {output_dir}/")
     
-    print("\n[1/7] Creating sample graph...")
-    num_nodes = 30  
-    G = create_sample_graph(num_nodes=num_nodes, graph_type='bundled')
-    print(f"   Created graph with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
+    print("\n[1/7] Loading graph from GraphML file...")
+    G = nx.read_graphml('inputs/mafia_cubu.graphml')
+    print(f"   Loaded graph with {G.number_of_nodes()} nodes and {G.number_of_edges()} edges")
+    
+    # Convert node attributes to proper format if needed
+    for node_id in G.nodes():
+        node_data = G.nodes[node_id]
+        if 'X' not in node_data or 'Y' not in node_data:
+            # Use the coordinates from the GraphML file
+            if 'x' in node_data:
+                node_data['X'] = float(node_data['x'])
+            if 'y' in node_data:
+                node_data['Y'] = float(node_data['y'])
+        if 'id' not in node_data:
+            node_data['id'] = int(node_id)
+    
+    # Convert edge attributes if they have spline data
+    for u, v in G.edges():
+        edge_data = G[u][v]
+        if 'X' not in edge_data or 'Y' not in edge_data:
+            # Check for Spline_X and Spline_Y
+            if 'Spline_X' in edge_data and 'Spline_Y' in edge_data:
+                edge_data['X'] = [float(x) for x in edge_data['Spline_X'].split()]
+                edge_data['Y'] = [float(y) for y in edge_data['Spline_Y'].split()]
+            else:
+                # Use straight line between nodes
+                edge_data['X'] = [G.nodes[u]['X'], G.nodes[v]['X']]
+                edge_data['Y'] = [G.nodes[u]['Y'], G.nodes[v]['Y']]
+    
+    G_straight_edge = G.copy()
+    for u, v in G_straight_edge.edges():
+        edge_data = G_straight_edge[u][v]
+        edge_data['X'] = [G_straight_edge.nodes[u]['X'], G_straight_edge.nodes[v]['X']]
+        edge_data['Y'] = [G_straight_edge.nodes[u]['Y'], G_straight_edge.nodes[v]['Y']]
+    
     
     print("\n[2/7] Visualizing input graph...")
     visualize_graph(G, save_path=f'{output_dir}/1_input_graph.png')
+    visualize_graph(G_straight_edge, save_path=f'{output_dir}/1_input_graph_straight_edges.png')
     
     print("\n[3/7] Initializing Clustering class...")
     clustering = Clustering(G)
+    clustering_straight = Clustering(G_straight_edge)
     
     print("\n[4/7] Processing graph data...")
     polylines = clustering.all_edges(G)
     vertices = clustering.init_Points()
+
+    polylines_straight = clustering_straight.all_edges(G_straight_edge)
+    vertices_straight = clustering_straight.init_Points()
+
     print(f"   Extracted {len(polylines)} polylines")
     print(f"   Extracted {len(vertices)} vertices")
     
     print("\n[5/7] Computing density matrix...")
     matrix = clustering.init_matrix(polylines)
+    matrix_straight = clustering_straight.init_matrix(polylines_straight)
     print(f"   Initial matrix shape: {matrix.shape}")
     print(f"   Initial matrix max value: {matrix.max():.2f}")
     
     matrix = clustering.calcMatrix(matrix)
+    matrix_straight = clustering_straight.calcMatrix(matrix_straight)
     print(f"   Convolved matrix max value: {matrix.max():.2f}")
     
     visualize_heatmap(matrix, save_path=f'{output_dir}/2_density_heatmap.png')
+    visualize_heatmap(matrix_straight, save_path=f'{output_dir}/2_density_heatmap_straight_edges.png')
     
-    print("\n[6/7] Computing clusters with DBSCAN...")
-    vertex_clusters_dbscan = clustering.get_clusters(polylines, matrix, vertices)
-    print_cluster_summary(vertex_clusters_dbscan, vertices, "DBSCAN")
-    visualize_vertex_clusters(G, vertex_clusters_dbscan, vertices, 
-                              save_path=f'{output_dir}/3_clusters_dbscan.png')
+    # print("\n[6/7] Computing clusters with DBSCAN...")
+    # vertex_clusters_dbscan = clustering.get_clusters(polylines, matrix, vertices)
+    # vertex_clusters_dbscan_straight = clustering_straight.get_clusters(polylines_straight, matrix_straight, vertices_straight)
+    # print_cluster_summary(vertex_clusters_dbscan, vertices, "DBSCAN")
+    # visualize_vertex_clusters(G, vertex_clusters_dbscan, vertices, 
+    #                           save_path=f'{output_dir}/3_clusters_dbscan.png')
+    # visualize_vertex_clusters(G_straight_edge, vertex_clusters_dbscan_straight, vertices_straight, 
+    #                           save_path=f'{output_dir}/3_clusters_dbscan_straight_edges.png')
     
     print("\n[7/7] Computing clusters with MST...")
     vertex_clusters_mst = clustering.cluster_mst(polylines, matrix, vertices)
@@ -283,11 +320,12 @@ def main():
     print(f"All outputs saved to: {output_dir}/")
     print("="*70)
     
-    return G, clustering, vertex_clusters_dbscan, vertex_clusters_mst
+    return G, clustering, vertex_clusters_mst #,vertex_clusters_dbscan 
 
 
 if __name__ == "__main__":
-    G, clustering, clusters_dbscan, clusters_mst = main()
+    #G, clustering, clusters_dbscan, clusters_mst = main()
+    G, clustering, clusters_dbscan = main()
     
     print("\nVariables available for further analysis:")
     print("  - G: NetworkX graph")
