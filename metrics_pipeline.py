@@ -144,7 +144,7 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
     for metric in metrics_to_compute:
         # if metrics != "long":
         #     if metric == "all_intersections"  or metric == "ambiguity" or metric == "clustering": continue
-        
+            print(f"Computing metric: {metric} on dataset {filename}" )
             if verbose: print(f"calculating {metric} on {filename}/{algorithm}")
             start = time.time()
             
@@ -177,7 +177,7 @@ def main():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--folder", default="outputs/",type=str, help="Path to input folder")
+    parser.add_argument("--folder", default="inputs/all_outputs/",type=str, help="Path to input folder")
     parser.add_argument("--metric", type=str, default='all', help="which metric/s should be evaluated")
     parser.add_argument("--verbose", type=bool, default=False, help = "verbosity level")
     parser.add_argument("--smartorder", type=bool, default=True, help="Whether to order graphs from smallest to largest")
@@ -197,7 +197,7 @@ def main():
         print(metrics)
         metrics = json.loads(metrics.replace("\'", "\""))    
         print(type(metrics))
-    metrics = ['geometric_clustering', 'clustering']
+    metrics = ['ambiguity']
     # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
 
     inputlist = os.listdir(inputfolder)
@@ -213,6 +213,7 @@ def main():
     
     import tqdm
     for gdata in tqdm.tqdm(inputlist):
+        if "geo_Germany_airports" not in gdata: continue
         for algfile in os.listdir(f"{inputfolder}/{gdata}"):
             alg = algfile.replace(".graphml", "")
             print(f"Processing {gdata}/{alg}")

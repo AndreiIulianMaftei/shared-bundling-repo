@@ -1,60 +1,89 @@
+"""
+Clustering module for edge bundling analysis.
+"""
+
 import copy
-import os
-import networkx 
-import numpy as np
-from scipy import signal
-from PIL import Image as Image
-import pickle
-import seaborn as sbn
-import matplotlib
-matplotlib.use('Agg')  # Use non-interactive backend
-import matplotlib.pyplot as plt
-from frechetdist import frdist
-import re
-from matplotlib.backends.backend_pdf import PdfPages
-from pdf2image import convert_from_path
-import requests
-import pandas as pd
-import numpy as np
-from plotnine import ggplot, aes, geom_violin, geom_boxplot, theme, element_text, labs, element_blank
 import math
-from modules.EPB.experiments import Experiment
-from typing import List
-import pylab
-from networkx.drawing.nx_pydot import graphviz_layout
-from sklearn.cluster import KMeans
-from scipy.spatial import ConvexHull
+import os
+import pickle
+import re
+from typing import List, Dict, Tuple, Optional, Any
+
+import matplotlib
+matplotlib.use('Agg')
+import matplotlib.pyplot as plt
+from matplotlib.backends.backend_pdf import PdfPages
 from matplotlib.path import Path
+import networkx
+import numpy as np
+import pandas as pd
+import pylab
+import requests
+import seaborn as sbn
+from frechetdist import frdist
+from networkx.drawing.nx_pydot import graphviz_layout
+from pdf2image import convert_from_path
+from PIL import Image as Image
+from plotnine import ggplot, aes, geom_violin, geom_boxplot, theme, element_text, labs, element_blank
+from scipy import signal
+from scipy.spatial import ConvexHull
+from sklearn.cluster import KMeans
 from sklearn.metrics import silhouette_score
 
-BIG_Threshold = 10   #Threshlods for the numbers of connected nodes when to consider a cluster big, medium or small
-MEDIUM_Threshold = 5
-SMALL_Threshold = 2
+from modules.EPB.experiments import Experiment
 
-TIDE_MAX = 100  # Range for TIDE - Number that represents how much space is allowed between a
-TIDE_MIN = 1    # node and an edge to be considered in that edges cluster
 
-IMG_REZ = 1550  # Resolution of the image
-EDGE_REZ = 100  # Resolution of the edge
+BIG_THRESHOLD = 10
+MEDIUM_THRESHOLD = 5
+SMALL_THRESHOLD = 2
 
-CONVOLUTION = 1 # How many times the matrix is convoluted
+TIDE_MAX = 100
+TIDE_MIN = 1
+
+IMG_REZ = 1550
+EDGE_REZ = 100
+
+CONVOLUTION_ITERATIONS = 1
+
+DBSCAN_EPS = 0.65
+DBSCAN_MIN_SAMPLES = 4
+DBSCAN_DEPTH_WEIGHT = 0.0
+DBSCAN_DIST_WEIGHT = 1.0
+
+MST_K_SIGMA = 2.0
+MST_NEIGHBORHOOD_DEPTH = 5
+MST_DEPTH_WEIGHT = 0.0
+MST_DIST_WEIGHT = 1.0
+
+MAX_NORMALIZED_DEPTH = 10
+
+KMEANS_N_CLUSTERS = 'auto'
+KMEANS_MIN_CLUSTERS = 2
+KMEANS_MAX_CLUSTERS = 10
+KMEANS_CLUSTER_BOOST = 500
+KMEANS_INTERIOR_FACTOR = 0.3
+
+VERTEX_DEPTH_BOOST = 90
+EDGE_DEPTH_PRIMARY = 10
+EDGE_DEPTH_SECONDARY = 2
+
+CONVOLUTION_KERNEL_SIZE = 12
+
 
 class Clustering:
-
-    def __init__(self, G): 
-        self.G = G
-        
+    """Clustering analysis for edge bundling visualization."""
 
     class Pixel:
         x: int
         y: int
         depth: int
 
-    class node:
+    class Node:
         x: int
         y: int
         depth: int
         id: int
+
     class Cluster:
         id: int
         depth: int
@@ -64,52 +93,53 @@ class Clustering:
         parent: List['Clustering.Cluster']
         contains: int
 
-    def draw_heatMaps(self, matrix, verticies):
-        
+    def __init__(self, G: networkx.Graph):
+        self.G = G
+
+    def draw_heatMaps(self, matrix: np.ndarray, vertices: List[Tuple]) -> None:
+        """Generate heatmap visualizations for each depth level."""
         max_depth = 0
-        for i in range(0, len(matrix)):
-            for j in range(0, len(matrix[i])):
+        for i in range(len(matrix)):
+            for j in range(len(matrix[i])):
                 matrix[i][j] = int(matrix[i][j])
                 max_depth = max(max_depth, matrix[i][j])
         
         for depth in range(int(max_depth), -1, -1):
-            checkMatrix = np.zeros((IMG_REZ,IMG_REZ))
-            for i in range(0, len(matrix)):
-                for j in range(0, len(matrix[i])):
-                    if(matrix[i][j] >= depth):
-                        searchedPos = []
-                        searchedPos.append((i,j))
-                        searchStack = []
-                        searchStack.append((i,j))
-                        while(len(searchStack) != 0):
-                            currentPos = searchStack.pop()
-                            I = currentPos[0]
-                            J = currentPos[1]
-                            for x in range (-1, 2):
-                                for y in range (-1, 2):
-                                    if(I + x >= 0 and I + x < len(matrix) and J + y >= 0 and J + y < len(matrix[i]) and checkMatrix[I + x][J + y] == 0):
-                                        if(matrix[I + x][J + y] >= depth):
-                                            searchedPos.append((I + x, J + y))
-                                            searchStack.append((I + x, J + y))
-                                            checkMatrix[I + x][J + y] = 1
-                                    checkMatrix[I][J] = 1
-                        for x in range(0, len(searchedPos)):
-                            matrix[searchedPos[x][0]][searchedPos[x][1]] -= 1
-            plt.imshow(checkMatrix, cmap='hot', interpolation='nearest')
-            plt.savefig(f"heatMap_{depth}.png")
+            check_matrix = np.zeros((IMG_REZ, IMG_REZ))
             
-
-        return 
-    def draw_clusters(self, clusters):
-        """
-        Draws all clusters as nodes in a directed tree, 
-        using the last cluster in the list as the root.
-        """
+            for i in range(len(matrix)):
+                for j in range(len(matrix[i])):
+                    if matrix[i][j] >= depth:
+                        searched_pos = [(i, j)]
+                        search_stack = [(i, j)]
+                        
+                        while search_stack:
+                            current_pos = search_stack.pop()
+                            I, J = current_pos
+                            
+                            for x in range(-1, 2):
+                                for y in range(-1, 2):
+                                    ni, nj = I + x, J + y
+                                    if (0 <= ni < len(matrix) and 
+                                        0 <= nj < len(matrix[i]) and 
+                                        check_matrix[ni][nj] == 0):
+                                        if matrix[ni][nj] >= depth:
+                                            searched_pos.append((ni, nj))
+                                            search_stack.append((ni, nj))
+                                            check_matrix[ni][nj] = 1
+                                    check_matrix[I][J] = 1
+                        
+                        for pos in searched_pos:
+                            matrix[pos[0]][pos[1]] -= 1
+            
+            plt.imshow(check_matrix, cmap='hot', interpolation='nearest')
+            plt.savefig(f"heatMap_{depth}.png")
+            plt.close() 
+    def draw_clusters(self, clusters: List['Clustering.Cluster']) -> None:
+        """Visualize clusters as a directed tree using Graphviz layout."""
         G = networkx.DiGraph()
 
-        cluster_map = {}
-        for i, cluster in enumerate(clusters):
-            cluster_map[cluster] = i
+        cluster_map = {cluster: i for i, cluster in enumerate(clusters)}
 
         for cluster in clusters:
             G.add_node(cluster_map[cluster], depth=cluster.depth)
@@ -120,7 +150,6 @@ class Clustering:
                     G.add_edge(cluster_map[cluster], cluster_map[child])
 
         root_idx = cluster_map[clusters[-1]]
-
         pos = graphviz_layout(G, prog='dot', root=root_idx)
 
         depths = [c.depth for c in clusters]
@@ -163,30 +192,23 @@ class Clustering:
         plt.tight_layout()
         
         plt.savefig("clusters_by_depth.png", dpi=300)
+        plt.close()
 
-    def cluster_mst(self, polilines, matrix, vertices):
-        """
-        Cluster vertices using Minimum Spanning Tree approach.
-        Keeps pairwise distance and depth calculations, then builds MST.
-        """
+    def cluster_mst(
+        self, 
+        polylines: List[List[Tuple]], 
+        matrix: np.ndarray, 
+        vertices: List[Tuple]
+    ) -> np.ndarray:
+        """Cluster vertices using Minimum Spanning Tree approach."""
+        max_depth = np.max(matrix)
+        print(f"Computing max depth: {max_depth}")
         
-        max_depth = 0
-        print("computing max depth")
-        for i in range(0, len(matrix)):
-            for j in range(0, len(matrix[i])):
-                matrix[i][j] = int(matrix[i][j])
-                max_depth = max(max_depth, matrix[i][j])
-
-        # Normalize matrix values to be between 0 and 10
         if max_depth > 0:
-            for i in range(0, len(matrix)):
-                for j in range(0, len(matrix[i])):
-                    if matrix[i][j] > 0:
-                        matrix[i][j] = (matrix[i][j] / max_depth) * 10
-                        matrix[i][j] = int(matrix[i][j])
-        print("Max depth: ", max_depth, "but normalised to 10")
+            matrix = np.where(matrix > 0, (matrix / max_depth) * MAX_NORMALIZED_DEPTH, 0).astype(int)
+        
+        print(f"Max depth: {max_depth}, normalized to {MAX_NORMALIZED_DEPTH}")
 
-        # Create matrix to store pairwise distance and average depth between nodes
         num_nodes = len(vertices)
         pairwise_distance = np.zeros((num_nodes, num_nodes))
         pairwise_avg_depth = np.zeros((num_nodes, num_nodes))
@@ -194,14 +216,16 @@ class Clustering:
         for i in range(num_nodes):
             for j in range(num_nodes):
                 if i != j:
-                    # Calculate Euclidean distance between nodes
-                    pairwise_distance[i][j] = np.sqrt((vertices[i][0] - vertices[j][0])**2 + 
-                                                      (vertices[i][1] - vertices[j][1])**2)
-                    # Calculate average depth along the line between nodes
+                    pairwise_distance[i][j] = np.sqrt(
+                        (vertices[i][0] - vertices[j][0])**2 + 
+                        (vertices[i][1] - vertices[j][1])**2
+                    )
+                    
                     x1, y1 = int(vertices[i][0]), int(vertices[i][1])
                     x2, y2 = int(vertices[j][0]), int(vertices[j][1])
                     depths = []
                     steps = max(abs(x2 - x1), abs(y2 - y1))
+                    
                     if steps > 0:
                         for step in range(steps + 1):
                             t = step / steps
@@ -209,120 +233,123 @@ class Clustering:
                             y = int(y1 + t * (y2 - y1))
                             if 0 <= x < IMG_REZ and 0 <= y < IMG_REZ:
                                 depths.append(matrix[x][y])
-                        pairwise_avg_depth[i][j] = np.mean(depths) if depths else 0
-                        pairwise_avg_depth[j][i] = np.mean(depths) if depths else 0
+                        
+                        avg_depth = np.mean(depths) if depths else 0
+                        pairwise_avg_depth[i][j] = avg_depth
+                        pairwise_avg_depth[j][i] = avg_depth
         
-        normalized_depth = pairwise_avg_depth / 10.0
-        normalized_depth = normalized_depth / np.max(normalized_depth)
+        max_avg_depth = np.max(pairwise_avg_depth)
+        normalized_depth = (pairwise_avg_depth / MAX_NORMALIZED_DEPTH if max_avg_depth > 0 
+                           else pairwise_avg_depth)
+        if np.max(normalized_depth) > 0:
+            normalized_depth = normalized_depth / np.max(normalized_depth)
         
-        # Normalize distance to [0, 1]
         max_distance = np.max(pairwise_distance)
-        normalized_distance = pairwise_distance / max_distance if max_distance > 0 else pairwise_distance
+        normalized_distance = (pairwise_distance / max_distance if max_distance > 0 
+                              else pairwise_distance)
         
-        c1 = 0.0  # Weight for depth (higher depth = nodes are more connected)
-        c2 = 1.0  # Weight for distance (higher distance = nodes are farther apart)
-        
-        pairwise_distance_score = c1 * (1 - normalized_depth) + (1-c1) * normalized_distance
+        pairwise_distance_score = (
+            MST_DEPTH_WEIGHT * (1 - normalized_depth) + 
+            MST_DIST_WEIGHT * normalized_distance
+        )
 
-        # Create graph with all vertices and pairwise edges
         G = networkx.Graph()
         
-        # Add all vertices as nodes
         for i in range(num_nodes):
             G.add_node(i, pos=vertices[i])
         
-        # Add all pairwise edges with weights equal to their distance scores
         for i in range(num_nodes):
             for j in range(i + 1, num_nodes):
                 weight = pairwise_distance_score[i][j]
                 G.add_edge(i, j, weight=weight)
 
-        # Compute Minimum Spanning Tree
         mst = networkx.minimum_spanning_tree(G, weight='weight')
-        
         print(f"\nMST computed with {mst.number_of_edges()} edges")
         
-        # Detect inconsistent edges and remove them to find clusters
-        k_sigma = 2.0  # Tunable parameter: edge is inconsistent if weight > mean + k*std
-        neighborhood_depth = 5  # How many tree steps to consider for neighborhood
+        inconsistent_edges = self._find_inconsistent_edges(mst)
         
-        inconsistent_edges = []
-        
-        for u, v, data in mst.edges(data=True):
-            edge_weight = data['weight']
-            
-            # Collect neighboring edges (within neighborhood_depth steps in the tree)
-            neighbor_weights = []
-            
-            # BFS to find neighborhood of u and v
-            visited = set()
-            queue = [(u, 0), (v, 0)]  # (node, distance_from_source)
-            visited.add(u)
-            visited.add(v)
-            
-            while queue:
-                node, dist = queue.pop(0)
-                if dist < neighborhood_depth:
-                    for neighbor in mst.neighbors(node):
-                        if neighbor not in visited:
-                            visited.add(neighbor)
-                            queue.append((neighbor, dist + 1))
-                            # Add the edge weight
-                            edge_data = mst.get_edge_data(node, neighbor)
-                            if edge_data and 'weight' in edge_data:
-                                neighbor_weights.append(edge_data['weight'])
-            
-            # Calculate mean and standard deviation of neighboring edges
-            if len(neighbor_weights) > 1:
-                mean_weight = np.mean(neighbor_weights)
-                std_weight = np.std(neighbor_weights, ddof=1)  # Sample standard deviation
-                
-                # Check if edge is inconsistent
-                threshold = mean_weight + k_sigma * std_weight
-                if edge_weight > threshold:
-                    inconsistent_edges.append((u, v, edge_weight, mean_weight, std_weight))
-        
-        # Remove inconsistent edges to get clusters
         mst_clustered = mst.copy()
         for u, v, _, _, _ in inconsistent_edges:
             mst_clustered.remove_edge(u, v)
         
         clusters = list(networkx.connected_components(mst_clustered))
-        
         vertex_clusters = np.full(num_nodes, -1)
         
         for cluster_id, cluster_nodes in enumerate(clusters):
             for node in cluster_nodes:
                 vertex_clusters[node] = cluster_id
         
-        print(f"\nMST Clustering: {len(clusters)} clusters found, {len(inconsistent_edges)} edges removed")
+        print(f"\nMST Clustering: {len(clusters)} clusters found, "
+              f"{len(inconsistent_edges)} edges removed")
         
         return vertex_clusters
 
-    def get_clusters(self, polilines, matrix, vertices):
+    def _find_inconsistent_edges(
+        self, 
+        mst: networkx.Graph
+    ) -> List[Tuple[int, int, float, float, float]]:
+        """Find edges in MST that are inconsistent with their neighborhood."""
+        inconsistent_edges = []
         
-
-        overall_clusters = []
-        current_clusters = []
-        matrix_with_clusters = np.zeros((IMG_REZ,IMG_REZ), dtype=object)
-        max_depth = 0
+        for u, v, data in mst.edges(data=True):
+            edge_weight = data['weight']
+            
+            neighbor_weights = []
+            visited = {u, v}
+            queue = [(u, 0), (v, 0)]
+            
+            while queue:
+                node, dist = queue.pop(0)
+                if dist < MST_NEIGHBORHOOD_DEPTH:
+                    for neighbor in mst.neighbors(node):
+                        if neighbor not in visited:
+                            visited.add(neighbor)
+                            queue.append((neighbor, dist + 1))
+                            
+                            edge_data = mst.get_edge_data(node, neighbor)
+                            if edge_data and 'weight' in edge_data:
+                                neighbor_weights.append(edge_data['weight'])
+            
+            if len(neighbor_weights) > 1:
+                mean_weight = np.mean(neighbor_weights)
+                std_weight = np.std(neighbor_weights, ddof=1)
+                threshold = mean_weight + MST_K_SIGMA * std_weight
+                
+                if edge_weight > threshold:
+                    inconsistent_edges.append((u, v, edge_weight, mean_weight, std_weight))
         
-        print("computing max depth")
-        for i in range(0, len(matrix)):
-            for j in range(0, len(matrix[i])):
-                matrix[i][j] = int(matrix[i][j])
-                max_depth = max(max_depth, matrix[i][j])
+        return inconsistent_edges
 
-        # Normalize matrix values to be between 0 and 10
+    def get_clusters(
+        self, 
+        polylines: List[List[Tuple]], 
+        matrix: np.ndarray, 
+        vertices: List[Tuple]
+    ) -> np.ndarray:
+        """
+        Cluster vertices using HDBSCAN with combined distance metric.
+        
+        Computes pairwise distances combining spatial distance and density
+        along paths between vertices, then applies HDBSCAN clustering.
+        
+        Args:
+            polylines: List of edge polylines
+            matrix: Density matrix
+            vertices: List of vertex positions
+            
+        Returns:
+            Array of cluster IDs for each vertex (-1 for noise)
+        """
+        # Normalize matrix to 0-10 range
+        max_depth = np.max(matrix)
+        print(f"Computing max depth: {max_depth}")
+        
         if max_depth > 0:
-            for i in range(0, len(matrix)):
-                for j in range(0, len(matrix[i])):
-                    if matrix[i][j] > 0:
-                        matrix[i][j] = (matrix[i][j] / max_depth) * 10
-                        matrix[i][j] = int(matrix[i][j])
-        print("Max depth: ", max_depth, "but normalised    to 10")
+            matrix = np.where(matrix > 0, (matrix / max_depth) * MAX_NORMALIZED_DEPTH, 0).astype(int)
+        
+        print(f"Max depth: {max_depth}, normalized to {MAX_NORMALIZED_DEPTH}")
 
-        # Create matrix to store pairwise distance and average depth between nodes
+        # Compute pairwise distance and average depth between nodes
         num_nodes = len(vertices)
         pairwise_distance = np.zeros((num_nodes, num_nodes))
         pairwise_avg_depth = np.zeros((num_nodes, num_nodes))
@@ -330,14 +357,18 @@ class Clustering:
         for i in range(num_nodes):
             for j in range(num_nodes):
                 if i != j:
-                    # Calculate Euclidean distance between nodes
-                    pairwise_distance[i][j] = np.sqrt((vertices[i][0] - vertices[j][0])**2 + 
-                                                      (vertices[i][1] - vertices[j][1])**2)
-                    # Calculate average depth along the line between nodes
+                    # Euclidean distance
+                    pairwise_distance[i][j] = np.sqrt(
+                        (vertices[i][0] - vertices[j][0])**2 + 
+                        (vertices[i][1] - vertices[j][1])**2
+                    )
+                    
+                    # Average depth along line between nodes
                     x1, y1 = int(vertices[i][0]), int(vertices[i][1])
                     x2, y2 = int(vertices[j][0]), int(vertices[j][1])
                     depths = []
                     steps = max(abs(x2 - x1), abs(y2 - y1))
+                    
                     if steps > 0:
                         for step in range(steps + 1):
                             t = step / steps
@@ -345,556 +376,216 @@ class Clustering:
                             y = int(y1 + t * (y2 - y1))
                             if 0 <= x < IMG_REZ and 0 <= y < IMG_REZ:
                                 depths.append(matrix[x][y])
-                        pairwise_avg_depth[i][j] = np.mean(depths)if depths else 0
-                        pairwise_avg_depth[j][i] = np.mean(depths)if depths else 0
                         
+                        avg_depth = np.mean(depths) if depths else 0
+                        pairwise_avg_depth[i][j] = avg_depth
+                        pairwise_avg_depth[j][i] = avg_depth
         
-        normalized_depth = pairwise_avg_depth / 10.0
-        normalized_depth = normalized_depth / np.max(normalized_depth)
+        # Normalize depth and distance to [0, 1]
+        max_avg_depth = np.max(pairwise_avg_depth)
+        normalized_depth = (pairwise_avg_depth / MAX_NORMALIZED_DEPTH 
+                           if max_avg_depth > 0 else pairwise_avg_depth)
+        if np.max(normalized_depth) > 0:
+            normalized_depth = normalized_depth / np.max(normalized_depth)
 
-        # Normalize distance to [0, 1]
         max_distance = np.max(pairwise_distance)
-        normalized_distance = pairwise_distance / max_distance if max_distance > 0 else pairwise_distance
+        normalized_distance = (pairwise_distance / max_distance 
+                              if max_distance > 0 else pairwise_distance)
         
-        c1 = 0  # Weight for depth (higher depth = nodes are more connected)
-        c2 = 0.1  # Weight for distance (higher distance = nodes are farther apart)
-        
+        # Check symmetry for debugging
         from scipy.linalg import issymmetric
-        print(issymmetric(normalized_distance))
-        print("symmetric depth: ", issymmetric(normalized_depth))
+        print(f"Distance matrix symmetric: {issymmetric(normalized_distance)}")
+        print(f"Depth matrix symmetric: {issymmetric(normalized_depth)}")
 
-        pairwise_distance_score = c1 * (1 - normalized_depth) + (1- c1) * normalized_distance
+        # Combined distance score (higher depth = more connected = lower distance)
+        pairwise_distance_score = (
+            DBSCAN_DEPTH_WEIGHT * (1 - normalized_depth) + 
+            DBSCAN_DIST_WEIGHT * normalized_distance
+        )
 
-        # Cluster vertices using DBSCAN with the combined distance score
-        from sklearn.cluster import DBSCAN
-        
-        # DBSCAN parameters (tunable)
-        eps = 0.65  # Maximum distance for two nodes to be in same neighborhood
-        min_samples = 4  # Minimum nodes to form a dense region
+        # Apply HDBSCAN clustering with precomputed distance matrix
         from sklearn.cluster import HDBSCAN
-        # Run DBSCAN with precomputed distance matrix
-        dbscan = HDBSCAN(min_samples=min_samples, metric='precomputed')
-        vertex_clusters = dbscan.fit_predict(pairwise_distance_score)
+        
+        clusterer = HDBSCAN(
+            min_samples=DBSCAN_MIN_SAMPLES,
+            metric='precomputed'
+        )
+        vertex_clusters = clusterer.fit_predict(pairwise_distance_score)
         
         num_clusters = len(np.unique(vertex_clusters[vertex_clusters != -1]))
         num_noise = np.sum(vertex_clusters == -1)
         
-        print(f"DBSCAN Clustering: {num_clusters} clusters found, {num_noise} noise points")
+        print(f"HDBSCAN Clustering: {num_clusters} clusters found, {num_noise} noise points")
         
         return vertex_clusters
 
-        
-        
-
-        
-        ########################## THIS IS OLD VARIANT FOR CLUSTERING ###########################
-        # for i in range(len(matrix)):
-        #     for j in range(len(matrix[i])):
-        #         if matrix[i][j] > 0:
-        #             matrix[i][j] = 10 - matrix[i][j]                             
-        #         else:
-        #             matrix[i][j] = 10
-
-
-        # graphs_by_depth = []
-        # whatCluster = np.zeros((IMG_REZ,IMG_REZ))
-        
-        # # Process each depth level (from low to high density)
-        # for depth_threshold in range(0, 11):  # 0 to 10 (normalized depth values)
-             
-        #     matrix_graph = networkx.Graph()
-
-        #     # Only add nodes that meet the depth threshold (i.e., density >= threshold)
-        #     active_nodes = set()
-        #     for x in range(0, len(matrix)):
-        #         for y in range(0, len(matrix[x])):
-        #             if matrix[x][y] <= depth_threshold:  # Lower values = higher density
-        #                 matrix_graph.add_node((x,y))
-        #                 active_nodes.add((x,y))
             
-        #     # Connect adjacent pixels that both meet the threshold
-        #     for x in range(0, len(matrix)):
-        #         for y in range(0, len(matrix[x])):
-        #             if (x, y) not in active_nodes:
-        #                 continue
-                    
-        #             for dx in [-1, 0, 1]:
-        #                 for dy in [-1, 0, 1]:
-        #                     if dx == 0 and dy == 0:
-        #                         continue
-        #                     nx = x + dx
-        #                     ny = y + dy
-        #                     if 0 <= nx < len(matrix) and 0 <= ny < len(matrix[x]):
-        #                         if (nx, ny) in active_nodes:
-        #                             matrix_graph.add_edge((x,y), (nx,ny))
-            
-        #     # Detect connected components in the graph
-        #     if len(active_nodes) > 0:
-        #         connected_components = list(networkx.connected_components(matrix_graph))
-        #     else:
-        #         connected_components = []
-            
-        #     # Filter connected components to keep only those that contain vertices
-        #     vertex_positions = set((v[0], v[1]) for v in vertices)
-        #     filtered_components = []
-        #     for component in connected_components:
-        #         if any(pos in vertex_positions for pos in component):
-        #             filtered_components.append(component)
-        #     connected_components = filtered_components
-            
-        #     graphs_by_depth.append({
-        #         'depth': depth_threshold,
-        #         'graph': matrix_graph,
-        #         'components': connected_components,
-        #         'num_components': len(connected_components)
-        #     })
-        #     print(f"Depth {depth_threshold}: Found {len(connected_components)} clusters (active pixels: {len(active_nodes)})")
-                                    
-        # return graphs_by_depth
-            #####################THIS IS VERY OLD CLUSTERING VARIANT ##########################
-        # for i in range(0, len(vertices)):
-        #     cluster = self.Cluster()
-        #     cluster.id = i
-        #     cluster.x = vertices[i][0]
-        #     cluster.y = vertices[i][1]
-        #     cluster.depth = matrix[vertices[i][0]][vertices[i][1]]
-        #     cluster.children = []
-        #     matrix_with_clusters[vertices[i][0]][vertices[i][1]] = cluster
-        #     cluster.parent = []
-        #     cluster.contains = 1
-        #     current_clusters.append(cluster)
-        #     overall_clusters.append(cluster)
-        # print("Current clusters: ", len(current_clusters))
-        # for depth in range(int(max_depth), -1, -1):
-        #     print("Processing depth: ", depth)
-        #     checkMatrix = np.zeros((IMG_REZ,IMG_REZ))
-        #     for i in range(0, min(matrix.__len__() , IMG_REZ)):
-        #         for j in range(0, min(matrix[i].__len__(), IMG_REZ)):
-        #             if(matrix[i][j] == depth):
-        #                 searchedPos = []
-        #                 searchedPos.append((i,j))
-        #                 searchStack = []
-        #                 searchStack.append((i,j))
-        #                 brother_clusters = []
-        #                 if(matrix_with_clusters[i][j] != 0):
-        #                     brother_clusters.append(matrix_with_clusters[i][j])
-                        
-        #                 while(len(searchStack) != 0):
-        #                     currentPos = searchStack.pop()
-        #                     I = currentPos[0]
-        #                     J = currentPos[1]
-                            
-        #                     for x in range (-1, 2):
-        #                         for y in range (-1, 2):
-        #                             if(I + x >= 0 and I + x < min(matrix.__len__() , IMG_REZ) and J + y >= 0 and J + y < min(matrix[i].__len__(), IMG_REZ) and checkMatrix[I + x][J + y] == 0):
-        #                                 if(matrix[I + x][J + y] >= depth):
-        #                                     searchedPos.append((I + x, J + y))
-        #                                     searchStack.append((I + x, J + y))
-        #                                     checkMatrix[I + x][J + y] = 1
-        #                                     if(matrix_with_clusters[I + x][J + y] != 0):
-        #                                         brother_clusters.append(matrix_with_clusters[I + x][J + y])
-        #                                         checkMatrix[I + x][J + y] = 1
-        #                             checkMatrix[I][J] = 1
-            
-        #                 for x in range(0, len(searchedPos)):
-        #                     matrix[searchedPos[x][0]][searchedPos[x][1]] -= 1
-        #                 cluster = self.Cluster()
-        #                 if(len(brother_clusters) != 0):
-                            
-        #                     cluster.id = len(overall_clusters)
-        #                     cluster.x = brother_clusters[0].x
-        #                     cluster.y = brother_clusters[0].y
-        #                     cluster.depth = matrix[brother_clusters[0].x][brother_clusters[0].y]+1
-        #                     cluster.children = []
-        #                     cluster.parent = []
-        #                     cluster.contains = 0
-        #                     for x in range(0, len(brother_clusters)):
-        #                         cluster.children.append(brother_clusters[x])
-        #                         cluster.contains += brother_clusters[x].contains
-        #                         for y in range(0, len(brother_clusters[x].children)):
-        #                             brother_clusters[x].children[y].parent = cluster
-        #                     overall_clusters.append(cluster)
 
-        #                     for x in range(0, len(brother_clusters)):
-        #                         matrix_with_clusters[brother_clusters[x].x][brother_clusters[x].y] = 0
-        #                         if (x == 0):
-        #                             matrix_with_clusters[brother_clusters[x].x][brother_clusters[x].y] = cluster
-                                
-        #                         current_clusters.remove(brother_clusters[x])
-        #                     current_clusters.append(cluster)
-
-        # clusters_by_level = {}
-        # for depth in range(int(max_depth) + 1):
-        #     clusters_by_level[depth] = {}
-        #     for node in vertices:
-        #         node_id = node[2]
-        #         for cluster in overall_clusters:
-        #             if cluster.depth == depth:
-        #                 #check if node is anywhere in cluster, check all the children 
-        #                 if cluster.contains > 1:
-        #                     for child in cluster.children:
-        #                         if child.x == node[0] and child.y == node[1]:
-        #                             if node_id not in clusters_by_level[depth]:
-        #                                 clusters_by_level[depth][node_id] = []
-        #                             clusters_by_level[depth][node_id].append(cluster.id)
-
-                
-        #         if node_id not in clusters_by_level[depth]:     
-        #             clusters_by_level[depth][node_id] = []
-        
-        # return clusters_by_level  
-
-                    
-
-    # def get_clusters(self, polilines, matrix, vertices):
-        
-
-    #     overall_clusters = []
-    #     current_clusters = []
-    #     matrix_with_clusters = np.zeros((IMG_REZ,IMG_REZ), dtype=object)
-    #     max_depth = 0
-    #     # matrix = [
-    #     #     [1,1,1,1,1,1,1,0,0,0,0,0],
-    #     #     [1,2,2,2,2,2,1,0,0,0,0,0],
-    #     #     [1,2,3,3,3,2,1,0,0,0,0,0],
-    #     #     [1,2,4,3,3,2,1,0,0,0,0,0],
-    #     #     [1,2,4,4,3,2,1,0,0,0,0,0],
-    #     #     [1,2,2,2,2,2,1,0,2,2,2,0],
-    #     #     [1,1,1,1,1,1,1,0,2,3,2,0],
-    #     #     [0,0,0,0,0,0,0,0,2,2,2,0],
-    #     #     [0,0,0,0,0,0,0,0,0,0,0,0],
-    #     #     [0,0,0,0,0,0,0,0,0,0,0,0]
-    #     # ]
-    #     print("computing max depth")
-    #     for i in range(0, len(matrix)):
-    #         for j in range(0, len(matrix[i])):
-    #             matrix[i][j] = int(matrix[i][j])
-    #             max_depth = max(max_depth, matrix[i][j])
-
-    #     # Normalize matrix values to be between 0 and 10
-    #     if max_depth > 0:
-    #         for i in range(0, len(matrix)):
-    #             for j in range(0, len(matrix[i])):
-    #                 if matrix[i][j] > 0:
-    #                     matrix[i][j] = (matrix[i][j] / max_depth) * 10
-    #                     matrix[i][j] = int(matrix[i][j])
-    #     print("Max depth: ", max_depth, "but normalised to 10")
-    #     for i in range(0, len(vertices)):
-    #         cluster = self.Cluster()
-    #         cluster.id = i
-    #         cluster.x = vertices[i][0]
-    #         cluster.y = vertices[i][1]
-    #         cluster.depth = matrix[vertices[i][0]][vertices[i][1]]
-    #         cluster.children = []
-    #         matrix_with_clusters[vertices[i][0]][vertices[i][1]] = cluster
-    #         cluster.parent = []
-    #         cluster.contains = 1
-    #         current_clusters.append(cluster)
-    #         overall_clusters.append(cluster)
-    #     print("Current clusters: ", len(current_clusters))
-    #     for depth in range(int(max_depth), -1, -1):
-    #         print("Processing depth: ", depth)
-    #         checkMatrix = np.zeros((IMG_REZ,IMG_REZ))
-    #         for i in range(0, min(matrix.__len__() , IMG_REZ)):
-    #             for j in range(0, min(matrix[i].__len__(), IMG_REZ)):
-    #                 if(matrix[i][j] == depth):
-    #                     searchedPos = []
-    #                     searchedPos.append((i,j))
-    #                     searchStack = []
-    #                     searchStack.append((i,j))
-    #                     brother_clusters = []
-    #                     if(matrix_with_clusters[i][j] != 0):
-    #                         brother_clusters.append(matrix_with_clusters[i][j])
-                        
-    #                     while(len(searchStack) != 0):
-    #                         currentPos = searchStack.pop()
-    #                         I = currentPos[0]
-    #                         J = currentPos[1]
-                            
-    #                         for x in range (-1, 2):
-    #                             for y in range (-1, 2):
-    #                                 if(I + x >= 0 and I + x < min(matrix.__len__() , IMG_REZ) and J + y >= 0 and J + y < min(matrix[i].__len__(), IMG_REZ) and checkMatrix[I + x][J + y] == 0):
-    #                                     if(matrix[I + x][J + y] >= depth):
-    #                                         searchedPos.append((I + x, J + y))
-    #                                         searchStack.append((I + x, J + y))
-    #                                         checkMatrix[I + x][J + y] = 1
-    #                                         if(matrix_with_clusters[I + x][J + y] != 0):
-    #                                             brother_clusters.append(matrix_with_clusters[I + x][J + y])
-    #                                             checkMatrix[I + x][J + y] = 1
-    #                                 checkMatrix[I][J] = 1
-            
-    #                     for x in range(0, len(searchedPos)):
-    #                         matrix[searchedPos[x][0]][searchedPos[x][1]] -= 1
-    #                     cluster = self.Cluster()
-    #                     if(len(brother_clusters) != 0):
-                            
-    #                         cluster.id = len(overall_clusters)
-    #                         cluster.x = brother_clusters[0].x
-    #                         cluster.y = brother_clusters[0].y
-    #                         cluster.depth = matrix[brother_clusters[0].x][brother_clusters[0].y]+1
-    #                         cluster.children = []
-    #                         cluster.parent = []
-    #                         cluster.contains = 0
-    #                         for x in range(0, len(brother_clusters)):
-    #                             cluster.children.append(brother_clusters[x])
-    #                             cluster.contains += brother_clusters[x].contains
-    #                             for y in range(0, len(brother_clusters[x].children)):
-    #                                 brother_clusters[x].children[y].parent = cluster
-    #                         overall_clusters.append(cluster)
-
-    #                         for x in range(0, len(brother_clusters)):
-    #                             matrix_with_clusters[brother_clusters[x].x][brother_clusters[x].y] = 0
-    #                             if (x == 0):
-    #                                 matrix_with_clusters[brother_clusters[x].x][brother_clusters[x].y] = cluster
-                                
-    #                             current_clusters.remove(brother_clusters[x])
-    #                         current_clusters.append(cluster)
-
-    #     clusters_by_level = {}
-    #     for depth in range(int(max_depth) + 1):
-    #         clusters_by_level[depth] = {}
-    #         for node in vertices:
-    #             node_id = node[2]
-    #             for cluster in overall_clusters:
-    #                 if cluster.depth == depth:
-    #                     #check if node is anywhere in cluster, check all the children 
-    #                     if cluster.contains > 1:
-    #                         for child in cluster.children:
-    #                             if child.x == node[0] and child.y == node[1]:
-    #                                 if node_id not in clusters_by_level[depth]:
-    #                                     clusters_by_level[depth][node_id] = []
-    #                                 clusters_by_level[depth][node_id].append(cluster.id)
-
-                
-    #             if node_id not in clusters_by_level[depth]:     
-    #                 clusters_by_level[depth][node_id] = []
-                    
-
-
-        
-        """clusters_array = {}
-        for depth in range(max_depth + 1):
-            if clusters_by_level[depth]:
-                
-            for node_id in range(max_node_id + 1):
-                if node_id in clusters_by_level[depth] and clusters_by_level[depth][node_id]:
-                    clusters_array[depth][node_id] = clusters_by_level[depth][node_id][0]
-                else:
-                    clusters_array[depth][node_id] = -1
-
-        print(clusters_array)"""
-        
-        
-        return clusters_by_level  
-                            
-    """
-    def get_clusters(self, polilines, matrix, vertices):
-        
-        #initialize the clusters
-        overall_clusters = []
-        current_clusters = []
-        max_depth = 0
-
-        #max depth in matrix
-        for i in range(0, len(matrix)):
-            for j in range(0, len(matrix[i])):
-                matrix[i][j] = int(matrix[i][j])
-                max_depth = max(max_depth, matrix[i][j])
-        
-        #initialize the clusters
-        for i in range(0, len(vertices)):
-            cluster = self.Cluster()
-            cluster.x = vertices[i][0]
-            cluster.y = vertices[i][1]
-            cluster.depth = matrix[vertices[i][0]][vertices[i][1]]
-            cluster.children = []
-            cluster.parent = []
-            cluster.contains = 1
-            current_clusters.append(cluster)
-
-        current_clusters = sorted(current_clusters, key=lambda x: x.depth, reverse=True)
-        overall_clusters = current_clusters
-        
-        for depth in range(int(max_depth), -1, -1):
-            
-            checkMatrix = np.zeros((IMG_REZ,IMG_REZ))
-            if current_clusters.__len__() and current_clusters[0].depth == depth:
-                brother_clusters = []
-                brother_clusters.append((current_clusters[0].x, current_clusters[0].y))
-                brother_clusters.append(self.getBrotherClusters(current_clusters[0].x, current_clusters[0].y, current_clusters[0].depth, matrix, checkMatrix))
-
-                if(len(brother_clusters)!=1):
-                    cluster = self.Cluster()
-                    cluster.x = current_clusters[0].x
-                    cluster.y = current_clusters[0].y
-                    cluster.depth = current_clusters[0].depth
-                    cluster.children = []
-                    cluster.parent = []
-                    cluster.contains = 0 
-                    for i in range(0, len(brother_clusters)-1):
-                        for j in range(0, len(current_clusters)-1):
-                            if(i < len(overall_clusters)-1 and  j<(len(current_clusters)-1) and brother_clusters[i][0] == current_clusters[j].x and brother_clusters[i][1] == current_clusters[j].y):
-                                cluster.children.append(current_clusters[j])
-                                cluster.contains += current_clusters[j].contains
-                                current_clusters.pop(j)
-                    overall_clusters.append(cluster) 
-
-        return overall_clusters
-
-    
-
-    def getBrotherClusters(self, x, y, depth, matrix, checkMatrix):
-        brother_clusters = []
-        checkMatrix[x][y] = 1
-        for i in range(-1, 2):
-            for j in range(-1, 2):
-                if(x + i >= 0 and x + i < IMG_REZ and y + j >= 0 and y + j < IMG_REZ and checkMatrix[x + i][y + j] == 0):
-                    if(matrix[x + i][y + j] >= depth):
-                        brother_clusters.append((x + i, y + j))
-                        checkMatrix[x + i][y + j] = 1
-                        brother_clusters.append(self.getBrotherClusters(x + i, y + j, depth, matrix, checkMatrix))
-
-        return brother_clusters
-    """
-
-    
-
-    def all_edges(self, G):
-        list_edges = list(self.G.edges(data = True))
-        polylines = []
-        for index, (u,v,data) in enumerate(list_edges):
-                
-            numbers_y = []
-            numbers_x = []
-
-            numbers_x = [float(num) for num in data.get('X')]
-            
-            numbers_y = [float(num) for num in data.get('Y')]
-                
-            polyline = [(numbers_x[i], numbers_y[i]) for i in range(0, len(numbers_x))]
-            polylines.append(polyline)
-        return polylines
-
-    def init_matrix(self, polylines, n_clusters='auto', cluster_depth_boost=500):
+    def all_edges(self, G: networkx.Graph) -> List[List[Tuple[float, float]]]:
         """
-        Initialize matrix with polyline data and apply k-means clustering to vertices.
+        Extract all edge polylines from the graph.
         
         Args:
-            polylines: List of polylines (each polyline is a list of (x, y) coordinates)
-            n_clusters: Number of clusters for k-means, or 'auto' to determine automatically (default: 'auto')
-            cluster_depth_boost: Depth value to add to each cluster center (default: 500)
+            G: NetworkX graph with edge coordinate data
+            
+        Returns:
+            List of polylines, where each polyline is a list of (x, y) coordinates
+        """
+        list_edges = list(self.G.edges(data=True))
+        polylines = []
+        
+        for u, v, data in list_edges:
+            numbers_x = [float(num) for num in data.get('X')]
+            numbers_y = [float(num) for num in data.get('Y')]
+            polyline = [(numbers_x[i], numbers_y[i]) for i in range(len(numbers_x))]
+            polylines.append(polyline)
+        
+        return polylines
+
+    def init_matrix(
+        self, 
+        polylines: List[List[Tuple[float, float]]], 
+        n_clusters: str = 'auto', 
+        cluster_depth_boost: int = KMEANS_CLUSTER_BOOST
+    ) -> np.ndarray:
+        """
+        Initialize density matrix from polylines.
+        
+        Creates a density matrix by rasterizing edge polylines and adding
+        depth values based on edge overlap. Optionally performs k-means
+        clustering on vertices to boost cluster regions.
+        
+        Args:
+            polylines: List of polylines (each is a list of (x, y) coordinates)
+            n_clusters: Number of k-means clusters or 'auto' for automatic detection
+            cluster_depth_boost: Depth value to add to cluster centers
+            
+        Returns:
+            Density matrix (IMG_REZ x IMG_REZ)
         """
         matrix = np.zeros((IMG_REZ, IMG_REZ))
 
-        # Step 1: Collect all vertices (endpoints of polylines)
+        # Step 1: Collect vertices (endpoints of polylines)
         vertices = []
         for polyline in polylines:
             if len(polyline) >= 2:
-                # Start point
-                vertices.append([polyline[0][0], polyline[0][1]])
-                # End point
-                vertices.append([polyline[-1][0], polyline[-1][1]])
+                vertices.append([polyline[0][0], polyline[0][1]])   # Start
+                vertices.append([polyline[-1][0], polyline[-1][1]])  # End
         
         vertices = np.array(vertices)
         print(f"Collected {len(vertices)} vertices for clustering")
         
-        # # Step 2: Determine optimal number of clusters if 'auto'
+        # Step 2: K-means clustering (currently disabled by default)
+        # Uncomment to enable vertex clustering with depth boost
         # if n_clusters == 'auto':
         #     n_clusters = self._find_optimal_clusters(vertices)
-        #     print(f"Automatically determined optimal number of clusters: {n_clusters}")
-        
-        # # Step 2: Perform k-means clustering on vertices
+        #     print(f"Automatically determined optimal clusters: {n_clusters}")
+        # 
         # if len(vertices) > 0 and len(vertices) >= n_clusters:
-        #     kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-        #     kmeans.fit(vertices)
-        #     cluster_centers = kmeans.cluster_centers_
-        #     cluster_labels = kmeans.labels_
-            
-        #     print(f"K-means clustering completed with {n_clusters} clusters")
-        #     print(f"Cluster centers: {cluster_centers}")
-            
-        #     # Step 3: Add depth to the contour of each cluster
-        #     for cluster_id in range(n_clusters):
-        #         # Get all vertices belonging to this cluster
-        #         cluster_vertices = vertices[cluster_labels == cluster_id]
-                
-        #         if len(cluster_vertices) < 3:
-        #             # Not enough points for a convex hull, just add depth to the points
-        #             for vertex in cluster_vertices:
-        #                 x = int(np.clip(vertex[0], 0, IMG_REZ - 1))
-        #                 y = int(np.clip(vertex[1], 0, IMG_REZ - 1))
-        #                 matrix[x][y] += cluster_depth_boost
-        #             print(f"Cluster {cluster_id}: Added depth to {len(cluster_vertices)} individual points")
-        #         else:
-        #             # Create convex hull to get the contour
-        #             try:
-        #                 hull = ConvexHull(cluster_vertices)
-        #                 hull_vertices = cluster_vertices[hull.vertices]
-                        
-        #                 print(f"Cluster {cluster_id}: Created convex hull with {len(hull_vertices)} vertices")
-                        
-        #                 # Create a Path object for the hull to check if points are inside
-        #                 hull_path = Path(hull_vertices)
-                        
-        #                 # Find bounding box of the hull
-        #                 min_x = int(max(0, np.floor(hull_vertices[:, 0].min())))
-        #                 max_x = int(min(IMG_REZ - 1, np.ceil(hull_vertices[:, 0].max())))
-        #                 min_y = int(max(0, np.floor(hull_vertices[:, 1].min())))
-        #                 max_y = int(min(IMG_REZ - 1, np.ceil(hull_vertices[:, 1].max())))
-                        
-        #                 # Fill interior with weaker depth (same for entire cluster including edges)
-        #                 interior_boost = cluster_depth_boost * 0.3  # 30% of original strength
-        #                 for x in range(min_x, max_x + 1):
-        #                     for y in range(min_y, max_y + 1):
-        #                         if hull_path.contains_point((x, y)):
-        #                             matrix[x][y] += interior_boost
-                        
-        #                 print(f"Cluster {cluster_id}: Filled cluster area with {interior_boost:.1f} depth boost")
-                        
-        #             except Exception as e:
-        #                 print(f"Cluster {cluster_id}: Could not create convex hull ({e}), adding depth to points")
-        #                 for vertex in cluster_vertices:
-        #                     x = int(np.clip(vertex[0], 0, IMG_REZ - 1))
-        #                     y = int(np.clip(vertex[1], 0, IMG_REZ - 1))
-        #                     matrix[x][y] += cluster_depth_boost
-            
-        #     print(f"Added depth boost of {cluster_depth_boost} to contours of {n_clusters} clusters")
-        # else:
-        #     print(f"Skipping k-means clustering: not enough vertices (need at least {n_clusters})")
+        #     self._apply_kmeans_boost(matrix, vertices, n_clusters, cluster_depth_boost)
 
-        # Step 4: Process polylines as before
+        # Step 3: Rasterize polylines into density matrix
         for polyline in polylines:
-            checkMatrix = np.zeros((IMG_REZ, IMG_REZ))
-            matrix[int(polyline[0][0])][int(polyline[0][1])] += 90
-            matrix[int(polyline[-1][0])][int(polyline[-1][1])] += 90
+            check_matrix = np.zeros((IMG_REZ, IMG_REZ))
             
-            # Interpolate EDGE_REZ points between the points of the polyline
-            for i in range(0, len(polyline) - 1):
-                x1 = int(polyline[i][0])
-                y1 = int(polyline[i][1])
-                x2 = int(polyline[i+1][0])
-                y2 = int(polyline[i+1][1])
+            # Boost vertex positions
+            start_x, start_y = int(polyline[0][0]), int(polyline[0][1])
+            end_x, end_y = int(polyline[-1][0]), int(polyline[-1][1])
+            matrix[start_x][start_y] += VERTEX_DEPTH_BOOST
+            matrix[end_x][end_y] += VERTEX_DEPTH_BOOST
+            
+            # Interpolate and rasterize edge segments
+            for i in range(len(polyline) - 1):
+                x1, y1 = int(polyline[i][0]), int(polyline[i][1])
+                x2, y2 = int(polyline[i+1][0]), int(polyline[i+1][1])
                 
-                # Interpolate EDGE_REZ points between the points of the polyline
+                # Interpolate EDGE_REZ points between segment endpoints
                 x = np.linspace(x1, x2, EDGE_REZ)
                 y = np.linspace(y1, y2, EDGE_REZ)
-                for j in range(0, EDGE_REZ):
-                    if(checkMatrix[int(x[j])][int(y[j])] == 0):
-                        matrix[int(x[j])][int(y[j])] += 10
+                
+                for j in range(EDGE_REZ):
+                    xi, yi = int(x[j]), int(y[j])
+                    if check_matrix[xi][yi] == 0:
+                        matrix[xi][yi] += EDGE_DEPTH_PRIMARY
                     else:
-                        matrix[int(x[j])][int(y[j])] += 2
-                    checkMatrix[int(x[j])][int(y[j])] = 1
+                        matrix[xi][yi] += EDGE_DEPTH_SECONDARY
+                    check_matrix[xi][yi] = 1
 
         return matrix
     
-    def _find_optimal_clusters(self, vertices, min_clusters=2, max_clusters=10):
+    def _apply_kmeans_boost(
+        self,
+        matrix: np.ndarray,
+        vertices: np.ndarray,
+        n_clusters: int,
+        cluster_depth_boost: int
+    ) -> None:
         """
-        Automatically determine the optimal number of clusters using silhouette score.
+        Apply k-means clustering to vertices and boost density at cluster regions.
+        
+        Args:
+            matrix: Density matrix to modify (in-place)
+            vertices: Array of vertex coordinates
+            n_clusters: Number of clusters
+            cluster_depth_boost: Depth boost to apply
+        """
+        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
+        kmeans.fit(vertices)
+        cluster_labels = kmeans.labels_
+        
+        print(f"K-means clustering completed with {n_clusters} clusters")
+        
+        for cluster_id in range(n_clusters):
+            cluster_vertices = vertices[cluster_labels == cluster_id]
+            
+            if len(cluster_vertices) < 3:
+                # Not enough points for convex hull - boost individual points
+                for vertex in cluster_vertices:
+                    x = int(np.clip(vertex[0], 0, IMG_REZ - 1))
+                    y = int(np.clip(vertex[1], 0, IMG_REZ - 1))
+                    matrix[x][y] += cluster_depth_boost
+                print(f"Cluster {cluster_id}: Boosted {len(cluster_vertices)} points")
+            else:
+                # Create convex hull and boost interior
+                try:
+                    hull = ConvexHull(cluster_vertices)
+                    hull_vertices = cluster_vertices[hull.vertices]
+                    hull_path = Path(hull_vertices)
+                    
+                    # Find bounding box
+                    min_x = int(max(0, np.floor(hull_vertices[:, 0].min())))
+                    max_x = int(min(IMG_REZ - 1, np.ceil(hull_vertices[:, 0].max())))
+                    min_y = int(max(0, np.floor(hull_vertices[:, 1].min())))
+                    max_y = int(min(IMG_REZ - 1, np.ceil(hull_vertices[:, 1].max())))
+                    
+                    # Fill interior with reduced boost
+                    interior_boost = cluster_depth_boost * KMEANS_INTERIOR_FACTOR
+                    for x in range(min_x, max_x + 1):
+                        for y in range(min_y, max_y + 1):
+                            if hull_path.contains_point((x, y)):
+                                matrix[x][y] += interior_boost
+                    
+                    print(f"Cluster {cluster_id}: Filled hull with {interior_boost:.1f} boost")
+                except Exception as e:
+                    print(f"Cluster {cluster_id}: Hull failed ({e}), boosting points")
+                    for vertex in cluster_vertices:
+                        x = int(np.clip(vertex[0], 0, IMG_REZ - 1))
+                        y = int(np.clip(vertex[1], 0, IMG_REZ - 1))
+                        matrix[x][y] += cluster_depth_boost
+    
+    def _find_optimal_clusters(
+        self, 
+        vertices: np.ndarray, 
+        min_clusters: int = KMEANS_MIN_CLUSTERS, 
+        max_clusters: int = KMEANS_MAX_CLUSTERS
+    ) -> int:
+        """
+        Determine optimal number of clusters using silhouette score.
         
         Args:
             vertices: Array of vertex coordinates
-            min_clusters: Minimum number of clusters to try (default: 2)
-            max_clusters: Maximum number of clusters to try (default: 10)
+            min_clusters: Minimum number of clusters to try
+            max_clusters: Maximum number of clusters to try
             
         Returns:
             Optimal number of clusters
@@ -914,8 +605,6 @@ class Clustering:
             try:
                 kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
                 labels = kmeans.fit_predict(vertices)
-                
-                # Calculate silhouette score (higher is better, range -1 to 1)
                 score = silhouette_score(vertices, labels)
                 
                 print(f"  Testing k={k}: silhouette score = {score:.3f}")
@@ -930,58 +619,73 @@ class Clustering:
         print(f"  Best silhouette score: {best_score:.3f} at k={best_k}")
         return best_k
     
-    def calcMatrix(self, matrix):
-
-        #apply a gaussian filter to the matrix make it way more smooth
-        for i in range(0, CONVOLUTION):
-            # matrix = signal.convolve2d(matrix, np.array([[1,2,1],[2,4,2],[1,2,1]])/16, mode='same')
-            matrix = signal.convolve2d(matrix, np.ones((12,12)), mode='same')
-
-        plt.imshow(matrix, cmap='hot', interpolation='nearest')
-        plt.savefig("heatMap.png")
-        return matrix
-    
-    def init_Points(self):
-        vetices = []
-            
-        for node_id, node_data in self.G.nodes(data=True):
-            
-            nodeX = node_data.get('X')
-            nodeY = node_data.get('Y')
-            nodeId = node_data.get('id')
-            vertex = (int(nodeX), int(nodeY), int(node_id))
-            vetices.append(vertex)
-
-        
-        return vetices
-        
-    
-    def get_depth_maps(self, matrix):
+    def calcMatrix(self, matrix: np.ndarray) -> np.ndarray:
         """
-        Returns a dictionary of depth maps where each key is a depth value
-        and the corresponding value is a matrix where pixels of that depth or lower
-        are included (marked as 1), and others are excluded (marked as 0).
+        Apply convolution smoothing to the density matrix.
         
         Args:
-            matrix: A 2D numpy array representing depth values
+            matrix: Raw density matrix
             
         Returns:
-            dict: A dictionary mapping depth values to binary matrices
+            Smoothed density matrix
+        """
+        # Apply Gaussian-like smoothing via convolution
+        kernel = np.ones((CONVOLUTION_KERNEL_SIZE, CONVOLUTION_KERNEL_SIZE))
+        
+        for _ in range(CONVOLUTION_ITERATIONS):
+            matrix = signal.convolve2d(matrix, kernel, mode='same')
+
+        # Save heatmap visualization
+        plt.imshow(matrix, cmap='hot', interpolation='nearest')
+        plt.savefig("heatMap.png")
+        plt.close()
+        
+        return matrix
+    
+    def init_Points(self) -> List[Tuple[int, int, int]]:
+        """
+        Extract vertex positions from graph nodes.
+        
+        Returns:
+            List of tuples (x, y, node_id) for each vertex
+        """
+        vertices = []
+        
+        for node_id, node_data in self.G.nodes(data=True):
+            node_x = node_data.get('X')
+            node_y = node_data.get('Y')
+            node_id_val = node_data.get('id')
+            vertex = (int(node_x), int(node_y), int(node_id))
+            vertices.append(vertex)
+
+        return vertices
+    
+    def get_depth_maps(self, matrix: np.ndarray) -> Dict[int, np.ndarray]:
+        """
+        Generate binary depth maps for each depth level.
+        
+        Returns a dictionary where each key is a depth value and the
+        corresponding value is a binary matrix indicating pixels at or
+        below that depth.
+        
+        Args:
+            matrix: Density matrix
+            
+        Returns:
+            Dictionary mapping depth values to binary matrices
         """
         depth_maps = {}
         
-        max_depth = 0
-        for i in range(len(matrix)):
-            for j in range(len(matrix[i])):
-                matrix[i][j] = int(matrix[i][j])
-                max_depth = max(max_depth, matrix[i][j])
+        # Find max depth
+        max_depth = int(np.max(matrix))
         
-        for depth in range(int(max_depth) + 1):
+        # Create binary map for each depth level
+        for depth in range(max_depth + 1):
             depth_map = np.zeros((IMG_REZ, IMG_REZ))
             
             for i in range(min(len(matrix), IMG_REZ)):
                 for j in range(min(len(matrix[i]), IMG_REZ)):
-                    if matrix[i][j] <= depth and matrix[i][j] > 0:
+                    if 0 < matrix[i][j] <= depth:
                         depth_map[i][j] = 1
             
             depth_maps[depth] = depth_map
