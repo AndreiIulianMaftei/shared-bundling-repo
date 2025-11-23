@@ -18,6 +18,7 @@ int main(int argc, char** argv)
     int maxEdges = 0;          // 0 means “use all”
     bool onlyEndpoints = false;
     bool gpu_bundling = true; // or true if you prefer GPU
+    float kernel_h = 32.0f;
 
     for (int i = 1; i < argc; ++i)
     {
@@ -37,6 +38,10 @@ int main(int argc, char** argv)
         else if (opt == "--gpu") {
             gpu_bundling = true;
         }
+        else if (opt == "-h") {
+            kernel_h = atof(argv[++i]);
+        }
+
         // Add any other custom parameters as needed
     }
 
@@ -70,7 +75,7 @@ int main(int argc, char** argv)
     CPUBundling* bund = new CPUBundling(fboSize);
 
     bund->niter          = 15;
-    bund->h              = 32.0f;
+    bund->h              = kernel_h;
     bund->lambda         = 0.2f;
     bund->liter          = 1;
     bund->niter_ms       = 0;

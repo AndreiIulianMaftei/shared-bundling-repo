@@ -118,19 +118,20 @@ CPUBundling::CPUBundling(int sz): drawing(0),fboSize(sz)					//Ctor
 	cudaMalloc((void**)&d_edges,MAX_NUM_EDGES*sizeof(int));
 	cudaMalloc((void**)&d_newedges,MAX_NUM_EDGES*sizeof(int));
 	cudaMalloc((void**)&d_rndstates,NTHREADS*sizeof(curandState));
-	cudaMallocHost(&h_edgeProfile,EDGE_PROFILE_SIZE*sizeof(float));
+	cudaError_t err = cudaMallocHost(&h_edgeProfile,EDGE_PROFILE_SIZE*sizeof(float));
+	printf("cudaMallocHost returned: %s (%d)\n",
+       cudaGetErrorString(err), err);
+
 	cudaMalloc((void**)&d_edgeProfile,EDGE_PROFILE_SIZE*sizeof(float));
 	cudaMallocHost(&h_endpoints,2*MAX_NUM_EDGES*sizeof(float2));
 	cudaMallocHost(&h_densityMap,fboSize2*sizeof(float));
 	cudaMallocHost(&h_shadingMap,fboSize2*sizeof(float));
 	cudaMalloc((void**)&d_siteMap,fboSize2*sizeof(unsigned int));
 
-
 	initEdgeProfile(PROFILE_UNIFORM);
 	random_init(d_rndstates);												//Init CUDA random generator
 	memset(h_densityMap,0,fboSize2*sizeof(float));
 	memset(h_shadingMap,0,fboSize2*sizeof(float));
-
 	sdkCreateTimer(&hTimer);
 }
 
@@ -343,11 +344,12 @@ void CPUBundling::drawing2CPU_raw()											//Copy drawing from GPU to 'drawin
 
 void CPUBundling::bundleGPU()												//Main entry point (GPU bundling)
 {
+	cout << "bndl 1" << endl;
 	if (niter_ms)															//1. Do MS on edge endpoints (if needed)
 	   bundleEndpointsGPU();
-
+	cout << "bndl 1" << endl;
 	bundleEdgesGPU();														//2. Bundle edges (KDEEB)
-
+	cout << "bndl 1" << endl;
 	if (niter_ms)															//3. If MS was done on edges, resample+smooth
 	{																		//   edge terminations
 		drawing->resample(spl);												//Resample needed for the (orig-end,MS) line-segments, do it on CPU
@@ -435,9 +437,10 @@ void CPUBundling::bundleEdgesGPU()											//Perform the edge bundling (using 
 																			//The default setting ensures that we have a nice decreasing kernel-size from 'h' until
 																			//a small kernel (2.0) within our 'niter' iterations.
 	float h_kern = h;														//Make local copy of kernel-size, since we'll shrink this
+	cout << "Kernel size: " << h_kern << endl;
 
 	TIME(drawing2GPU(),cgT);												//Move (resampled) drawing to GPU -> d_points (only once)
-
+	cout << "bndl 1" << endl;
 	for(int i=0;i<niter;++i)												//Iterate (KDEEB method):
 	{
 	   if (i==0 || !polyline_style)
@@ -452,7 +455,7 @@ void CPUBundling::bundleEdgesGPU()											//Perform the edge bundling (using 
 	   TIME(computeDensity(h_kern),cT);										//Compute density map using a kernel-radius 'h' (GPU) <- d_points
 
 	   if (tangent) computeDirections();									//If we do directional bundling, compute a site-map
-
+	   cout << "bndl 1" << endl;
 	   TIME(advectSites(d_newpoints,d_points,numCtrlPts,d_densityWrite,d_siteMap,fboSize,fboSize,h_kern*eps,tangent,rep_strength),aT);
 																			//Advect current drawing, one step, upstream in its density gradient (GPU) -> d_points
 	   TIME(smoothLines(d_points,d_newpoints,numCtrlPts,lambda,spl,s_kern,liter),sT);	//Laplacian smoothing of graph-drawing edges (GPU) -> d_points
@@ -564,6 +567,7 @@ void CPUBundling::initEdgeProfile(EDGE_PROFILE ep)											//Create the 'edge 
 
 	for(int i=0;i<EDGE_PROFILE_SIZE;++i)													//We store this function in a sampled array, for ease of use later
 	{
+
 		float x = fabs(i-EDGE_PROFILE_SIZE/2.0)/(EDGE_PROFILE_SIZE/2.0);					//Distance to edge-midpoint (for making symmetric profiles)
 		float p;
 		switch(ep)
@@ -573,7 +577,7 @@ void CPUBundling::initEdgeProfile(EDGE_PROFILE ep)											//Create the 'edge 
 		case PROFILE_HOURGLASS:
 			p = (x>0.7)? pow((1-x)/0.3,4):1; break;
 		}
-
+		cout << h_edgeProfile[i] << endl;
 		h_edgeProfile[i] = p;
 	}
 

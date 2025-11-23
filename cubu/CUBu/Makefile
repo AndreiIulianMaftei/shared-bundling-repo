@@ -15,11 +15,11 @@ CXX       =  g++
 CUDAROOT  =  /usr/local/cuda-11.8
 CUDAINC   = -I$(CUDAROOT)/samples/common/inc
 CUDALIB   = $(CUDAROOT)/lib64
-CUDAINC2  = -I$(CUDAROOT)/Common
-GLUI      = /home/andrei/Downloads/glui-2.37
+CUDAINC2  = /home/markus/Downloads/cuda-samples-11.8/Common
+GLUI      = /home/markus/Downloads/glui-2.37
 GLINC     = -I$(GLUI)/include
 GLLIB     = $(GLUI)/lib/libglui.a -lGL -lGLU -lglut -lGLEW
-CUDAGEN   = -gencode=arch=compute_50,code=\"sm_50,compute_50\"
+CUDAGEN   = -gencode=arch=compute_80,code=\"sm_80,compute_80\"
 endif
 
 ifeq ($(PLATFORM),PLATFORM_OSX)
@@ -40,28 +40,32 @@ endif
 
 #--------------------------------------------------------------------------------------------------------------------------------
 
-CCFLAGS   = -I. -Iinclude -m64 -O2 -I$(CUDAROOT)/include $(CUDAINC) $(CUDAINC2) -D$(PLATFORM) 
+CCFLAGS   = -I. -Iinclude -m64 -O2 -I$(CUDAROOT)/include $(CUDAINC) -I$(CUDAINC2) -D$(PLATFORM) 
 CXXFLAGS  = $(CCFLAGS) $(GLINC)
 NVCC = $(CUDAROOT)/bin/nvcc -ccbin $(CXX)
 .SUFFIXES: .o .c .cpp .cu
 
 
 LIBOBJECTS  = gdrawing.o cpubundling.o gpubundling.o sparsematrix.o polyline.o utils.o
-#DEMOOBJECTS = main1.o
-DEMOOBJECTS = myBatch.o
+DEMOOBJECTS = main.o
+TERMINALOBJECT = myBatch.o
 DEMO	= cubu
+TERMINAL = cubu_terminal
 CUBULIB = libcubu.a
 
 
 
 
-all: $(DEMO) $(CUBULIB)
+all: $(DEMO) $(TERMINAL) $(CUBULIB)
 
 $(CUBULIB): $(LIBOBJECTS)
 	ar -rv $(CUBULIB) $(LIBOBJECTS)
 
 $(DEMO): $(CUBULIB) $(DEMOOBJECTS)
 	$(CXX) -o $(DEMO) $(DEMOOBJECTS) $(CUBULIB) $(CXXFLAGS) -L$(CUDALIB) $(GLLIB) -L$(CUDAROOT)/lib -lcudart -lstdc++
+
+$(TERMINAL): $(CUBULIB) $(TERMINALOBJECT)
+	$(CXX) -o $(TERMINAL) $(TERMINALOBJECT) $(CUBULIB) $(CXXFLAGS) -L$(CUDALIB) $(GLLIB) -L$(CUDAROOT)/lib -lcudart -lstdc++
 
 .cpp.o:
 	$(CXX) -c $(CXXFLAGS)  -o $@ $<
@@ -70,5 +74,5 @@ $(DEMO): $(CUBULIB) $(DEMOOBJECTS)
 	$(NVCC) -c $(CCFLAGS) -use_fast_math $(CUDAGEN) --ptxas-options=-v --maxrregcount 50 -o $@ $<
 
 clean:
-	-@rm *.o $(DEMO) $(CUBULIB) 2>/dev/null || true
+	-@rm *.o $(DEMO) $(CUBULIB) $(TERMINAL) 2>/dev/null || true
 
