@@ -31,5 +31,9 @@ async function bundleFD(pathToBundle) {
 
 } 
 
+const start = async function (pathToBundle) {
+    const result = await bundleFD(pathToBundle);
+}
+
 let pathToBundle = process.argv[2];
-await bundleFD(pathToBundle);
+start(pathToBundle);

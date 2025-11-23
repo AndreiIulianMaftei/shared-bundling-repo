@@ -66,7 +66,7 @@ import os
 import networkx as nx
 from collections import defaultdict
 
-def compute_cubu(file, out_path, G_width=None):
+def compute_cubu(file, out_path, h=32, G_width=None):
     """
     1) Read the input .graphml (or whatever) into a NetworkX graph.
     2) Compute bounding box and normalize node coordinates to [0,1600]x[0,1600].
@@ -129,7 +129,7 @@ def compute_cubu(file, out_path, G_width=None):
             fout.write(f"{idx}: {x1} {y1} {x2} {y2}\n")
 
     # CuBu
-    cubu_command = f"./cubu/CUBu/cubu -i 1000 -f {temp_input}"
+    cubu_command = f"./modules/CUBu/cubu_terminal -i 1000 -f {temp_input} -h {h}"
     print(f"Running CuBu command: {cubu_command}")
     os.system(cubu_command)
 
@@ -234,7 +234,7 @@ def compute_wr(file, out_path):
 
     G.applyAlgorithm("Edge bundling", params1)
     G.applyAlgorithm("Curve edges", params2)
-    # G.applyAlgorithm("Edge bundling", params1)
+    G.applyAlgorithm("Edge bundling", params1)
 
     for n in G.getNodes():
         G_out.add_node(n.id, X=x.getNodeValue(n), Y=y.getNodeValue(n))
@@ -266,7 +266,13 @@ def compute_wr(file, out_path):
 
     return
 
-def compute_bundling(file, algorithm,outfile):
+def compute_bundling(file, algorithm, outfile):
+    
+    if "cubu" in algorithm:
+        h = algorithm.split('_')[-1]
+        h = 8  + int(h) * 8
+        algorithm = "cubu"
+        
     match algorithm:
         case 'epb':
             compute_epb(file, outfile)
@@ -275,7 +281,7 @@ def compute_bundling(file, algorithm,outfile):
         case 'fd':
             compute_fd(file, outfile)
         case 'cubu':
-            compute_cubu(file, outfile)
+            compute_cubu(file, outfile, h=h)
         case 'wr':
             compute_wr(file, outfile)
     
@@ -300,15 +306,22 @@ def bundle_all(dir):
             largest_component = max(nx.connected_components(G), key=len)
             G = G.subgraph(largest_component)
 
+        n = G.number_of_nodes()
+        e = G.number_of_edges()
+        
+        if e < 3 * n:
+            continue
+
         G = nx.convert_node_labels_to_integers(G)
 
         nx.write_graphml(G,f'{dir}/{file}')
 
         if not os.path.isdir(f"outputs/{name}"): os.mkdir(f"outputs/{name}")
 
-        #algs = ['wr']
-        algs = ['wr','fd', 'epb', 'sepb']
-        if os.path.exists('cubu'): algs += ['cubu']
+        algs = ['wr']
+        #algs = ['wr','fd', 'epb', 'sepb']
+        #algs = []
+        # if os.path.exists('modules/CUBu'): algs += ['cubu_1', 'cubu_2', 'cubu_3', 'cubu_4', 'cubu_5', 'cubu_6', 'cubu_7']
 
         for alg in algs:
             print(f"Computing {alg} for {file}")
