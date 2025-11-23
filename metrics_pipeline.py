@@ -219,7 +219,7 @@ def main():
         inputlist = [g for n,g in sorted(tmplist)]
         del G
     
-    args.save_img = "image_outputs"
+    #args.save_img = "image_outputs"
     import tqdm
     for gdata in tqdm.tqdm(inputlist):
         for algfile in os.listdir(f"{inputfolder}/{gdata}"):
