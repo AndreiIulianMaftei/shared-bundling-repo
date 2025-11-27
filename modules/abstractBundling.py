@@ -427,7 +427,7 @@ class GraphLoader(AbstractBundling):
 
         xscale = GWIDTH / (xmax - xmin)
         yscale = GWIDTH / (ymax - ymin)
-        factor = min(xscale, yscale)
+        factor = xscale
 
         width =  (xmax - xmin) * factor
         height = (ymax - ymin) * factor

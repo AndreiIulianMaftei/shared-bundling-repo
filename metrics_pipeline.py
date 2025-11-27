@@ -92,7 +92,7 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
 
         G.graph[f'{metric}_t'] = M.metrictime[metric]
 
-    data = nx.node_link_data(G, edges="edges")
+    data = nx.node_link_data(G, link="edges")
 
     if not os.path.isdir(f"{path}"): os.mkdir(f"{path}")
     with open(f'{path}/{algorithm}.json', 'w', encoding='utf-8') as f:
@@ -126,7 +126,7 @@ def log_error(gname, algname, metric):
             'metric': metric
         })
 
-def process(input, filename, algorithm, output="dashboard/output_dashboard", metrics='long',verbose=False):
+def process(input, filename, algorithm, output="dashboard/output_dashboard", metrics='long',verbose=False, save_img=None):
     if not os.path.isdir(output): os.mkdir(output)
 
     Bundle = read_bundling(f"{input}/{filename}/{algorithm}.graphml")
@@ -136,6 +136,11 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
     if metrics == 'all': metrics_to_compute = Metrics.getImplementedMetrics()
     elif metrics == 'long': metrics_to_compute = ['all_intersections', "self_intersections", "ambiguity"]
     else: metrics_to_compute = [metrics] if isinstance(metrics,str) else metrics
+    
+    if save_img:
+        if not os.path.isdir(f"{save_img}/{filename}"): 
+            os.makedirs(f"{save_img}/{filename}")
+        Bundle.draw(f'{save_img}/{filename}/') 
 
     for metric in metrics_to_compute:
         # if metrics != "long":
@@ -174,11 +179,12 @@ def main():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--folder", default="inputs/all_outputs/",type=str, help="Path to input folder")
+    parser.add_argument("--folder", default="outputs/",type=str, help="Path to input folder")
     parser.add_argument("--metric", type=str, default='all', help="which metric/s should be evaluated")
     parser.add_argument("--verbose", type=bool, default=False, help = "verbosity level")
     parser.add_argument("--smartorder", type=bool, default=True, help="Whether to order graphs from smallest to largest")
     parser.add_argument("--job-index", type=int, default=None, help="SLURM array task ID for parallel processing")
+    parser.add_argument("--save_img", type=str, default=None, help="specify path to save images (default None -> do not save an image)")
     # parser.add_argument("--algorithm", help="Which algorithm should be evaluated. Default 'all'", default='all')
     # parser.add_argument("--draw", help="Should the bundling be drawn and saved as an image. {0,1}, Default '1'", default='1')
 
