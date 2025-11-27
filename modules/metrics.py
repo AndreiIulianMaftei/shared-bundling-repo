@@ -1,7 +1,7 @@
 import os
 import networkx as nx
 import numpy as np
-from gdMetriX import number_of_crossings
+#from gdMetriX import number_of_crossings
 from datetime import datetime
 
 from modules.abstractBundling import RealizedBundling

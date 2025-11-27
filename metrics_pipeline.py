@@ -9,10 +9,7 @@ import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 
 from modules.abstractBundling import GWIDTH, GraphLoader, RealizedBundling
-from modules.EPB.straight import StraightLine
-from modules.EPB.clustering import Clustering
-from modules.EPB.plot import Plot
-from modules.EPB.plotTest import PlotTest
+
 import networkx as nx
 import numpy as np
 import json
