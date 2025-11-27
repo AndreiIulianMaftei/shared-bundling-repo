@@ -16,7 +16,7 @@ CUDAROOT  =  /usr/local/cuda-11.8
 CUDAINC   = -I$(CUDAROOT)/samples/common/inc
 CUDALIB   = $(CUDAROOT)/lib64
 CUDAINC2  = -I$(CUDAROOT)/Common
-GLUI      = /home/andrei/Downloads/glui-2.37
+GLUI      = /home/andrei2/Downloads/glui-2.37
 GLINC     = -I$(GLUI)/include
 GLLIB     = $(GLUI)/lib/libglui.a -lGL -lGLU -lglut -lGLEW
 CUDAGEN   = -gencode=arch=compute_50,code=\"sm_50,compute_50\"
