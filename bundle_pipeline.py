@@ -314,9 +314,20 @@ def bundle_all(dir):
 
         G = nx.convert_node_labels_to_integers(G)
 
-        nx.write_graphml(G,f'{dir}/{file}')
-
+        
         if not os.path.isdir(f"outputs/{name}"): os.mkdir(f"outputs/{name}")
+
+        for u, data in G.nodes(data=True):
+            if 'x' in data:
+                data["X"] = data["x"]
+            elif 'X' in data:
+                data['x'] = data['X']
+            if 'y' in data:
+                data["Y"] = data["y"]
+            elif 'Y' in data:
+                data['y'] = data['Y']
+                
+        nx.write_graphml(G,f'{dir}/{file}')
 
         #algs = ['wr']
         algs = ['wr','fd', 'epb', 'sepb']
@@ -327,8 +338,8 @@ def bundle_all(dir):
             print(f"Computing {alg} for {file}")
             try:
                 compute_bundling(f"{dir}/{file}", alg, f"outputs/{name}/{alg}.graphml")    
-            except:
-                print(Exception)
-
+            except Exception as e: 
+                print(e)
+                
 if __name__ == "__main__":
     bundle_all("inputs")
