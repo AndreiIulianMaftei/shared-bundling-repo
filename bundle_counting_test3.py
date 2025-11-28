@@ -8,7 +8,7 @@ import networkx as nx
 
 def preprocess_for_bundles(img_bgr: np.ndarray, dilate_iters: int = 1) -> np.ndarray:
     gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
-    gray = cv2.GaussianBlur(gray, (5, 5), 0)
+    gray = cv2.GaussianBlur(gray, (7, 7), 0)
 
     # dark lines -> white (255), bg -> 0
     _, binary = cv2.threshold(
@@ -441,7 +441,7 @@ def show_side_by_side(original, processed, title="Original | Processed"):
 
 
 if __name__ == "__main__":
-    image_path = "image_outputs/migration/cubu_7.png"   # <-- change this
+    image_path = "image_outputs/airlines/cubu_1.png"   # <-- change this
     img = cv2.imread(image_path)
     if img is None:
         raise FileNotFoundError(image_path)

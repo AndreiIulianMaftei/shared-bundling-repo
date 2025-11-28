@@ -201,7 +201,9 @@ def main():
         print(metrics)
         metrics = json.loads(metrics.replace("\'", "\""))    
         print(type(metrics))
-    metrics = ['ambiguity', 'clustering']
+    #metrics = ['ambiguity', 'clustering']
+    metrics = ['inkratio']
+    args.save_img = 'image_outputs'
     # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
 
     inputlist = os.listdir(inputfolder)
@@ -237,7 +239,7 @@ def main():
             for algfile in os.listdir(f"{inputfolder}/{gdata}"):
                 alg = algfile.replace(".graphml", "")
                 print(f"Processing {gdata}/{alg}")
-                process(inputfolder, gdata, alg, metrics=metrics, verbose=args.verbose,output="short_outputs")
+                process(inputfolder, gdata, alg, metrics=metrics, verbose=args.verbose,output="short_outputs", save_img=args.save_img)
 
 if __name__ == "__main__":
     main()
