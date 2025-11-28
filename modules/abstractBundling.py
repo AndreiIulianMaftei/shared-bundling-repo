@@ -25,7 +25,7 @@ import sys
 
 ### Plotting Parameters for ambiguity tests
 LINEWIDTH = 0.5
-LINE_COLOR = '#393433'
+LINE_COLOR = "#232020"
 ALPHA = 0.5
 CIRCLE = 10.0
 CIRCLE_COLOR = 'firebrick'
@@ -211,7 +211,7 @@ class AbstractBundling:
                     f.write(f"{x:.2f} {y:.2f} ")
                 f.write("\n")
 
-    def draw(self, path, color=True, plotIpe=False, plotSpanner=False, plotSubgraph=None, fileAddition="", color_vertices=None,file_ending='png'):
+    def draw(self, path, color=True, plotIpe=False, plotSpanner=False, plotSubgraph=None, fileAddition="", color_vertices=None, draw_nodes=True, file_ending='png'):
         '''
         Draw the bundling. Either using the assign color function or the coloring given by the bundling. 
         if plotIpe is true, it will create an IPE drawing as well.
@@ -257,7 +257,7 @@ class AbstractBundling:
             if color:
                 ax.plot(X, Y, color=cmap(data['Angle']), alpha=ALPHA, lw = LINEWIDTH)
             else:
-                ax.plot(X, Y, color=LINE_COLOR, alpha=ALPHA, lw = LINEWIDTH)
+                ax.plot(X, Y, color=LINE_COLOR, alpha=ALPHA*0.5, lw = LINEWIDTH)
 
 
 
@@ -279,7 +279,8 @@ class AbstractBundling:
             else:
                 C.append(CIRCLE_COLOR_LIGHT)
 
-        ax.scatter(X, Y, color=C, marker='.', s = CIRCLE, zorder=2)
+        if draw_nodes:
+            ax.scatter(X, Y, color=C, marker='.', s = CIRCLE, zorder=2)
 
 
         plt.savefig(f'{path}{self.name}{fileAddition}.{file_ending}')

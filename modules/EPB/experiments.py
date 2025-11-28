@@ -1158,8 +1158,8 @@ class Metrics:
 
         '''
         try:
-            edgeEdgeSet = pickle.load(open(f'{path}/pickle/{(G.graph["filename"]).split('/')[-2]}_{name}.ees', 'rb'))
-            edgeSet = pickle.load(open(f'{path}/pickle/{G.graph["filename"].split('/')[-2]}_{name}.es', 'rb'))
+            edgeEdgeSet = pickle.load(open(f'{path}/pickle/{(G.graph["filename"]).split("/")[-2]}_{name}.ees', 'rb'))
+            edgeSet = pickle.load(open(f'{path}/pickle/{G.graph["filename"].split("/")[-2]}_{name}.es', 'rb'))
             print(f'{name} pickle found, processing now')
 
             return Metrics.ambiguityCalculation(G, edgeSet, edgeEdgeSet)
@@ -1475,8 +1475,8 @@ class Metrics:
         if not os.path.exists(out):
             os.makedirs(out)
 
-        pickle.dump(edgeEdgeAmbSet, open(f'{out}{G.graph["filename"].split('/')[-2]}_{name}.ees', 'wb'))
-        pickle.dump(edgeAmbSet, open(f'{out}{G.graph["filename"].split('/')[-2]}_{name}.es', 'wb'))
+        pickle.dump(edgeEdgeAmbSet, open(f'{out}{G.graph["filename"].split("/")[-2]}_{name}.ees', 'wb'))
+        pickle.dump(edgeAmbSet, open(f'{out}{G.graph["filename"].split("/")[-2]}_{name}.es', 'wb'))
 
         return edgeAmbSet, edgeEdgeAmbSet
 
