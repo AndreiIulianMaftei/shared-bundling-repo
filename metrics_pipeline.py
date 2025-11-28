@@ -9,11 +9,7 @@ import matplotlib
 matplotlib.use('Agg')  # Use non-interactive backend
 
 from modules.abstractBundling import GWIDTH, GraphLoader, RealizedBundling
-from modules.EPB.experiments import Experiment
-from modules.EPB.straight import StraightLine
-from modules.EPB.clustering import Clustering
-from modules.EPB.plot import Plot
-from modules.EPB.plotTest import PlotTest
+
 import networkx as nx
 import numpy as np
 import json
@@ -178,6 +174,7 @@ def main():
         --folder: path to input folder
         --metric: metric which we want to compute
         --algorithm: which algorithm do we want to evaluate. Default is all
+        --job-index: SLURM array task ID for parallel processing (optional)
     '''
 
     parser = argparse.ArgumentParser()
@@ -186,6 +183,7 @@ def main():
     parser.add_argument("--metric", type=str, default='all', help="which metric/s should be evaluated")
     parser.add_argument("--verbose", type=bool, default=False, help = "verbosity level")
     parser.add_argument("--smartorder", type=bool, default=True, help="Whether to order graphs from smallest to largest")
+    parser.add_argument("--job-index", type=int, default=None, help="SLURM array task ID for parallel processing")
     parser.add_argument("--save_img", type=str, default=None, help="specify path to save images (default None -> do not save an image)")
     # parser.add_argument("--algorithm", help="Which algorithm should be evaluated. Default 'all'", default='all')
     # parser.add_argument("--draw", help="Should the bundling be drawn and saved as an image. {0,1}, Default '1'", default='1')
@@ -203,10 +201,8 @@ def main():
         print(metrics)
         metrics = json.loads(metrics.replace("\'", "\""))    
         print(type(metrics))
-        
-    # metrics = ['ambiguity']
+    metrics = ['ambiguity', 'clustering']
     # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
-    metrics = ['inkratio']
 
     inputlist = os.listdir(inputfolder)
     if args.smartorder:
@@ -219,13 +215,29 @@ def main():
         inputlist = [g for n,g in sorted(tmplist)]
         del G
     
-    args.save_img = "image_outputs"
-    import tqdm
-    for gdata in tqdm.tqdm(inputlist):
+    # Debug: print the inputlist
+    print(f"DEBUG: Total graphs found: {len(inputlist)}")
+    print(f"DEBUG: inputlist = {inputlist}")
+    
+    # If job-index is provided, process only that specific graph
+    if args.job_index is not None:
+        if args.job_index >= len(inputlist):
+            print(f"Error: job-index {args.job_index} is out of range. Total graphs: {len(inputlist)}")
+            return
+        
+        gdata = inputlist[args.job_index]
+        print(f"Processing job {args.job_index}: {gdata}")
         for algfile in os.listdir(f"{inputfolder}/{gdata}"):
             alg = algfile.replace(".graphml", "")
             print(f"Processing {gdata}/{alg}")
-            process(inputfolder, gdata, alg, metrics=metrics, verbose=args.verbose,output="short_outputs", save_img=args.save_img)
+            process(inputfolder, gdata, alg, metrics=metrics, verbose=args.verbose, output="short_outputs")
+    else:
+        import tqdm
+        for gdata in tqdm.tqdm(inputlist):
+            for algfile in os.listdir(f"{inputfolder}/{gdata}"):
+                alg = algfile.replace(".graphml", "")
+                print(f"Processing {gdata}/{alg}")
+                process(inputfolder, gdata, alg, metrics=metrics, verbose=args.verbose,output="short_outputs")
 
 if __name__ == "__main__":
     main()
