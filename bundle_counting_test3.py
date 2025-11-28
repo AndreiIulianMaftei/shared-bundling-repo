@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 from skimage.morphology import skeletonize
 import matplotlib.pyplot as plt
-
+import networkx as nx
 
 # ---------- basic preprocessing ----------
 
@@ -118,6 +118,133 @@ def build_edges_from_skeleton(skel: np.ndarray,
 
     return edges
 
+def cluster_node_centers(node_centers, merge_radius: float):
+    """
+    node_centers: dict[label] = (y, x)
+    merge_radius: distance (in skeleton pixels) under which nodes become one.
+
+    Returns:
+      label_to_cluster: dict[original_label] -> cluster_id
+      cluster_pos: dict[cluster_id] -> (cy, cx) mean position
+    """
+    labels = list(node_centers.keys())
+    if not labels:
+        return {}, {}
+
+    coords = np.array([node_centers[l] for l in labels], dtype=float)  # shape (N,2)
+    N = len(labels)
+
+    # --- union–find for clustering ---
+    parent = list(range(N))
+
+    def find(i):
+        while parent[i] != i:
+            parent[i] = parent[parent[i]]
+            i = parent[i]
+        return i
+
+    def union(i, j):
+        ri, rj = find(i), find(j)
+        if ri != rj:
+            parent[rj] = ri
+
+    r2 = merge_radius * merge_radius
+    for i in range(N):
+        for j in range(i + 1, N):
+            d2 = np.sum((coords[i] - coords[j]) ** 2)
+            if d2 <= r2:
+                union(i, j)
+
+    # collect clusters
+    root_to_indices = {}
+    for i in range(N):
+        r = find(i)
+        root_to_indices.setdefault(r, []).append(i)
+
+    label_to_cluster = {}
+    cluster_pos = {}
+    cid = 0
+    for root, idxs in root_to_indices.items():
+        pts = coords[idxs]
+        cy, cx = pts.mean(axis=0)
+        cluster_pos[cid] = (cy, cx)
+        for i in idxs:
+            lab = labels[i]
+            label_to_cluster[lab] = cid
+        cid += 1
+
+    return label_to_cluster, cluster_pos
+
+
+def skeleton_to_networkx(node_labels: np.ndarray,
+                         node_centers: dict,
+                         edges,
+                         merge_radius: float = 3.0,
+                         scale: float = 1.0):
+    """
+    node_labels: HxW int32 labels from label_nodes
+    node_centers: dict[label] -> (y, x)
+    edges: list of paths, each path is [(y, x), ...] from build_edges_from_skeleton
+    merge_radius: how close endpoints must be to become one node (in skeleton pixels)
+    scale: if the skeleton was computed on a downscaled image, set this
+           to 1/scale_factor to get coordinates in original pixels.
+
+    Returns:
+      G: networkx.MultiGraph()
+    """
+    # 1) merge nearby node centers
+    label_to_cluster, cluster_pos = cluster_node_centers(
+        node_centers, merge_radius=merge_radius
+    )
+
+    G = nx.Graph()
+
+    # 2) add merged nodes
+    for cid, (cy, cx) in cluster_pos.items():
+        G.add_node(
+            cid,
+            y=cy * scale,
+            x=cx * scale,
+            pos=(cx * scale, cy * scale),  # convenient for drawing
+        )
+
+    # 3) add one edge per path
+    count = 0
+    for path in edges:
+        if len(path) < 2:
+            continue
+
+        sy, sx = path[0]
+        ey, ex = path[-1]
+
+        lab_start = node_labels[sy, sx]
+        lab_end = node_labels[ey, ex]
+        if lab_start <= 0 or lab_end <= 0:
+            continue
+        if lab_start not in label_to_cluster or lab_end not in label_to_cluster:
+            continue
+
+        u = label_to_cluster[lab_start]
+        v = label_to_cluster[lab_end]
+
+        if u == v:
+            continue  # loop edge
+
+        # coordinates in original image units (if scale != 1)
+        coords = [(y, x) for (y, x) in path]
+        length = float(len(coords))  # or use Euclidean sum along path
+
+        G.add_edge(
+            u,
+            v,
+            pixels=coords,
+            length=length,
+            index = count
+        )
+
+        count += 1
+
+    return G
 
 def compute_thickness_per_edge(bundle_mask: np.ndarray, edges):
     """
@@ -150,6 +277,22 @@ def compute_thickness_per_edge(bundle_mask: np.ndarray, edges):
 
     return thicknesses
 
+def visualize_edges_on_image(img, G, thickness=1):
+    """
+    Draws each graph edge in a different random color on top of the original image.
+    G must contain 'pixels' attribute per edge.
+    """
+    vis = img.copy()
+    rng = np.random.default_rng(123)
+
+    for u, v, data in G.edges(data=True):
+        pixels = data["pixels"]   # list of (y, x) coordinates
+        color = rng.integers(50, 255, size=3).tolist()
+        color = (int(color[0]), int(color[1]), int(color[2]))
+
+        cv2.line(vis, (int(pixels[0][1]), int(pixels[0][0])), (int(pixels[-1][1]), int(pixels[-1][0])), color, thickness)
+
+    return vis
 
 # ---------- coarse bundle counting ----------
 
@@ -181,6 +324,56 @@ def count_bundles_coarse(img_bgr: np.ndarray,
     thicknesses = [t / scale for t in thicknesses_small]
     avg_thick = float(np.mean(thicknesses)) if thicknesses else 0.0
 
+
+    G = skeleton_to_networkx(
+        node_labels,
+        node_centers,
+        edges,
+        merge_radius=10.0,      # tweak this
+        scale=1.0 / scale      # because we downsampled by 'scale'
+    )
+
+    setDot = []
+    allPassed = False
+    while not allPassed:
+        
+        allPassed = True
+
+        for node in G.nodes():
+            if G.degree[node] == 2:
+                n1 = list(G.neighbors(node))[0]
+                n2 = list(G.neighbors(node))[1]
+                
+                e1 = G.get_edge_data(node, n1)
+                e2 = G.get_edge_data(node, n2)
+
+                setDot.append((G.nodes[node]['x'], G.nodes[node]['y']))
+
+                G.remove_edge(node, n1)
+                G.remove_edge(node, n2)
+                G.remove_node(node)
+
+                coords = e1['pixels'] + e2['pixels']
+                length = e1['length'] + e2['length']
+                G.add_edge(n1, n2,             
+                            pixels=coords,
+                            length=length)
+  
+                allPassed = False
+                break
+
+    deg2 = 0
+
+    edges = []
+    for u,v, data in G.edges(data=True):
+        edges.append(data['pixels'])
+
+    print("Nodes with degree 2 (should be 0):", deg2)
+
+    # now you can inspect G
+    print("Nodes:", G.number_of_nodes())
+    print("Edges:", G.number_of_edges())
+
     # visualization (in small image coords)
     h, w = skel.shape
     vis_small = np.zeros((h, w, 3), dtype=np.uint8)
@@ -189,6 +382,12 @@ def count_bundles_coarse(img_bgr: np.ndarray,
         color = rng.integers(0, 255, size=3, dtype=np.uint8)
         for y, x in edge:
             vis_small[y, x] = color
+
+    for x,y in setDot:
+        cv2.circle(vis_small, (int(x*scale), int(y * scale)), 3, (0,0,255), 1)
+
+    #
+    # vis_edges = visualize_edges_on_image(vis_small, G, thickness=1)
 
     # scale back up just for display
     vis_full = cv2.resize(
@@ -208,9 +407,9 @@ def count_bundles_coarse(img_bgr: np.ndarray,
 def process_image(img_bgr: np.ndarray) -> np.ndarray:
     bundle_count, vis, thicknesses = count_bundles_coarse(
         img_bgr,
-        scale=0.3,        # tweak: smaller -> coarser, fewer bundles
-        dilate_iters=1,
-        min_edge_length=10
+        scale=0.5,        # tweak: smaller -> coarser, fewer bundles
+        dilate_iters=3,
+        min_edge_length=5
     )
     print("Bundles:", bundle_count)
     return vis
@@ -242,7 +441,7 @@ def show_side_by_side(original, processed, title="Original | Processed"):
 
 
 if __name__ == "__main__":
-    image_path = "migration/migration/migration/epb.png"   # <-- change this
+    image_path = "image_outputs/migration/cubu_7.png"   # <-- change this
     img = cv2.imread(image_path)
     if img is None:
         raise FileNotFoundError(image_path)

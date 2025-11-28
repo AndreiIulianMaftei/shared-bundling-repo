@@ -144,7 +144,7 @@ def process(input, filename, algorithm, output="dashboard/output_dashboard", met
     if save_img:
         if not os.path.isdir(f"{save_img}/{filename}"): 
             os.makedirs(f"{save_img}/{filename}")
-        Bundle.draw(f'{save_img}/{filename}/') 
+        Bundle.draw(f'{save_img}/{filename}/', draw_nodes=False, color=False) 
 
     for metric in metrics_to_compute:
         # if metrics != "long":
@@ -219,7 +219,7 @@ def main():
         inputlist = [g for n,g in sorted(tmplist)]
         del G
     
-    #args.save_img = "image_outputs"
+    args.save_img = "image_outputs"
     import tqdm
     for gdata in tqdm.tqdm(inputlist):
         for algfile in os.listdir(f"{inputfolder}/{gdata}"):
