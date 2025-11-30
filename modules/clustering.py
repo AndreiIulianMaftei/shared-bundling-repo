@@ -2,12 +2,8 @@ from collections import defaultdict
 import numpy as np
 import networkx as nx
 import cv2
-from sklearn.cluster import DBSCAN, HDBSCAN
-import matplotlib.pyplot as plt
 from scipy.spatial import Delaunay
 from scipy.spatial import ConvexHull
-
-from metrics_pipeline import read_bundling
 
 CUTOFF = 0.65
 
@@ -315,9 +311,9 @@ def clustering_gestalt(G, img_path, scale=.25):
 
 def process(Bundling):
     G = Bundling.G
-    Bundling.draw('clustering.png', draw_nodes=False, color=False) 
+    Bundling.draw('clustering', draw_nodes=False, color=False) 
     
-    CC, j, areas, perimeters  = clustering_gestalt(G, 'clustering.png')   
+    CC, j, areas, perimeters  = clustering_gestalt(G, f'clustering{G.graph['name']}.png')   
     
     return CC, j, areas, perimeters
 

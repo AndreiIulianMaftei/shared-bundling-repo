@@ -223,11 +223,11 @@ class Metrics():
         '''
         Calculate clusters using various methods and save results with notes.
         '''
-        CC, j, areas, perimeters  = cl.Clustering.process(self.Bundle)
+        CC, j, areas, perimeters  = cl.process(self.Bundle)
         
         self.G.graph['num_clusters'] = j
-        self.G.graph['cluster_areas'] = ' '.join(areas)
-        self.G.graph['cluster_perimeters'] = ' '.join(perimeters)
+        self.G.graph['cluster_areas'] = ' '.join(str(a) for a in areas)
+        self.G.graph['cluster_perimeters'] = ' '.join(str(p) for p in perimeters)
         self.G.graph['mean_cluster_area'] = np.mean(areas)
         self.G.graph['mean_cluster_perimeter'] = np.mean(perimeters)
         
