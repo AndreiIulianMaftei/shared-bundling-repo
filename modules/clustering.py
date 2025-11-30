@@ -1,693 +1,324 @@
-"""
-Clustering module for edge bundling analysis.
-"""
-
-import copy
-import math
-import os
-import pickle
-import re
-from typing import List, Dict, Tuple, Optional, Any
-
-import matplotlib
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_pdf import PdfPages
-from matplotlib.path import Path
-import networkx
+from collections import defaultdict
 import numpy as np
-import pandas as pd
-import pylab
-import requests
-import seaborn as sbn
-from frechetdist import frdist
-from networkx.drawing.nx_pydot import graphviz_layout
-from pdf2image import convert_from_path
-from PIL import Image as Image
-from plotnine import ggplot, aes, geom_violin, geom_boxplot, theme, element_text, labs, element_blank
-from scipy import signal
+import networkx as nx
+import cv2
+from sklearn.cluster import DBSCAN, HDBSCAN
+import matplotlib.pyplot as plt
+from scipy.spatial import Delaunay
 from scipy.spatial import ConvexHull
-from sklearn.cluster import KMeans
-from sklearn.metrics import silhouette_score
 
-from modules.EPB.experiments import Experiment
+from metrics_pipeline import read_bundling
 
+CUTOFF = 0.65
 
-BIG_THRESHOLD = 10
-MEDIUM_THRESHOLD = 5
-SMALL_THRESHOLD = 2
+def delaunay_graph(G_in, x_attr="X", y_attr="Y"):
+    """
+    Create a NetworkX graph representing the Delaunay triangulation of nodes
+    in G_in. Node coordinates must be stored in node attributes X and Y.
 
-TIDE_MAX = 100
-TIDE_MIN = 1
+    Parameters
+    ----------
+    G_in : networkx.Graph
+        Input graph containing node coordinates in attributes x_attr, y_attr.
+    x_attr, y_attr : str
+        Attribute names holding coordinates.
 
-IMG_REZ = 1601
-EDGE_REZ = 100
+    Returns
+    -------
+    G_del : networkx.Graph
+        Graph whose nodes correspond to original nodes, and edges correspond
+        to the Delaunay triangulation edges.
+    tri : scipy.spatial.Delaunay
+        The computed triangulation.
+    pts : np.ndarray
+        Coordinates array in triangulation order.
+    index_to_node : list
+        Mapping from triangulation index → original node ID.
+    """
 
-CONVOLUTION_ITERATIONS = 1
+    # ----------------------------------------
+    # 1. Collect points
+    # ----------------------------------------
+    pts = []
+    index_to_node = []
 
-DBSCAN_EPS = 0.65
-DBSCAN_MIN_SAMPLES = 2
-DBSCAN_DEPTH_WEIGHT = 0.0
-DBSCAN_DIST_WEIGHT = 1.0
+    for node, data in G_in.nodes(data=True):
+        if x_attr not in data or y_attr not in data:
+            raise ValueError(f"Node {node} missing '{x_attr}' or '{y_attr}'.")
 
-MST_K_SIGMA = 2.0
-MST_NEIGHBORHOOD_DEPTH = 5
-MST_DEPTH_WEIGHT = 0.0
-MST_DIST_WEIGHT = 1.0
+        pts.append([float(data[x_attr]), float(data[y_attr])])
+        index_to_node.append(node)
 
-MAX_NORMALIZED_DEPTH = 10
+    pts = np.array(pts, dtype=float)
 
-KMEANS_N_CLUSTERS = 'auto'
-KMEANS_MIN_CLUSTERS = 2
-KMEANS_MAX_CLUSTERS = 10
-KMEANS_CLUSTER_BOOST = 500
-KMEANS_INTERIOR_FACTOR = 0.3
+    # ----------------------------------------
+    # 2. Compute triangulation
+    # ----------------------------------------
+    tri = Delaunay(pts)
 
-VERTEX_DEPTH_BOOST = 90
-EDGE_DEPTH_PRIMARY = 10
-EDGE_DEPTH_SECONDARY = 2
+    # ----------------------------------------
+    # 3. Build Delaunay graph
+    # ----------------------------------------
+    G_del = nx.Graph()
 
-CONVOLUTION_KERNEL_SIZE = 12
+    # Add all nodes with their positions
+    for i, node in enumerate(index_to_node):
+        x, y = pts[i]
+        G_del.add_node(node, X=x, Y=y)
 
+    # Add edges for each triangle's sides
+    for simplex in tri.simplices:   # each simplex has 3 vertices: i,j,k
+        i, j, k = simplex
+        ni, nj, nk = index_to_node[i], index_to_node[j], index_to_node[k]
 
-class Clustering:
-    """Clustering analysis for edge bundling visualization."""
+        d1 = np.linalg.norm(pts[i] - pts[j])
+        d2 = np.linalg.norm(pts[j] - pts[k])
+        d3 = np.linalg.norm(pts[k] - pts[i])
 
-    class Pixel:
-        x: int
-        y: int
-        depth: int
-
-    class Node:
-        x: int
-        y: int
-        depth: int
-        id: int
-
-    class Cluster:
-        id: int
-        depth: int
-        x: int
-        y: int
-        children: List['Clustering.Cluster']
-        parent: List['Clustering.Cluster']
-        contains: int
-
-    def __init__(self, G: networkx.Graph):
-        self.G = G
-
-    def draw_heatMaps(self, matrix: np.ndarray, vertices: List[Tuple]) -> None:
-        """Generate heatmap visualizations for each depth level."""
-        max_depth = 0
-        for i in range(len(matrix)):
-            for j in range(len(matrix[i])):
-                matrix[i][j] = int(matrix[i][j])
-                max_depth = max(max_depth, matrix[i][j])
+        G_del.add_edge(ni, nj, weight=d1)
+        G_del.add_edge(nj, nk, weight=d2)
+        G_del.add_edge(nk, ni, weight=d3)
         
-        for depth in range(int(max_depth), -1, -1):
-            check_matrix = np.zeros((IMG_REZ, IMG_REZ))
-            
-            for i in range(len(matrix)):
-                for j in range(len(matrix[i])):
-                    if matrix[i][j] >= depth:
-                        searched_pos = [(i, j)]
-                        search_stack = [(i, j)]
-                        
-                        while search_stack:
-                            current_pos = search_stack.pop()
-                            I, J = current_pos
-                            
-                            for x in range(-1, 2):
-                                for y in range(-1, 2):
-                                    ni, nj = I + x, J + y
-                                    if (0 <= ni < len(matrix) and 
-                                        0 <= nj < len(matrix[i]) and 
-                                        check_matrix[ni][nj] == 0):
-                                        if matrix[ni][nj] >= depth:
-                                            searched_pos.append((ni, nj))
-                                            search_stack.append((ni, nj))
-                                            check_matrix[ni][nj] = 1
-                                    check_matrix[I][J] = 1
-                        
-                        for pos in searched_pos:
-                            matrix[pos[0]][pos[1]] -= 1
-            
-            plt.imshow(check_matrix, cmap='hot', interpolation='nearest')
-            plt.savefig(f"heatMap_{depth}.png")
-            plt.close() 
-    def draw_clusters(self, clusters: List['Clustering.Cluster']) -> None:
-        """Visualize clusters as a directed tree using Graphviz layout."""
-        G = networkx.DiGraph()
+    return G_del, tri, pts, index_to_node
 
-        cluster_map = {cluster: i for i, cluster in enumerate(clusters)}
 
-        for cluster in clusters:
-            G.add_node(cluster_map[cluster], depth=cluster.depth)
+def average_in_segment_rect_xy(img, x1, y1, x2, y2, half_width):
+    """
+    img: HxW or HxWx3 numpy array
+    (x1,y1), (x2,y2): centers of opposite sides, in *x=left-right, y=top-bottom* coords
+    half_width: half rectangle thickness (pixels)
+    """
+    # direction in x,y space
+    vx, vy = x2 - x1, y2 - y1
+    length = np.hypot(vx, vy)
+    if length == 0:
+        return None
 
-        for cluster in clusters:
-            for child in cluster.children:
-                if child in cluster_map:
-                    G.add_edge(cluster_map[cluster], cluster_map[child])
+    ux, uy = vx / length, vy / length
+    nx, ny = -uy, ux  # perpendicular
 
-        root_idx = cluster_map[clusters[-1]]
-        pos = graphviz_layout(G, prog='dot', root=root_idx)
+    H, W = img.shape[:2]
 
-        depths = [c.depth for c in clusters]
-        min_depth = min(depths)
-        max_depth = max(depths)
+    # bounding box in x,y (then convert to col,row)
+    min_x = int(np.floor(min(x1, x2) - half_width - 2))
+    max_x = int(np.ceil (max(x1, x2) + half_width + 2))
+    min_y = int(np.floor(min(y1, y2) - half_width - 2))
+    max_y = int(np.ceil (max(y1, y2) + half_width + 2))
 
-        cmap = plt.cm.viridis
-        norm = matplotlib.colors.Normalize(vmin=min_depth, vmax=max_depth)
-        node_colors = [norm(d) for d in depths]
+    # clamp to image bounds (remember: cols = x, rows = y)
+    min_col = max(min_x, 0)
+    max_col = min(max_x, W - 1)
+    min_row = max(min_y, 0)
+    max_row = min(max_y, H - 1)
 
-        fig, ax = plt.subplots(figsize=(8, 6))
+    cols = np.arange(min_col, max_col + 1)
+    rows = np.arange(min_row, max_row + 1)
+    C, R = np.meshgrid(cols, rows)  # C = x, R = y
 
-        networkx.draw_networkx_nodes(
-            G, pos,
-            node_color=node_colors,
-            node_size=400,
-            cmap=cmap,
-            ax=ax
-        )
-        networkx.draw_networkx_edges(
-            G, pos,
-            arrowstyle='-|>',
-            arrowsize=12,
-            ax=ax
-        )
-        networkx.draw_networkx_labels(
-            G, pos,
-            labels={cluster_map[c]: f"d={c.depth}" for c in clusters},
-            font_color='white',
-            ax=ax
-        )
+    # vector from (x1,y1) to each pixel center
+    RX = C - x1
+    RY = R - y1
 
-        sm = matplotlib.cm.ScalarMappable(cmap=cmap, norm=norm)
-        sm.set_array([])
-        cbar = fig.colorbar(sm, ax=ax)
-        cbar.set_label('Depth')
+    # projection along segment and perpendicular distance (in x,y space)
+    t = RX * ux + RY * uy
+    d = RX * nx + RY * ny
 
-        ax.set_title("Clusters as a Tree (Root = Last Cluster)")
-        ax.axis('off')
-        plt.tight_layout()
-        
-        plt.savefig("clusters_by_depth.png", dpi=300)
-        plt.close()
+    mask = (t >= 0) & (t <= length) & (np.abs(d) <= half_width)
+    if not np.any(mask):
+        return None
 
-    def cluster_mst(
-        self, 
-        polylines: List[List[Tuple]], 
-        matrix: np.ndarray, 
-        vertices: List[Tuple]
-    ) -> np.ndarray:
-        """Cluster vertices using Minimum Spanning Tree approach."""
-        max_depth = np.max(matrix)
-        print(f"Computing max depth: {max_depth}")
-        
-        if max_depth > 0:
-            matrix = np.where(matrix > 0, (matrix / max_depth) * MAX_NORMALIZED_DEPTH, 0).astype(int)
-        
-        print(f"Max depth: {max_depth}, normalized to {MAX_NORMALIZED_DEPTH}")
+    # rows -> first index, cols -> second index
+    if img.ndim == 2:
+        vals = img[min_row:max_row+1, min_col:max_col+1][mask]
+        return float(vals.mean())
+    else:
+        vals = img[min_row:max_row+1, min_col:max_col+1][mask]
+        return vals.mean(axis=0)
 
-        num_nodes = len(vertices)
-        pairwise_distance = np.zeros((num_nodes, num_nodes))
-        pairwise_avg_depth = np.zeros((num_nodes, num_nodes))
-        
-        for i in range(num_nodes):
-            for j in range(num_nodes):
-                if i != j:
-                    pairwise_distance[i][j] = np.sqrt(
-                        (vertices[i][0] - vertices[j][0])**2 + 
-                        (vertices[i][1] - vertices[j][1])**2
-                    )
-                    
-                    x1, y1 = int(vertices[i][0]), int(vertices[i][1])
-                    x2, y2 = int(vertices[j][0]), int(vertices[j][1])
-                    depths = []
-                    steps = max(abs(x2 - x1), abs(y2 - y1))
-                    
-                    if steps > 0:
-                        for step in range(steps + 1):
-                            t = step / steps
-                            x = int(x1 + t * (x2 - x1))
-                            y = int(y1 + t * (y2 - y1))
-                            if 0 <= x < IMG_REZ and 0 <= y < IMG_REZ:
-                                depths.append(matrix[x][y])
-                        
-                        avg_depth = np.mean(depths) if depths else 0
-                        pairwise_avg_depth[i][j] = avg_depth
-                        pairwise_avg_depth[j][i] = avg_depth
-        
-        max_avg_depth = np.max(pairwise_avg_depth)
-        normalized_depth = (pairwise_avg_depth / MAX_NORMALIZED_DEPTH if max_avg_depth > 0 
-                           else pairwise_avg_depth)
-        if np.max(normalized_depth) > 0:
-            normalized_depth = normalized_depth / np.max(normalized_depth)
-        
-        max_distance = np.max(pairwise_distance)
-        normalized_distance = (pairwise_distance / max_distance if max_distance > 0 
-                              else pairwise_distance)
-        
-        pairwise_distance_score = (
-            MST_DEPTH_WEIGHT * (1 - normalized_depth) + 
-            MST_DIST_WEIGHT * normalized_distance
-        )
 
-        G = networkx.Graph()
-        
-        for i in range(num_nodes):
-            G.add_node(i, pos=vertices[i])
-        
-        for i in range(num_nodes):
-            for j in range(i + 1, num_nodes):
-                weight = pairwise_distance_score[i][j]
-                G.add_edge(i, j, weight=weight)
-
-        mst = networkx.minimum_spanning_tree(G, weight='weight')
-        print(f"\nMST computed with {mst.number_of_edges()} edges")
-        
-        inconsistent_edges = self._find_inconsistent_edges(mst)
-        
-        mst_clustered = mst.copy()
-        for u, v, _, _, _ in inconsistent_edges:
-            mst_clustered.remove_edge(u, v)
-        
-        clusters = list(networkx.connected_components(mst_clustered))
-        vertex_clusters = np.full(num_nodes, -1)
-        
-        for cluster_id, cluster_nodes in enumerate(clusters):
-            for node in cluster_nodes:
-                vertex_clusters[node] = cluster_id
-        
-        print(f"\nMST Clustering: {len(clusters)} clusters found, "
-              f"{len(inconsistent_edges)} edges removed")
-        
-        return vertex_clusters
-
-    def _find_inconsistent_edges(
-        self, 
-        mst: networkx.Graph
-    ) -> List[Tuple[int, int, float, float, float]]:
-        """Find edges in MST that are inconsistent with their neighborhood."""
-        inconsistent_edges = []
-        
-        for u, v, data in mst.edges(data=True):
-            edge_weight = data['weight']
-            
-            neighbor_weights = []
-            visited = {u, v}
-            queue = [(u, 0), (v, 0)]
-            
-            while queue:
-                node, dist = queue.pop(0)
-                if dist < MST_NEIGHBORHOOD_DEPTH:
-                    for neighbor in mst.neighbors(node):
-                        if neighbor not in visited:
-                            visited.add(neighbor)
-                            queue.append((neighbor, dist + 1))
-                            
-                            edge_data = mst.get_edge_data(node, neighbor)
-                            if edge_data and 'weight' in edge_data:
-                                neighbor_weights.append(edge_data['weight'])
-            
-            if len(neighbor_weights) > 1:
-                mean_weight = np.mean(neighbor_weights)
-                std_weight = np.std(neighbor_weights, ddof=1)
-                threshold = mean_weight + MST_K_SIGMA * std_weight
-                
-                if edge_weight > threshold:
-                    inconsistent_edges.append((u, v, edge_weight, mean_weight, std_weight))
-        
-        return inconsistent_edges
-
-    def get_clusters(
-        self, 
-        polylines: List[List[Tuple]], 
-        matrix: np.ndarray, 
-        vertices: List[Tuple]
-    ) -> np.ndarray:
-        """
-        Cluster vertices using HDBSCAN with combined distance metric.
-        
-        Computes pairwise distances combining spatial distance and density
-        along paths between vertices, then applies HDBSCAN clustering.
-        
-        Args:
-            polylines: List of edge polylines
-            matrix: Density matrix
-            vertices: List of vertex positions
-            
-        Returns:
-            Array of cluster IDs for each vertex (-1 for noise)
-        """
-        # Normalize matrix to 0-10 range
-        max_depth = np.max(matrix)
-        print(f"Computing max depth: {max_depth}")
-        
-        if max_depth > 0:
-            matrix = np.where(matrix > 0, (matrix / max_depth) * MAX_NORMALIZED_DEPTH, 0).astype(int)
-        
-        print(f"Max depth: {max_depth}, normalized to {MAX_NORMALIZED_DEPTH}")
-
-        # Compute pairwise distance and average depth between nodes
-        num_nodes = len(vertices)
-        pairwise_distance = np.zeros((num_nodes, num_nodes))
-        pairwise_avg_depth = np.zeros((num_nodes, num_nodes))
-        
-        for i in range(num_nodes):
-            for j in range(num_nodes):
-                if i != j:
-                    # Euclidean distance
-                    pairwise_distance[i][j] = np.sqrt(
-                        (vertices[i][0] - vertices[j][0])**2 + 
-                        (vertices[i][1] - vertices[j][1])**2
-                    )
-                    
-                    # Average depth along line between nodes
-                    x1, y1 = int(vertices[i][0]), int(vertices[i][1])
-                    x2, y2 = int(vertices[j][0]), int(vertices[j][1])
-                    depths = []
-                    steps = max(abs(x2 - x1), abs(y2 - y1))
-                    
-                    if steps > 0:
-                        for step in range(steps + 1):
-                            t = step / steps
-                            x = int(x1 + t * (x2 - x1))
-                            y = int(y1 + t * (y2 - y1))
-                            if 0 <= x < IMG_REZ and 0 <= y < IMG_REZ:
-                                depths.append(matrix[x][y])
-                        
-                        avg_depth = np.mean(depths) if depths else 0
-                        pairwise_avg_depth[i][j] = avg_depth
-                        pairwise_avg_depth[j][i] = avg_depth
-        
-        # Normalize depth and distance to [0, 1]
-        max_avg_depth = np.max(pairwise_avg_depth)
-        normalized_depth = (pairwise_avg_depth / MAX_NORMALIZED_DEPTH 
-                           if max_avg_depth > 0 else pairwise_avg_depth)
-        if np.max(normalized_depth) > 0:
-            normalized_depth = normalized_depth / np.max(normalized_depth)
-
-        max_distance = np.max(pairwise_distance)
-        normalized_distance = (pairwise_distance / max_distance 
-                              if max_distance > 0 else pairwise_distance)
-        
-        # Check symmetry for debugging
-        from scipy.linalg import issymmetric
-        print(f"Distance matrix symmetric: {issymmetric(normalized_distance)}")
-        print(f"Depth matrix symmetric: {issymmetric(normalized_depth)}")
-
-        # Combined distance score (higher depth = more connected = lower distance)
-        pairwise_distance_score = (
-            DBSCAN_DEPTH_WEIGHT * (1 - normalized_depth) + 
-            DBSCAN_DIST_WEIGHT * normalized_distance
-        )
-
-        # Apply HDBSCAN clustering with precomputed distance matrix
-        from sklearn.cluster import HDBSCAN
-        
-        clusterer = HDBSCAN(
-            min_samples=DBSCAN_MIN_SAMPLES,
-            metric='precomputed'
-        )
-        vertex_clusters = clusterer.fit_predict(pairwise_distance_score)
-        
-        num_clusters = len(np.unique(vertex_clusters[vertex_clusters != -1]))
-        num_noise = np.sum(vertex_clusters == -1)
-        
-        print(f"HDBSCAN Clustering: {num_clusters} clusters found, {num_noise} noise points")
-        
-        return vertex_clusters
-
-            
-
-    def all_edges(self, G: networkx.Graph) -> List[List[Tuple[float, float]]]:
-        """
-        Extract all edge polylines from the graph.
-        
-        Args:
-            G: NetworkX graph with edge coordinate data
-            
-        Returns:
-            List of polylines, where each polyline is a list of (x, y) coordinates
-        """
-        list_edges = list(self.G.edges(data=True))
-        polylines = []
-        
-        for u, v, data in list_edges:
-            numbers_x = [float(num) for num in data.get('X')]
-            numbers_y = [float(num) for num in data.get('Y')]
-            polyline = [(numbers_x[i], numbers_y[i]) for i in range(len(numbers_x))]
-            polylines.append(polyline)
-        
-        return polylines
-
-    def init_matrix(
-        self, 
-        polylines: List[List[Tuple[float, float]]], 
-        n_clusters: str = 'auto', 
-        cluster_depth_boost: int = KMEANS_CLUSTER_BOOST
-    ) -> np.ndarray:
-        """
-        Initialize density matrix from polylines.
-        
-        Creates a density matrix by rasterizing edge polylines and adding
-        depth values based on edge overlap. Optionally performs k-means
-        clustering on vertices to boost cluster regions.
-        
-        Args:
-            polylines: List of polylines (each is a list of (x, y) coordinates)
-            n_clusters: Number of k-means clusters or 'auto' for automatic detection
-            cluster_depth_boost: Depth value to add to cluster centers
-            
-        Returns:
-            Density matrix (IMG_REZ x IMG_REZ)
-        """
-        matrix = np.zeros((IMG_REZ, IMG_REZ))
-
-        # Step 1: Collect vertices (endpoints of polylines)
-        vertices = []
-        for polyline in polylines:
-            if len(polyline) >= 2:
-                vertices.append([polyline[0][0], polyline[0][1]])   # Start
-                vertices.append([polyline[-1][0], polyline[-1][1]])  # End
-        
-        vertices = np.array(vertices)
-        print(f"Collected {len(vertices)} vertices for clustering")
-        
-        # Step 2: K-means clustering (currently disabled by default)
-        # Uncomment to enable vertex clustering with depth boost
-        # if n_clusters == 'auto':
-        #     n_clusters = self._find_optimal_clusters(vertices)
-        #     print(f"Automatically determined optimal clusters: {n_clusters}")
-        # 
-        # if len(vertices) > 0 and len(vertices) >= n_clusters:
-        #     self._apply_kmeans_boost(matrix, vertices, n_clusters, cluster_depth_boost)
-
-        # Step 3: Rasterize polylines into density matrix
-        for polyline in polylines:
-            check_matrix = np.zeros((IMG_REZ, IMG_REZ))
-            
-            # Boost vertex positions
-            start_x, start_y = int(polyline[0][0]), int(polyline[0][1])
-            end_x, end_y = int(polyline[-1][0]), int(polyline[-1][1])
-            matrix[start_x][start_y] += VERTEX_DEPTH_BOOST
-            matrix[end_x][end_y] += VERTEX_DEPTH_BOOST
-            
-            # Interpolate and rasterize edge segments
-            for i in range(len(polyline) - 1):
-                x1, y1 = int(polyline[i][0]), int(polyline[i][1])
-                x2, y2 = int(polyline[i+1][0]), int(polyline[i+1][1])
-                
-                # Interpolate EDGE_REZ points between segment endpoints
-                x = np.linspace(x1, x2, EDGE_REZ)
-                y = np.linspace(y1, y2, EDGE_REZ)
-                
-                for j in range(EDGE_REZ):
-                    xi, yi = int(x[j]), int(y[j])
-                    if check_matrix[xi][yi] == 0:
-                        matrix[xi][yi] += EDGE_DEPTH_PRIMARY
-                    else:
-                        matrix[xi][yi] += EDGE_DEPTH_SECONDARY
-                    check_matrix[xi][yi] = 1
-
-        return matrix
+def clustering_gestalt(G, img_path, scale=.25):
+    image = cv2.imread(img_path)
+    gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+    blur = cv2.resize(gray, (0,0), fx=scale, fy=scale)
+    blur = cv2.GaussianBlur(blur, (7, 7), 0)
+    blur = blur.astype(np.float32)
     
-    def _apply_kmeans_boost(
-        self,
-        matrix: np.ndarray,
-        vertices: np.ndarray,
-        n_clusters: int,
-        cluster_depth_boost: int
-    ) -> None:
-        """
-        Apply k-means clustering to vertices and boost density at cluster regions.
-        
-        Args:
-            matrix: Density matrix to modify (in-place)
-            vertices: Array of vertex coordinates
-            n_clusters: Number of clusters
-            cluster_depth_boost: Depth boost to apply
-        """
-        kmeans = KMeans(n_clusters=n_clusters, random_state=42, n_init=10)
-        kmeans.fit(vertices)
-        cluster_labels = kmeans.labels_
-        
-        print(f"K-means clustering completed with {n_clusters} clusters")
-        
-        for cluster_id in range(n_clusters):
-            cluster_vertices = vertices[cluster_labels == cluster_id]
-            
-            if len(cluster_vertices) < 3:
-                # Not enough points for convex hull - boost individual points
-                for vertex in cluster_vertices:
-                    x = int(np.clip(vertex[0], 0, IMG_REZ - 1))
-                    y = int(np.clip(vertex[1], 0, IMG_REZ - 1))
-                    matrix[x][y] += cluster_depth_boost
-                print(f"Cluster {cluster_id}: Boosted {len(cluster_vertices)} points")
-            else:
-                # Create convex hull and boost interior
-                try:
-                    hull = ConvexHull(cluster_vertices)
-                    hull_vertices = cluster_vertices[hull.vertices]
-                    hull_path = Path(hull_vertices)
-                    
-                    # Find bounding box
-                    min_x = int(max(0, np.floor(hull_vertices[:, 0].min())))
-                    max_x = int(min(IMG_REZ - 1, np.ceil(hull_vertices[:, 0].max())))
-                    min_y = int(max(0, np.floor(hull_vertices[:, 1].min())))
-                    max_y = int(min(IMG_REZ - 1, np.ceil(hull_vertices[:, 1].max())))
-                    
-                    # Fill interior with reduced boost
-                    interior_boost = cluster_depth_boost * KMEANS_INTERIOR_FACTOR
-                    for x in range(min_x, max_x + 1):
-                        for y in range(min_y, max_y + 1):
-                            if hull_path.contains_point((x, y)):
-                                matrix[x][y] += interior_boost
-                    
-                    print(f"Cluster {cluster_id}: Filled hull with {interior_boost:.1f} boost")
-                except Exception as e:
-                    print(f"Cluster {cluster_id}: Hull failed ({e}), boosting points")
-                    for vertex in cluster_vertices:
-                        x = int(np.clip(vertex[0], 0, IMG_REZ - 1))
-                        y = int(np.clip(vertex[1], 0, IMG_REZ - 1))
-                        matrix[x][y] += cluster_depth_boost
+    nodes = list(G.nodes())
+  
+    G_Del, tri, pts, index_to_node = delaunay_graph(G)
+    alpha = 0.85
     
-    def _find_optimal_clusters(
-        self, 
-        vertices: np.ndarray, 
-        min_clusters: int = KMEANS_MIN_CLUSTERS, 
-        max_clusters: int = KMEANS_MAX_CLUSTERS
-    ) -> int:
-        """
-        Determine optimal number of clusters using silhouette score.
-        
-        Args:
-            vertices: Array of vertex coordinates
-            min_clusters: Minimum number of clusters to try
-            max_clusters: Maximum number of clusters to try
-            
-        Returns:
-            Optimal number of clusters
-        """
-        if len(vertices) < min_clusters:
-            return max(1, len(vertices))
-        
-        max_clusters = min(max_clusters, len(vertices) - 1)
-        
-        if max_clusters < min_clusters:
-            return min_clusters
-        
-        best_score = -1
-        best_k = min_clusters
-        
-        for k in range(min_clusters, max_clusters + 1):
-            try:
-                kmeans = KMeans(n_clusters=k, random_state=42, n_init=10)
-                labels = kmeans.fit_predict(vertices)
-                score = silhouette_score(vertices, labels)
-                
-                print(f"  Testing k={k}: silhouette score = {score:.3f}")
-                
-                if score > best_score:
-                    best_score = score
-                    best_k = k
-            except Exception as e:
-                print(f"  Could not evaluate k={k}: {e}")
-                continue
-        
-        print(f"  Best silhouette score: {best_score:.3f} at k={best_k}")
-        return best_k
+    to_remove = []
+    for u,v,data in G_Del.edges(data=True):
+        if data['weight'] < 5:
+            to_remove.append((u,v))
     
-    def calcMatrix(self, matrix: np.ndarray) -> np.ndarray:
-        """
-        Apply convolution smoothing to the density matrix.
-        
-        Args:
-            matrix: Raw density matrix
-            
-        Returns:
-            Smoothed density matrix
-        """
-        # Apply Gaussian-like smoothing via convolution
-        kernel = np.ones((CONVOLUTION_KERNEL_SIZE, CONVOLUTION_KERNEL_SIZE))
-        
-        for _ in range(CONVOLUTION_ITERATIONS):
-            matrix = signal.convolve2d(matrix, kernel, mode='same')
+    for u,v in to_remove:
+        G_Del.remove_edge(u,v)
+           
+    nodes = list(G_Del.nodes(data=True))
+    
+    ink_lookup = {}
+    for u,v in G_Del.edges():
 
-        # Save heatmap visualization
-        plt.imshow(matrix, cmap='hot', interpolation='nearest')
-        plt.savefig("heatMap.png")
-        plt.close()
-        
-        return matrix
-    
-    def init_Points(self) -> List[Tuple[int, int, int]]:
-        """
-        Extract vertex positions from graph nodes.
-        
-        Returns:
-            List of tuples (x, y, node_id) for each vertex
-        """
-        vertices = []
-        
-        for node_id, node_data in self.G.nodes(data=True):
-            node_x = node_data.get('X')
-            node_y = node_data.get('Y')
-            node_id_val = node_data.get('id')
-            vertex = (int(node_x), int(node_y), int(node_id))
-            vertices.append(vertex)
+        x1 = int(G_Del.nodes[u]['X'] * scale)
+        y1 = blur.shape[0] -int(G_Del.nodes[u]['Y'] * scale)
+        x2 = int(G_Del.nodes[v]['X'] * scale)
+        y2 = blur.shape[0] -int(G_Del.nodes[v]['Y'] * scale)
 
-        return vertices
+        if x1 == x2 and y1 == y2:
+            val = 255.0
+        else:
+            val = average_in_segment_rect_xy(blur, x1, y1, x2, y2, half_width=3)
+            
+        avg_intensity_normalized = val / 255.0    
+        ink_lookup[(u, v)] = avg_intensity_normalized
+        ink_lookup[(v, u)] = avg_intensity_normalized
     
-    def get_depth_maps(self, matrix: np.ndarray) -> Dict[int, np.ndarray]:
-        """
-        Generate binary depth maps for each depth level.
+    
+    
+    normalize = 0
+    for u,v,data in G_Del.edges(data=True):
+        normalize = max(normalize, data['weight'])
+
+    for u,v,data in G_Del.edges(data=True):
+        data['weight'] = data['weight'] / normalize
         
-        Returns a dictionary where each key is a depth value and the
-        corresponding value is a binary matrix indicating pixels at or
-        below that depth.
+        data['weight'] = alpha * data['weight'] + (1.0 - alpha) * ink_lookup[(u,v)]
+
+    Q0_P = []
+    lookup_Q = defaultdict(dict)
+    
+    for i in range(len(nodes)):
+        n = nodes[i]
         
-        Args:
-            matrix: Density matrix
+        RX = list(nx.bfs_tree(G_Del, source=n[0], depth_limit=2).edges())
+        
+        if len(RX) < 1:
+            continue
+        
+        mx = 1000000
+        for u,v in RX: 
+            mx = min(G_Del[u][v]['weight'], mx)
             
-        Returns:
-            Dictionary mapping depth values to binary matrices
-        """
-        depth_maps = {}
-        
-        # Find max depth
-        max_depth = int(np.max(matrix))
-        
-        # Create binary map for each depth level
-        for depth in range(max_depth + 1):
-            depth_map = np.zeros((IMG_REZ, IMG_REZ))
+        RXX = []
+        for u,v in RX:
+            RXX.append((u,v, G_Del[u][v]['weight'] / mx))
             
-            for i in range(min(len(matrix), IMG_REZ)):
-                for j in range(min(len(matrix[i]), IMG_REZ)):
-                    if 0 < matrix[i][j] <= depth:
-                        depth_map[i][j] = 1
+            if u == n[0]:
+                lookup_Q[n[0]][v] = G_Del[u][v]['weight'] / mx
+            elif v == n[0]:
+                lookup_Q[n[0]][u] = G_Del[u][v]['weight'] / mx
+
             
-            depth_maps[depth] = depth_map
+        for neigh in list(G_Del.neighbors(n[0])):
+            Q = lookup_Q[n[0]][neigh]
+            Q0_P.append((n[0], neigh, Q))
+            
+    Q1_S = sorted(Q0_P, key=lambda x: x[2])
+    
+    mean_x = 0
+    for u,v,w in Q1_S:
+        mean_x += w
+    mean_x = mean_x / len(Q1_S)
+    
+    
+    W_X = []
+    for u,v,w in Q1_S:
+        W_X.append(w / mean_x)
         
-        return depth_maps
+    Q1_P = [0]
+    
+    for j in range(1, len(Q1_S) - 1):
+        Q1_P.append((Q1_S[j+1][2] - Q1_S[j][2]) / 2)
+    Q1_P.append(Q1_P[-1])
+        
+        
+    Q2_PP = [0]
+    for j in range(1, len(Q1_P)-1):
+        Q2_PP.append((Q1_S[j+1][2] + Q1_S[j-1][2] - 2 * Q1_S[j][2]) / 4)
+    Q2_PP.append(Q2_PP[-1])
+        
+    Q_ID2 = []
+    for i in range(len(Q1_S)):
+        Q_ID2.append((Q2_PP[i] * Q1_S[i][2]**2 / mean_x))
+        
+    Q_ID = []
+    for i in range(len(Q1_P)):
+        Q_ID.append((Q1_P[i] * W_X[i]))
+        
+    for i in range(len(Q_ID)):
+        if Q_ID[i] > 0.12:
+            break
+    w1 = Q1_S[i][2]
+    
+
+    for i in range(len(Q_ID2)):
+        if Q_ID2[i] > 0.025 * 50 /len(nodes):
+            break
+    w2 = Q1_S[i][2]
+    w2 = Q1_S[int(len(Q1_S) * 0.65)][2]
+  
+    for i in range(len(nodes)):
+        for j in range(i+1, len(nodes)):
+            n1 = nodes[i][0]
+            n2 = nodes[j][0]
+            
+            if G_Del.has_edge(n1, n2):
+                if lookup_Q[n1][n2] > w2 or lookup_Q[n2][n1] > w2:
+                    G_Del.remove_edge(n1, n2)
+               
+    CC = list(nx.connected_components(G_Del))
+        
+    areas = []
+    perimeters = []
+    
+    j = 1
+    for i, cc in enumerate(CC):
+        
+        if len(cc) > 5:
+            j += 1
+        
+        pts = []
+        for n in cc:
+            G.nodes[n]['cluster'] = i
+
+            pts.append([G.nodes[n]['X'], G.nodes[n]['Y']])
+    
+        if len(cc) <= 3:
+            continue
+            
+        pts = np.array(pts)
+        
+        hull = ConvexHull(pts)
+        hull_pts = pts[hull.vertices]
+        
+        # perimeter (closed polygon)
+        diffs = np.diff(np.vstack([hull_pts, hull_pts[0]]), axis=0)
+        edge_lengths = np.linalg.norm(diffs, axis=1)
+        perimeter = float(edge_lengths.sum())
+
+        # area via shoelace formula
+        x = hull_pts[:, 0]
+        y = hull_pts[:, 1]
+        area = 0.5 * float(np.abs(np.dot(x, np.roll(y, -1)) -
+                                  np.dot(y, np.roll(x, -1))))
+        areas.append(area)
+        perimeters.append(perimeter)
+
+    print(f"Detected {j} clusters.")
+    print("Cluster areas:", np.mean(areas))
+    print("Cluster perimeters:", np.mean(perimeters))
+
+
+    return CC, j, areas, perimeters
+
+def process(Bundling):
+    G = Bundling.G
+    Bundling.draw('clustering.png', draw_nodes=False, color=False) 
+    
+    CC, j, areas, perimeters  = clustering_gestalt(G, 'clustering.png')   
+    
+    return CC, j, areas, perimeters
+
+

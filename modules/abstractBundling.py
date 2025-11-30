@@ -270,7 +270,7 @@ class AbstractBundling:
             Y.append(data['Y'])
             
             if color_vertices:
-                cmap = matplotlib.cm.get_cmap('tab10')
+                cmap = matplotlib.cm.get_cmap('tab20')
                 
                 if data[color_vertices] == 100:
                     C.append("red")
@@ -283,7 +283,13 @@ class AbstractBundling:
             ax.scatter(X, Y, color=C, marker='.', s = CIRCLE, zorder=2)
 
 
-        plt.savefig(f'{path}{self.name}{fileAddition}.{file_ending}')
+        plt.gca().set_axis_off()
+        plt.subplots_adjust(top = 1, bottom = 0, right = 1, left = 0, 
+                    hspace = 0, wspace = 0)
+        plt.margins(0,0)
+        plt.gca().xaxis.set_major_locator(plt.NullLocator())
+        plt.gca().yaxis.set_major_locator(plt.NullLocator())
+        plt.savefig(f'{path}{self.name}{fileAddition}.{file_ending}', bbox_inches='tight',pad_inches = 0)
         plt.close(fig)
         
         if plotSpanner:

@@ -82,12 +82,8 @@ class Metrics():
                 return self.calcMeanEdgeLengthDifference(**args)
             case 'clustering':
                 return self.calcClusters(**args)
-            case 'geometric_clustering':
-                return self.calcGeometricClustering(**args)
             case 'directionality_mag':
                 return self.calcPathQuality(**args)
-            case 'visual_clustering':
-                return self.calcVisualClustering(**args)
             case _:
                 print("not yet implemented")
                 return 
@@ -222,186 +218,200 @@ class Metrics():
             data['geometric_cluster'] = int(clust.labels_[n])
 
         return numClusters
+
+    def calcClusters(self, return_mean=True):
+        '''
+        Calculate clusters using various methods and save results with notes.
+        '''
+        CC, j, areas, perimeters  = cl.Clustering.process(self.Bundle)
+        
+        self.G.graph['num_clusters'] = j
+        self.G.graph['cluster_areas'] = ' '.join(areas)
+        self.G.graph['cluster_perimeters'] = ' '.join(perimeters)
+        self.G.graph['mean_cluster_area'] = np.mean(areas)
+        self.G.graph['mean_cluster_perimeter'] = np.mean(perimeters)
+        
+        return j
     
-    def calcClusters(self, return_mean=True, save_results=True, methods=['hdbscan', 'mst']):
-        """
-        Compute clusters using various methods and save results with notes.
+    # def calcClusters(self, return_mean=True, save_results=True, methods=['hdbscan', 'mst']):
+    #     """
+    #     Compute clusters using various methods and save results with notes.
         
-        Args:
-            return_mean: If True, returns summary statistics
-            save_results: If True, saves cluster assignments and detailed analysis
-            methods: List of clustering methods to apply ['hdbscan', 'mst']
+    #     Args:
+    #         return_mean: If True, returns summary statistics
+    #         save_results: If True, saves cluster assignments and detailed analysis
+    #         methods: List of clustering methods to apply ['hdbscan', 'mst']
         
-        Returns:
-            Dictionary containing cluster results and metadata for each method
-        """
-        import json
-        from datetime import datetime
+    #     Returns:
+    #         Dictionary containing cluster results and metadata for each method
+    #     """
+    #     import json
+    #     from datetime import datetime
         
-        results = {
-            'timestamp': datetime.now().isoformat(),
-            'graph_name': self.G.graph.get('name', 'unknown'),
-            'num_nodes': self.G.number_of_nodes(),
-            'num_edges': self.G.number_of_edges(),
-            'methods': {}
-        }
+    #     results = {
+    #         'timestamp': datetime.now().isoformat(),
+    #         'graph_name': self.G.graph.get('name', 'unknown'),
+    #         'num_nodes': self.G.number_of_nodes(),
+    #         'num_edges': self.G.number_of_edges(),
+    #         'methods': {}
+    #     }
         
-        if self.verbose:
-            print(f"Starting cluster analysis for {results['graph_name']}")
+    #     if self.verbose:
+    #         print(f"Starting cluster analysis for {results['graph_name']}")
         
-        try:
-            # Initialize clustering
-            clustering = cl.Clustering(self.G)
+    #     try:
+    #         # Initialize clustering
+    #         clustering = cl.Clustering(self.G)
             
-            # Extract polylines and vertices
-            polylines = clustering.all_edges(self.G)
-            vertices = clustering.init_Points()
+    #         # Extract polylines and vertices
+    #         polylines = clustering.all_edges(self.G)
+    #         vertices = clustering.init_Points()
             
-            if self.verbose:
-                print(f"  Extracted {len(polylines)} polylines, {len(vertices)} vertices")
+    #         if self.verbose:
+    #             print(f"  Extracted {len(polylines)} polylines, {len(vertices)} vertices")
             
-            results['num_polylines'] = len(polylines)
-            results['num_vertices'] = len(vertices)
+    #         results['num_polylines'] = len(polylines)
+    #         results['num_vertices'] = len(vertices)
             
-            # Compute density matrix
-            if self.verbose:
-                print("  Computing density matrix...")
-            matrix = clustering.init_matrix(polylines)
-            matrix = clustering.calcMatrix(matrix)
+    #         # Compute density matrix
+    #         if self.verbose:
+    #             print("  Computing density matrix...")
+    #         matrix = clustering.init_matrix(polylines)
+    #         matrix = clustering.calcMatrix(matrix)
             
-            results['matrix_max_depth'] = float(np.max(matrix))
-            results['matrix_mean_depth'] = float(np.mean(matrix[matrix > 0]))
+    #         results['matrix_max_depth'] = float(np.max(matrix))
+    #         results['matrix_mean_depth'] = float(np.mean(matrix[matrix > 0]))
             
-            # Apply each clustering method
-            for method in methods:
-                method_results = {
-                    'method': method,
-                    'parameters': {},
-                    'metrics': {},
-                    'notes': []
-                }
+    #         # Apply each clustering method
+    #         for method in methods:
+    #             method_results = {
+    #                 'method': method,
+    #                 'parameters': {},
+    #                 'metrics': {},
+    #                 'notes': []
+    #             }
                 
-                try:
-                    start_time = datetime.now()
+    #             try:
+    #                 start_time = datetime.now()
                     
-                    if method == 'hdbscan':
-                        if self.verbose:
-                            print("  Running HDBSCAN clustering...")
+    #                 if method == 'hdbscan':
+    #                     if self.verbose:
+    #                         print("  Running HDBSCAN clustering...")
                         
-                        vertex_clusters = clustering.get_clusters(polylines, matrix, vertices)
+    #                     vertex_clusters = clustering.get_clusters(polylines, matrix, vertices)
                         
-                        # Store parameters used (from clustering module constants)
-                        method_results['parameters'] = {
-                            'min_samples': cl.DBSCAN_MIN_SAMPLES,
-                            'metric': 'precomputed',
-                            'depth_weight': cl.DBSCAN_DEPTH_WEIGHT,
-                            'dist_weight': cl.DBSCAN_DIST_WEIGHT
-                        }
+    #                     # Store parameters used (from clustering module constants)
+    #                     method_results['parameters'] = {
+    #                         'min_samples': cl.DBSCAN_MIN_SAMPLES,
+    #                         'metric': 'precomputed',
+    #                         'depth_weight': cl.DBSCAN_DEPTH_WEIGHT,
+    #                         'dist_weight': cl.DBSCAN_DIST_WEIGHT
+    #                     }
                         
-                    elif method == 'mst':
-                        if self.verbose:
-                            print("  Running MST clustering...")
+    #                 elif method == 'mst':
+    #                     if self.verbose:
+    #                         print("  Running MST clustering...")
                         
-                        vertex_clusters = clustering.cluster_mst(polylines, matrix, vertices)
+    #                     vertex_clusters = clustering.cluster_mst(polylines, matrix, vertices)
                         
-                        # Store parameters used
-                        method_results['parameters'] = {
-                            'k_sigma': cl.MST_K_SIGMA,
-                            'neighborhood_depth': cl.MST_NEIGHBORHOOD_DEPTH,
-                            'depth_weight': cl.MST_DEPTH_WEIGHT,
-                            'dist_weight': cl.MST_DIST_WEIGHT
-                        }
+    #                     # Store parameters used
+    #                     method_results['parameters'] = {
+    #                         'k_sigma': cl.MST_K_SIGMA,
+    #                         'neighborhood_depth': cl.MST_NEIGHBORHOOD_DEPTH,
+    #                         'depth_weight': cl.MST_DEPTH_WEIGHT,
+    #                         'dist_weight': cl.MST_DIST_WEIGHT
+    #                     }
                     
-                    else:
-                        method_results['notes'].append(f"Unknown method: {method}")
-                        results['methods'][method] = method_results
-                        continue
+    #                 else:
+    #                     method_results['notes'].append(f"Unknown method: {method}")
+    #                     results['methods'][method] = method_results
+    #                     continue
                     
-                    elapsed_time = (datetime.now() - start_time).total_seconds()
-                    method_results['time_seconds'] = elapsed_time
+    #                 elapsed_time = (datetime.now() - start_time).total_seconds()
+    #                 method_results['time_seconds'] = elapsed_time
                     
-                    # Compute metrics
-                    unique_clusters = np.unique(vertex_clusters)
-                    valid_clusters = unique_clusters[unique_clusters != -1]
-                    num_clusters = len(valid_clusters)
-                    num_noise = np.sum(vertex_clusters == -1)
+    #                 # Compute metrics
+    #                 unique_clusters = np.unique(vertex_clusters)
+    #                 valid_clusters = unique_clusters[unique_clusters != -1]
+    #                 num_clusters = len(valid_clusters)
+    #                 num_noise = np.sum(vertex_clusters == -1)
                     
-                    method_results['metrics']['num_clusters'] = int(num_clusters)
-                    method_results['metrics']['num_noise_points'] = int(num_noise)
-                    method_results['metrics']['noise_ratio'] = float(num_noise / len(vertices)) if len(vertices) > 0 else 0.0
+    #                 method_results['metrics']['num_clusters'] = int(num_clusters)
+    #                 method_results['metrics']['num_noise_points'] = int(num_noise)
+    #                 method_results['metrics']['noise_ratio'] = float(num_noise / len(vertices)) if len(vertices) > 0 else 0.0
                     
-                    # Cluster size distribution
-                    cluster_sizes = [int(np.sum(vertex_clusters == i)) for i in valid_clusters]
-                    method_results['metrics']['cluster_sizes'] = cluster_sizes
-                    method_results['metrics']['mean_cluster_size'] = float(np.mean(cluster_sizes)) if cluster_sizes else 0.0
-                    method_results['metrics']['max_cluster_size'] = int(max(cluster_sizes)) if cluster_sizes else 0
-                    method_results['metrics']['min_cluster_size'] = int(min(cluster_sizes)) if cluster_sizes else 0
+    #                 # Cluster size distribution
+    #                 cluster_sizes = [int(np.sum(vertex_clusters == i)) for i in valid_clusters]
+    #                 method_results['metrics']['cluster_sizes'] = cluster_sizes
+    #                 method_results['metrics']['mean_cluster_size'] = float(np.mean(cluster_sizes)) if cluster_sizes else 0.0
+    #                 method_results['metrics']['max_cluster_size'] = int(max(cluster_sizes)) if cluster_sizes else 0
+    #                 method_results['metrics']['min_cluster_size'] = int(min(cluster_sizes)) if cluster_sizes else 0
                     
-                    # Add notes
-                    method_results['notes'].append(
-                        f"Found {num_clusters} clusters with {num_noise} noise points in {elapsed_time:.2f}s"
-                    )
+    #                 # Add notes
+    #                 method_results['notes'].append(
+    #                     f"Found {num_clusters} clusters with {num_noise} noise points in {elapsed_time:.2f}s"
+    #                 )
                     
-                    if self.verbose:
-                        print(f"    {method.upper()}: {num_clusters} clusters, {num_noise} noise points ({elapsed_time:.2f}s)")
+    #                 if self.verbose:
+    #                     print(f"    {method.upper()}: {num_clusters} clusters, {num_noise} noise points ({elapsed_time:.2f}s)")
                     
-                    # Save cluster assignments to graph nodes
-                    if save_results:
-                        # Map vertex indices to node IDs
-                        for vertex_idx, cluster_id in enumerate(vertex_clusters):
-                            if vertex_idx < len(vertices):
-                                # vertices is list of (x, y, node_id)
-                                node_id = int(vertices[vertex_idx][2])
-                                if node_id in self.G.nodes:
-                                    self.G.nodes[node_id][f'cluster_{method}'] = int(cluster_id)
+    #                 # Save cluster assignments to graph nodes
+    #                 if save_results:
+    #                     # Map vertex indices to node IDs
+    #                     for vertex_idx, cluster_id in enumerate(vertex_clusters):
+    #                         if vertex_idx < len(vertices):
+    #                             # vertices is list of (x, y, node_id)
+    #                             node_id = int(vertices[vertex_idx][2])
+    #                             if node_id in self.G.nodes:
+    #                                 self.G.nodes[node_id][f'cluster_{method}'] = int(cluster_id)
                         
-                        method_results['notes'].append(f"Cluster assignments saved to graph nodes as 'cluster_{method}'")
+    #                     method_results['notes'].append(f"Cluster assignments saved to graph nodes as 'cluster_{method}'")
                     
-                    results['methods'][method] = method_results
+    #                 results['methods'][method] = method_results
                     
-                except Exception as e:
-                    method_results['notes'].append(f"Error: {str(e)}")
-                    method_results['error'] = str(e)
-                    results['methods'][method] = method_results
-                    if self.verbose:
-                        print(f"    Error in {method}: {str(e)}")
+    #             except Exception as e:
+    #                 method_results['notes'].append(f"Error: {str(e)}")
+    #                 method_results['error'] = str(e)
+    #                 results['methods'][method] = method_results
+    #                 if self.verbose:
+    #                     print(f"    Error in {method}: {str(e)}")
             
-            # Save results to file
-            if save_results:
-                output_dir = "clustering_results"
-                if not os.path.exists(output_dir):
-                    os.makedirs(output_dir)
+    #         # Save results to file
+    #         if save_results:
+    #             output_dir = "clustering_results"
+    #             if not os.path.exists(output_dir):
+    #                 os.makedirs(output_dir)
                 
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                filename = f"{output_dir}/clustering_{results['graph_name']}_{timestamp}.json"
+    #             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    #             filename = f"{output_dir}/clustering_{results['graph_name']}_{timestamp}.json"
                 
-                with open(filename, 'w') as f:
-                    json.dump(results, f, indent=4)
+    #             with open(filename, 'w') as f:
+    #                 json.dump(results, f, indent=4)
                 
-                if self.verbose:
-                    print(f"\n  Clustering results saved to: {filename}")
+    #             if self.verbose:
+    #                 print(f"\n  Clustering results saved to: {filename}")
             
-            # Return summary if requested
-            if return_mean:
-                summary = {}
-                for method, method_data in results['methods'].items():
-                    if 'num_clusters' in method_data.get('metrics', {}):
-                        summary[method] = method_data['metrics']['num_clusters']
-                return summary
+    #         # Return summary if requested
+    #         if return_mean:
+    #             summary = {}
+    #             for method, method_data in results['methods'].items():
+    #                 if 'num_clusters' in method_data.get('metrics', {}):
+    #                     summary[method] = method_data['metrics']['num_clusters']
+    #             return summary
             
-            return results
+    #         return results
             
-        except Exception as e:
-            error_msg = f"Clustering failed: {str(e)}"
-            results['error'] = error_msg
-            results['notes'] = [error_msg]
+    #     except Exception as e:
+    #         error_msg = f"Clustering failed: {str(e)}"
+    #         results['error'] = error_msg
+    #         results['notes'] = [error_msg]
             
-            if self.verbose:
-                print(f"  Error: {error_msg}")
+    #         if self.verbose:
+    #             print(f"  Error: {error_msg}")
             
-            if return_mean:
-                return {}
-            return results 
+    #         if return_mean:
+    #             return {}
+    #         return results 
 
     def calcInkRatio(self,return_mean=True):
         '''

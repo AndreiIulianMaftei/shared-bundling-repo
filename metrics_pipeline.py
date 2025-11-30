@@ -202,7 +202,7 @@ def main():
         metrics = json.loads(metrics.replace("\'", "\""))    
         print(type(metrics))
     #metrics = ['ambiguity', 'clustering']
-    metrics = ['inkratio']
+    metrics = ['clustering']
     args.save_img = 'image_outputs'
     # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
 
