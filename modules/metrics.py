@@ -10,6 +10,7 @@ from modules.EPB.experiments import Metrics as EPBMetrics
 from modules import clustering as cl
 from sklearn.cluster import DBSCAN
 from frechetdist import frdist
+from modules.countBundles import count_bundles, map_ambiguity
 
 PATH_TO_PICKLE_FOLDER = "pickle/"
 if not os.path.isdir(PATH_TO_PICKLE_FOLDER): os.mkdir(PATH_TO_PICKLE_FOLDER)
@@ -21,7 +22,7 @@ class Metrics():
 
     @staticmethod
     def getGlobalMetrics():
-        return ['inkratio', 'all_intersections', 'ambiguity', 'mean_occupation_area', 'edge_density_distribution', 'geometric_clustering', 'clustering']
+        return ['inkratio', 'all_intersections', 'ambiguity', 'mean_occupation_area', 'edge_density_distribution', 'geometric_clustering', 'clustering', 'bundle_count', 'bundle_map']
     
     @staticmethod
     def getLocalMetrics():
@@ -84,6 +85,10 @@ class Metrics():
                 return self.calcClusters(**args)
             case 'directionality_mag':
                 return self.calcPathQuality(**args)
+            case 'bundle_count':
+                return self.calcBundleCount(**args)
+            case 'bundle_map':
+                return self.calcBundleMap(**args)
             case _:
                 print("not yet implemented")
                 return 
@@ -223,13 +228,18 @@ class Metrics():
         '''
         Calculate clusters using various methods and save results with notes.
         '''
-        CC, j, areas, perimeters  = cl.process(self.Bundle)
+        CC, j, areas, perimeters, CC2, j2, areas2, perimeters2  = cl.process(self.Bundle)
+        
+        
         
         self.G.graph['num_clusters'] = j
         self.G.graph['cluster_areas'] = ' '.join(str(a) for a in areas)
         self.G.graph['cluster_perimeters'] = ' '.join(str(p) for p in perimeters)
         self.G.graph['mean_cluster_area'] = np.mean(areas)
         self.G.graph['mean_cluster_perimeter'] = np.mean(perimeters)
+        self.G.graph['num_clusters_change'] = j / j2
+        self.G.graph['mean_cluster_area_change'] = np.mean(areas) / np.mean(areas2)
+        self.G.graph['mean_cluster_perimeter_change'] = np.mean(perimeters) / np.mean(perimeters2)
         
         return j
     
@@ -849,6 +859,20 @@ class Metrics():
         
         if return_mean: return np.mean(dchange)
         return dchange
+
+    def calcBundleCount(self, return_mean=True):
+        count, thickness = count_bundles(self.Bundle)
+        self.G.graph['num_bundles'] = count
+        self.G.graph['bundle_thickness'] = np.mean(thickness)
+        
+        return count
+
+    def calcBundleMap(self, return_mean=True):
+        ambiguities = map_ambiguity(self.Bundle)
+        self.G.graph['bundle_ambiguity_mean'] = np.mean(ambiguities)
+        self.G.graph['ambiguities'] = ' '.join(str(a) for a in ambiguities)
+        
+        return np.mean(ambiguities)
 
     def calcPathQuality(self,return_mean=True,normalize=False):
         pqual = np.zeros(self.G.number_of_edges(),np.float32)

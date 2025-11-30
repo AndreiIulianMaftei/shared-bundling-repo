@@ -6,6 +6,7 @@ from scipy.spatial import Delaunay
 from scipy.spatial import ConvexHull
 
 CUTOFF = 0.65
+ALPHA = 0.75
 
 def delaunay_graph(G_in, x_attr="X", y_attr="Y"):
     """
@@ -142,7 +143,6 @@ def clustering_gestalt(G, img_path, scale=.25):
     nodes = list(G.nodes())
   
     G_Del, tri, pts, index_to_node = delaunay_graph(G)
-    alpha = 0.85
     
     to_remove = []
     for u,v,data in G_Del.edges(data=True):
@@ -180,7 +180,7 @@ def clustering_gestalt(G, img_path, scale=.25):
     for u,v,data in G_Del.edges(data=True):
         data['weight'] = data['weight'] / normalize
         
-        data['weight'] = alpha * data['weight'] + (1.0 - alpha) * ink_lookup[(u,v)]
+        data['weight'] = ALPHA * data['weight'] + (1.0 - ALPHA) * ink_lookup[(u,v)]
 
     Q0_P = []
     lookup_Q = defaultdict(dict)
@@ -253,7 +253,7 @@ def clustering_gestalt(G, img_path, scale=.25):
         if Q_ID2[i] > 0.025 * 50 /len(nodes):
             break
     w2 = Q1_S[i][2]
-    w2 = Q1_S[int(len(Q1_S) * 0.65)][2]
+    w2 = Q1_S[int(len(Q1_S) * CUTOFF)][2]
   
     for i in range(len(nodes)):
         for j in range(i+1, len(nodes)):
@@ -302,11 +302,6 @@ def clustering_gestalt(G, img_path, scale=.25):
         areas.append(area)
         perimeters.append(perimeter)
 
-    print(f"Detected {j} clusters.")
-    print("Cluster areas:", np.mean(areas))
-    print("Cluster perimeters:", np.mean(perimeters))
-
-
     return CC, j, areas, perimeters
 
 def process(Bundling):
@@ -315,6 +310,9 @@ def process(Bundling):
     
     CC, j, areas, perimeters  = clustering_gestalt(G, f'clustering{G.graph['name']}.png')   
     
-    return CC, j, areas, perimeters
+    Bundling.draw('clustering', draw_nodes=False, color=False, plotSL=True)
+    CC2, j2, areas2, perimeters2  = clustering_gestalt(G, f'clustering{G.graph['name']}.png')   
+        
+    return CC, j, areas, perimeters, CC2, j2, areas2, perimeters2
 
 

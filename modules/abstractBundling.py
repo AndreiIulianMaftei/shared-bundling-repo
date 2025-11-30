@@ -211,7 +211,7 @@ class AbstractBundling:
                     f.write(f"{x:.2f} {y:.2f} ")
                 f.write("\n")
 
-    def draw(self, path, color=True, plotIpe=False, plotSpanner=False, plotSubgraph=None, fileAddition="", color_vertices=None, draw_nodes=True, file_ending='png'):
+    def draw(self, path, color=True, plotIpe=False, plotSpanner=False, plotSubgraph=None, fileAddition="", color_vertices=None, draw_nodes=True, file_ending='png', plotSL=False):
         '''
         Draw the bundling. Either using the assign color function or the coloring given by the bundling. 
         if plotIpe is true, it will create an IPE drawing as well.
@@ -243,8 +243,10 @@ class AbstractBundling:
 
         for source, target, data in self.G.edges(data = True):
             
-
-            if 'Xapprox' in data and 'Yapprox' in data:
+            if plotSL:
+                X = [self.G.nodes[source]['X'], self.G.nodes[target]['X']]
+                Y = [self.G.nodes[source]['Y'], self.G.nodes[target]['Y']]
+            elif 'Xapprox' in data and 'Yapprox' in data:
                 X = data['Xapprox']
                 Y = data['Yapprox']
             elif 'Spline' in data:
