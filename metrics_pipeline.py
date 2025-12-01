@@ -203,7 +203,7 @@ def main():
         print(type(metrics))
     #metrics = ['ambiguity', 'clustering']
     metrics = ['bundle_count', 'bundle_map']
-    args.save_img = 'image_outputs'
+    #args.save_img = 'image_outputs'
     # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
 
     inputlist = os.listdir(inputfolder)

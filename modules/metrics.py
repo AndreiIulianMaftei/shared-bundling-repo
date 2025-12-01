@@ -22,7 +22,7 @@ class Metrics():
 
     @staticmethod
     def getGlobalMetrics():
-        return ['inkratio', 'all_intersections', 'ambiguity', 'mean_occupation_area', 'edge_density_distribution', 'geometric_clustering', 'clustering', 'bundle_count', 'bundle_map']
+        return ['inkratio', 'all_intersections', 'ambiguity', 'mean_occupation_area', 'edge_density_distribution', 'clustering', 'bundle_count', 'bundle_map']
     
     @staticmethod
     def getLocalMetrics():
@@ -233,8 +233,8 @@ class Metrics():
         
         
         self.G.graph['num_clusters'] = j
-        self.G.graph['cluster_areas'] = ' '.join(str(a) for a in areas)
-        self.G.graph['cluster_perimeters'] = ' '.join(str(p) for p in perimeters)
+        self.G.graph['cluster_areas'] = areas
+        self.G.graph['cluster_perimeters'] = perimeters
         self.G.graph['mean_cluster_area'] = np.mean(areas)
         self.G.graph['mean_cluster_perimeter'] = np.mean(perimeters)
         self.G.graph['num_clusters_change'] = j / j2
@@ -870,7 +870,7 @@ class Metrics():
     def calcBundleMap(self, return_mean=True):
         ambiguities = map_ambiguity(self.Bundle)
         self.G.graph['bundle_ambiguity_mean'] = np.mean(ambiguities)
-        self.G.graph['ambiguities'] = ' '.join(str(a) for a in ambiguities)
+        self.G.graph['bundle_ambiguities'] = ambiguities
         
         return np.mean(ambiguities)
 
