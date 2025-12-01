@@ -1,7 +1,6 @@
 import os
 import networkx as nx
 import numpy as np
-#from gdMetriX import number_of_crossings
 from datetime import datetime
 
 from modules.abstractBundling import RealizedBundling
@@ -11,6 +10,43 @@ from modules import clustering as cl
 from sklearn.cluster import DBSCAN
 from frechetdist import frdist
 from modules.countBundles import count_bundles, map_ambiguity
+
+def ccw(A, B, C):
+    """Check if three points are in counter-clockwise order."""
+    return (C[1] - A[1]) * (B[0] - A[0]) > (B[1] - A[1]) * (C[0] - A[0])
+
+def segments_intersect(A, B, C, D):
+    """Check if line segments AB and CD intersect."""
+    return ccw(A, C, D) != ccw(B, C, D) and ccw(A, B, C) != ccw(A, B, D)
+
+def number_of_crossings(G, pos):
+    """
+    Count the number of edge crossings in a graph with given positions.
+    Simple O(n^2) implementation that checks all pairs of edges.
+    
+    :param G: NetworkX graph
+    :param pos: Dictionary mapping node IDs to (x, y) positions
+    :return: Number of crossings
+    """
+    edges = list(G.edges())
+    n_crossings = 0
+    
+    for i in range(len(edges)):
+        u1, v1 = edges[i]
+        p1, p2 = pos[u1], pos[v1]
+        
+        for j in range(i + 1, len(edges)):
+            u2, v2 = edges[j]
+            # Skip if edges share an endpoint
+            if u1 == u2 or u1 == v2 or v1 == u2 or v1 == v2:
+                continue
+                
+            p3, p4 = pos[u2], pos[v2]
+            
+            if segments_intersect(p1, p2, p3, p4):
+                n_crossings += 1
+    
+    return n_crossings
 
 PATH_TO_PICKLE_FOLDER = "pickle/"
 if not os.path.isdir(PATH_TO_PICKLE_FOLDER): os.mkdir(PATH_TO_PICKLE_FOLDER)

@@ -135,8 +135,30 @@ def average_in_segment_rect_xy(img, x1, y1, x2, y2, half_width):
 
 def clustering_gestalt(G, img_path, scale=.25):
     image = cv2.imread(img_path)
+    
+    # Validate image was loaded
+    if image is None or image.size == 0:
+        print(f"Warning: Failed to load image {img_path}")
+        return [], 0, [], []
+    
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    blur = cv2.resize(gray, (0,0), fx=scale, fy=scale)
+    
+    # Validate gray image dimensions
+    if gray.shape[0] == 0 or gray.shape[1] == 0:
+        print(f"Warning: Invalid gray image dimensions {gray.shape}")
+        return [], 0, [], []
+    
+    # Calculate target dimensions with validation
+    target_width = max(1, int(gray.shape[1] * scale))
+    target_height = max(1, int(gray.shape[0] * scale))
+    
+    try:
+        blur = cv2.resize(gray, (target_width, target_height), interpolation=cv2.INTER_AREA)
+    except cv2.error as e:
+        print(f"Warning: cv2.resize failed with dimensions ({target_width}, {target_height}): {e}")
+        print(f"Original dimensions: {gray.shape}")
+        blur = gray
+    
     blur = cv2.GaussianBlur(blur, (7, 7), 0)
     blur = blur.astype(np.float32)
     
@@ -305,13 +327,60 @@ def clustering_gestalt(G, img_path, scale=.25):
     return CC, j, areas, perimeters
 
 def process(Bundling):
+    import os
+    
     G = Bundling.G
-    Bundling.draw('clustering', draw_nodes=False, color=False) 
     
-    CC, j, areas, perimeters  = clustering_gestalt(G, f'clustering{G.graph['name']}.png')   
+    # Validate graph has edges
+    if G.number_of_edges() == 0:
+        print("Warning: Graph has no edges, skipping clustering")
+        return [], 0, [], [], [], 0, [], []
     
-    Bundling.draw('clustering', draw_nodes=False, color=False, plotSL=True)
-    CC2, j2, areas2, perimeters2  = clustering_gestalt(G, f'clustering{G.graph['name']}.png')   
+    # Validate graph dimensions
+    xmax = G.graph.get('xmax', 0)
+    ymax = G.graph.get('ymax', 0)
+    
+    if xmax <= 0 or ymax <= 0:
+        print(f"Warning: Invalid graph dimensions ({xmax}, {ymax}), skipping clustering")
+        return [], 0, [], [], [], 0, [], []
+    
+    # Draw first clustering image
+    try:
+        Bundling.draw('clustering', draw_nodes=False, color=False)
+    except Exception as e:
+        print(f"Error drawing bundling for clustering: {e}")
+        return [], 0, [], [], [], 0, [], []
+    
+    img_path = f'clustering{G.graph["name"]}.png'
+    
+    # Verify the image file was created
+    if not os.path.exists(img_path):
+        print(f"Warning: Image file {img_path} was not created")
+        return [], 0, [], [], [], 0, [], []
+    
+    try:
+        CC, j, areas, perimeters = clustering_gestalt(G, img_path)
+    except Exception as e:
+        print(f"Error in clustering_gestalt (first pass): {e}")
+        return [], 0, [], [], [], 0, [], []
+    
+    # Draw second clustering image with SL
+    try:
+        Bundling.draw('clustering', draw_nodes=False, color=False, plotSL=True)
+    except Exception as e:
+        print(f"Error drawing bundling for clustering (second pass): {e}")
+        return CC, j, areas, perimeters, [], 0, [], []
+    
+    # Verify the image file was created
+    if not os.path.exists(img_path):
+        print(f"Warning: Image file {img_path} was not created (second pass)")
+        return CC, j, areas, perimeters, [], 0, [], []
+    
+    try:
+        CC2, j2, areas2, perimeters2 = clustering_gestalt(G, img_path)
+    except Exception as e:
+        print(f"Error in clustering_gestalt (second pass): {e}")
+        return CC, j, areas, perimeters, [], 0, [], []
         
     return CC, j, areas, perimeters, CC2, j2, areas2, perimeters2
 
