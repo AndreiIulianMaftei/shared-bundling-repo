@@ -22,7 +22,7 @@ class Metrics():
 
     @staticmethod
     def getGlobalMetrics():
-        return ['inkratio', 'all_intersections', 'ambiguity', 'mean_occupation_area', 'edge_density_distribution', 'clustering', 'bundle_count', 'bundle_map']
+        return ['inkratio', 'ambiguity', 'mean_occupation_area', 'edge_density_distribution', 'clustering', 'bundle_count', 'bundle_map']
     
     @staticmethod
     def getLocalMetrics():
@@ -634,8 +634,9 @@ class Metrics():
             H.add_edges_from([(i,i+1) for i in range(ncontrol_points-1)])
             pos = {i: (data['X'][i], data['Y'][i]) for i in range(ncontrol_points)}
 
-            intersections[index] = number_of_crossings(H,pos) / (ncontrol_points - 3)
-        
+            if ncontrol_points > 3:
+                intersections[index] = number_of_crossings(H,pos) / (ncontrol_points - 3)
+
         if return_mean: return np.mean(intersections)
         return intersections
     
