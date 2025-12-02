@@ -330,6 +330,7 @@ def process(Bundling):
     import os
     
     G = Bundling.G
+    rnd = np.random.randint(0,1000)
     
     # Validate graph has edges
     if G.number_of_edges() == 0:
@@ -346,12 +347,12 @@ def process(Bundling):
     
     # Draw first clustering image
     try:
-        Bundling.draw('clustering', draw_nodes=False, color=False)
+        Bundling.draw(f'clustering{rnd}', draw_nodes=False, color=False)
     except Exception as e:
         print(f"Error drawing bundling for clustering: {e}")
         return [], 0, [], [], [], 0, [], []
     
-    img_path = f'clustering{G.graph["name"]}{G.graph['file']}.png'
+    img_path = f'clustering{rnd}{G.graph["name"]}.png'
 
     # Verify the image file was created
     if not os.path.exists(img_path):
@@ -366,7 +367,7 @@ def process(Bundling):
     
     # Draw second clustering image with SL
     try:
-        Bundling.draw('clustering', draw_nodes=False, color=False, plotSL=True)
+        Bundling.draw(f'clustering{rnd}', draw_nodes=False, color=False, plotSL=True)
     except Exception as e:
         print(f"Error drawing bundling for clustering (second pass): {e}")
         return CC, j, areas, perimeters, [], 0, [], []

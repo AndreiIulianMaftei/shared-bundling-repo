@@ -432,8 +432,10 @@ def map_bundles_to_graph(G, shape, edges, scale = 0.25,):
 
 def count_bundles(Bundling):
     G = Bundling.G
-    Bundling.draw('clustering', draw_nodes=False, color=False) 
-    img = cv2.imread(f'clustering{G.graph['name']}{G.graph['file']}.png')
+    rnd = np.random.randint(0,1000)
+
+    Bundling.draw(f'clustering{rnd}', draw_nodes=False, color=False) 
+    img = cv2.imread(f'clustering{rnd}{G.graph["name"]}.png')
     
     bundle_count, thicknesses, edges = count_bundles_coarse(
         img,
@@ -442,15 +444,17 @@ def count_bundles(Bundling):
         min_edge_length=10
     )
 
-    if os.path.exists(f'clustering{G.graph['name']}{G.graph['file']}.png'):
-        os.remove(f'clustering{G.graph['name']}{G.graph['file']}.png')
+    if os.path.exists(f'clustering{rnd}{G.graph["name"]}.png'):
+        os.remove(f'clustering{rnd}{G.graph["name"]}.png')
 
     return bundle_count, thicknesses
 
 def map_ambiguity(Bundling):
     G = Bundling.G
-    Bundling.draw('clustering', draw_nodes=False, color=False) 
-    img = cv2.imread(f'clustering{G.graph['name']}{G.graph['file']}.png')
+    rnd = np.random.randint(0,1000)
+
+    Bundling.draw(f'clustering{rnd}', draw_nodes=False, color=False) 
+    img = cv2.imread(f'clustering{rnd}{G.graph["name"]}.png')
     
     bundle_count, thicknesses, edges = count_bundles_coarse(
         img,
@@ -459,8 +463,8 @@ def map_ambiguity(Bundling):
         min_edge_length=10
     )
 
-    if os.path.exists(f'clustering{G.graph['name']}{G.graph['file']}.png'):
-        os.remove(f'clustering{G.graph['name']}{G.graph['file']}.png')
+    if os.path.exists(f'clustering{rnd}{G.graph["name"]}.png'):
+        os.remove(f'clustering{rnd}{G.graph["name"]}.png')
 
     ambiguities = map_bundles_to_graph(G, img.shape, edges, scale=0.5)
 

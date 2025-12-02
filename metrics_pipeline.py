@@ -92,7 +92,7 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
 
         G.graph[f'{metric}_t'] = M.metrictime[metric]
 
-    data = nx.node_link_data(G, edges="edges")
+    data = nx.node_link_data(G)
 
     if not os.path.isdir(f"{path}"): os.mkdir(f"{path}")
     with open(f'{path}/{algorithm}.json', 'w', encoding='utf-8') as f:
@@ -100,14 +100,14 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
         
     G.graph['instance'] = path.split('/')[-1]
     
-    file_exists = os.path.isfile('dashboard/output_dashboard/instances.csv')
-    with open('dashboard/output_dashboard/instances.csv', 'a') as f:    
-        writer = csv.DictWriter(f, delimiter=';', lineterminator='\n',fieldnames=G.graph)
+    # file_exists = os.path.isfile('dashboard/output_dashboard/instances.csv')
+    # with open('dashboard/output_dashboard/instances.csv', 'a') as f:    
+    #     writer = csv.DictWriter(f, delimiter=';', lineterminator='\n',fieldnames=G.graph)
 
-        if not file_exists:
-            writer.writeheader()
+    #     if not file_exists:
+    #         writer.writeheader()
         
-        writer.writerow(G.graph)
+    #     writer.writerow(G.graph)
 
 def log_error(gname, algname, metric):
     from datetime import datetime
@@ -179,7 +179,7 @@ def main():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--folder", default="outputs/all_outputs/",type=str, help="Path to input folder")
+    parser.add_argument("--folder", default="outputs/",type=str, help="Path to input folder")
     parser.add_argument("--metric", type=str, default='all', help="which metric/s should be evaluated")
     parser.add_argument("--verbose", type=bool, default=False, help = "verbosity level")
     parser.add_argument("--smartorder", type=bool, default=True, help="Whether to order graphs from smallest to largest")
@@ -201,7 +201,7 @@ def main():
         print(metrics)
         metrics = json.loads(metrics.replace("\'", "\""))    
         print(type(metrics))
-    metrics = 'all'
+    #metrics = 'all'
     # metrics = ['bundle_count', 'bundle_map']
     #args.save_img = 'image_outputs'
     # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
