@@ -1,3 +1,4 @@
+import os
 import cv2
 import numpy as np
 from skimage.morphology import skeletonize
@@ -432,7 +433,7 @@ def map_bundles_to_graph(G, shape, edges, scale = 0.25,):
 def count_bundles(Bundling):
     G = Bundling.G
     Bundling.draw('clustering', draw_nodes=False, color=False) 
-    img = cv2.imread(f'clustering{G.graph['name']}.png')
+    img = cv2.imread(f'clustering{G.graph['name']}{G.graph['file']}.png')
     
     bundle_count, thicknesses, edges = count_bundles_coarse(
         img,
@@ -440,13 +441,16 @@ def count_bundles(Bundling):
         dilate_iters=3,
         min_edge_length=10
     )
+
+    if os.path.exists(f'clustering{G.graph['name']}{G.graph['file']}.png'):
+        os.remove(f'clustering{G.graph['name']}{G.graph['file']}.png')
 
     return bundle_count, thicknesses
 
 def map_ambiguity(Bundling):
     G = Bundling.G
     Bundling.draw('clustering', draw_nodes=False, color=False) 
-    img = cv2.imread(f'clustering{G.graph['name']}.png')
+    img = cv2.imread(f'clustering{G.graph['name']}{G.graph['file']}.png')
     
     bundle_count, thicknesses, edges = count_bundles_coarse(
         img,
@@ -454,6 +458,9 @@ def map_ambiguity(Bundling):
         dilate_iters=3,
         min_edge_length=10
     )
+
+    if os.path.exists(f'clustering{G.graph['name']}{G.graph['file']}.png'):
+        os.remove(f'clustering{G.graph['name']}{G.graph['file']}.png')
 
     ambiguities = map_bundles_to_graph(G, img.shape, edges, scale=0.5)
 

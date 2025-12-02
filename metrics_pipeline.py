@@ -179,7 +179,7 @@ def main():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--folder", default="outputs/",type=str, help="Path to input folder")
+    parser.add_argument("--folder", default="outputs/all_outputs/",type=str, help="Path to input folder")
     parser.add_argument("--metric", type=str, default='all', help="which metric/s should be evaluated")
     parser.add_argument("--verbose", type=bool, default=False, help = "verbosity level")
     parser.add_argument("--smartorder", type=bool, default=True, help="Whether to order graphs from smallest to largest")
@@ -232,14 +232,20 @@ def main():
         for algfile in os.listdir(f"{inputfolder}/{gdata}"):
             alg = algfile.replace(".graphml", "")
             print(f"Processing {gdata}/{alg}")
-            process(inputfolder, gdata, alg, metrics=metrics, verbose=args.verbose, output="short_outputs")
+            try:
+                process(inputfolder, gdata, alg, metrics=metrics, verbose=args.verbose, output="short_outputs")
+            except Exception as e:
+                print(f"Error processing {gdata}/{alg}: {e}")
     else:
         import tqdm
         for gdata in tqdm.tqdm(inputlist):
             for algfile in os.listdir(f"{inputfolder}/{gdata}"):
                 alg = algfile.replace(".graphml", "")
                 print(f"Processing {gdata}/{alg}")
-                process(inputfolder, gdata, alg, metrics=metrics, verbose=args.verbose,output="short_outputs", save_img=args.save_img)
+                try:
+                    process(inputfolder, gdata, alg, metrics=metrics, verbose=args.verbose,output="short_outputs", save_img=args.save_img)
+                except Exception as e:
+                    print(f"Error processing {gdata}/{alg}: {e}")
 
 if __name__ == "__main__":
     main()

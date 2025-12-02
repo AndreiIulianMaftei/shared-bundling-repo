@@ -351,8 +351,8 @@ def process(Bundling):
         print(f"Error drawing bundling for clustering: {e}")
         return [], 0, [], [], [], 0, [], []
     
-    img_path = f'clustering{G.graph["name"]}.png'
-    
+    img_path = f'clustering{G.graph["name"]}{G.graph['file']}.png'
+
     # Verify the image file was created
     if not os.path.exists(img_path):
         print(f"Warning: Image file {img_path} was not created")
@@ -381,6 +381,10 @@ def process(Bundling):
     except Exception as e:
         print(f"Error in clustering_gestalt (second pass): {e}")
         return CC, j, areas, perimeters, [], 0, [], []
+    
+    if os.path.exists(img_path):
+        os.remove(img_path)
+
         
     return CC, j, areas, perimeters, CC2, j2, areas2, perimeters2
 
