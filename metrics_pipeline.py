@@ -92,7 +92,7 @@ def write_json(Bundle:RealizedBundling, M:Metrics, path:str, algorithm:str):
 
         G.graph[f'{metric}_t'] = M.metrictime[metric]
 
-    data = nx.node_link_data(G, link="edges")
+    data = nx.node_link_data(G, edges="edges")
 
     if not os.path.isdir(f"{path}"): os.mkdir(f"{path}")
     with open(f'{path}/{algorithm}.json', 'w', encoding='utf-8') as f:
@@ -201,8 +201,8 @@ def main():
         print(metrics)
         metrics = json.loads(metrics.replace("\'", "\""))    
         print(type(metrics))
-    #metrics = ['ambiguity', 'clustering']
-    metrics = ['bundle_count', 'bundle_map']
+    metrics = 'all'
+    # metrics = ['bundle_count', 'bundle_map']
     #args.save_img = 'image_outputs'
     # metrics = ['inkratio', 'distortion', 'frechet', 'directionality', 'monotonicity', 'SL_angle']
 

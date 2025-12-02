@@ -32,7 +32,7 @@ CIRCLE_COLOR = 'firebrick'
 CIRCLE_SMALL = 1.0
 CIRCLE_COLOR_LIGHT = '#181716'
 BACKGROUND_COLOR = 'white'
-DPI = 192
+DPI = 200
 NUM_POINTS_BEZIER = 50
 GWIDTH = 1600
 #GWIDTH = 6921
@@ -227,8 +227,37 @@ class AbstractBundling:
             ipe = IpeConverter()
             ipe._options._DRAWING_UNBOUND = False
             ipe.createDrawing(self.G, f'{path}{self.name}.xml')
-
-        fig, ax = plt.subplots(figsize=(self.G.graph['xmax'] / DPI, self.G.graph['ymax'] / DPI), dpi=DPI)
+        # Validate and limit figure dimensions
+        max_dimension = 10000  # Maximum pixels in any dimension
+        min_dimension = 1  # Minimum pixels
+        
+        width = self.G.graph.get('xmax', GWIDTH) / DPI
+        height = self.G.graph.get('ymax', GWIDTH) / DPI
+        
+        # Ensure dimensions are valid
+        if width <= 0 or height <= 0 or not np.isfinite(width) or not np.isfinite(height):
+            print(f"Warning: Invalid dimensions ({width}, {height}), using defaults")
+            width = 8
+            height = 6
+        
+        # Limit maximum size to prevent memory issues
+        if width * DPI > max_dimension:
+            width = max_dimension / DPI
+        if height * DPI > max_dimension:
+            height = max_dimension / DPI
+            
+        # Ensure minimum size
+        if width * DPI < min_dimension:
+            width = min_dimension / DPI
+        if height * DPI < min_dimension:
+            height = min_dimension / DPI
+        try:
+            fig, ax = plt.subplots(figsize=(width, height), dpi=DPI)
+        except Exception as e:
+            print(f"Error creating figure with size ({width}, {height}): {e}")
+            # Fallback to safe default size
+            fig, ax = plt.subplots(figsize=(8, 6), dpi=DPI)
+            
         ax.axis('off')
         #fig.canvas.set_window_title(self.name)
 
@@ -291,12 +320,27 @@ class AbstractBundling:
         plt.margins(0,0)
         plt.gca().xaxis.set_major_locator(plt.NullLocator())
         plt.gca().yaxis.set_major_locator(plt.NullLocator())
-        plt.savefig(f'{path}{self.name}{fileAddition}.{file_ending}', bbox_inches='tight',pad_inches = 0)
-        plt.close(fig)
+        
+        try:
+            plt.savefig(f'{path}{self.name}{fileAddition}.{file_ending}', bbox_inches='tight',pad_inches = 0)
+        except Exception as e:
+            print(f"Error saving figure: {e}")
+            # Try saving without bbox_inches='tight' which can cause issues
+            try:
+                plt.savefig(f'{path}{self.name}{fileAddition}.{file_ending}', pad_inches=0)
+            except Exception as e2:
+                print(f"Failed to save figure even without bbox_inches: {e2}")
+        finally:
+            plt.close(fig)
         
         if plotSpanner:
-            
-            fig, ax = plt.subplots(figsize=(self.G.graph['xmax'] / DPI, self.G.graph['ymax'] / DPI), dpi=DPI)
+            # Use the same validated dimensions
+            try:
+                fig, ax = plt.subplots(figsize=(width, height), dpi=DPI)
+            except Exception as e:
+                print(f"Error creating spanner figure: {e}")
+                fig, ax = plt.subplots(figsize=(8, 6), dpi=DPI)
+                
             ax.axis('off')
             fig.canvas.set_window_title(self.name)
             
@@ -317,8 +361,12 @@ class AbstractBundling:
 
             ax.plot(X, Y, linestyle="none", color=CIRCLE_COLOR_LIGHT, marker='.', markersize = CIRCLE)
 
-            plt.savefig(f'{path}{self.name}_{fileAddition}_spanner.png')
-            plt.close(fig)
+            try:
+                plt.savefig(f'{path}{self.name}_{fileAddition}_spanner.png')
+            except Exception as e:
+                print(f"Error saving spanner figure: {e}")
+            finally:
+                plt.close(fig)
 
     def approxBezier(self, points, n):
         X = []
