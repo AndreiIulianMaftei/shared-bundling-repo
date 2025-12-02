@@ -179,7 +179,7 @@ def main():
 
     parser = argparse.ArgumentParser()
 
-    parser.add_argument("--folder", default="outputs/",type=str, help="Path to input folder")
+    parser.add_argument("--folder", default="inputs/all_outputs",type=str, help="Path to input folder")
     parser.add_argument("--metric", type=str, default='all', help="which metric/s should be evaluated")
     parser.add_argument("--verbose", type=bool, default=False, help = "verbosity level")
     parser.add_argument("--smartorder", type=bool, default=True, help="Whether to order graphs from smallest to largest")
