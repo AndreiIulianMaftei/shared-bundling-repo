@@ -95,8 +95,8 @@ class Histogram{
     }
 
     async load_data(data, accessor) {
-        var edges = data.edges;
-        this.edges = data.edges;
+        var edges = data.links;
+        this.edges = data.links;
         this.accessor = accessor;
 
         this.extentX = d3.extent(edges, d => d[accessor])
@@ -246,6 +246,8 @@ class Container{
          
         this.metrics = {}
 
+        console.log(this.file, this.algorithm);
+
         metrics.forEach(metric => {
 
             if(metric.type === 'local') {
@@ -266,11 +268,12 @@ class Container{
     }
 
     async load_data() {
-        var tthis = this;
+        var tthis = this;       
         await d3.json(this.file).then(function(data) {
+
             tthis.data = data;
 
-            tthis.bundling.add_data(data.nodes, data.edges);
+            tthis.bundling.add_data(data.nodes, data.links);
 
             for (const [key, value] of Object.entries(tthis.metrics)) {
                 value.load_data(data, key);
@@ -364,7 +367,7 @@ class Scatter{
         let yscale = d3.scaleLinear().domain(yextent).range([this.height - this.#margin.bottom, this.#margin.top]);
 
         let unqAlgs = Array.from(new Set(nodes.map(d => d.alg))).sort();
-        let cscale = d3.scaleOrdinal().domain(["sepb", "wr", "fd", "cubu", "epb" ]).range([ "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"]);
+        let cscale = d3.scaleOrdinal().domain(["sepb", "wr", "fd", "cubu_5", "epb" ]).range([ "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"]);
         // let thing = "directionality_mag";
         // let cscale = d3.scaleLinear().domain(d3.extent(this.nodes, d => d[thing]))
         //     .range(["red", "blue"]);
@@ -444,7 +447,7 @@ class Scatter{
     click(bundleid, parallel){
         let bundlediv = d3.select(bundleid);
         const ALGORITHMS = ["S-EPB", "WR", "FD", "EPB", "CUBu"].sort(); 
-        const converter = {"S-EPB": 'sepb', "WR": 'wr', "FD": 'fd', "EPB": 'epb', "CUBu": 'cubu'}; 
+        const converter = {"S-EPB": 'sepb', "WR": 'wr', "FD": 'fd', "EPB": 'epb', "CUBu": 'cubu_5'}; 
         var bundlebox = [];
 
         this.layer1.selectAll(".nodes")
@@ -536,7 +539,7 @@ class Parallel{
         let unqAlgs = this.unqAlgs;
         // this.svg = svg;
 
-        var color = d3.scaleOrdinal().domain(["sepb", "wr", "fd", "cubu", "epb" ]).range([ "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"])
+        var color = d3.scaleOrdinal().domain(["sepb", "wr", "fd", "cubu_5", "epb" ]).range([ "#1f77b4", "#ff7f0e", "#2ca02c", "#9467bd", "#8c564b"])
 
         var y = {};
         var metrics = [];

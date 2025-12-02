@@ -72,18 +72,28 @@
             {'name': "Specificity", "accessor": "specificity_1", "type": "global"},
             {'name': "False-Positive Rate", "accessor": "FPR_1", "type": "global"},
             {'name': "Distortion", "accessor": "distortion", "type": "local"},
-            {'name': "Frechet", "accessor": "frechet", "type": "local"}, 
+            {'name': "Fréchet", "accessor": "frechet", "type": "local"}, 
             {'name': "Directionality Change", "accessor": "directionality", "type": "local"}, 
             {'name': "Edge Curvature", "accessor": "directionality_mag", "type": "local"}, 
             {'name': "Monotonicity", "accessor": "monotonicity", "type": "local"},
             {'name': "Projected Monotonicity", "accessor": "projected_monotonicity", "type": "local"},
             {'name': "Self-Intersections", "accessor": "self_intersections", "type": "local"},
-            {'name': "ELD", "accessor": "mean_edge_length_difference", "type": "local"} ];
+            {'name': "ELD", "accessor": "mean_edge_length_difference", "type": "local"},
+            {'name': "Visual C. Area", "accessor":"mean_cluster_area", "type": "global"},
+            {'name': "Visual C. Area Change", "accessor":"mean_cluster_area_change", "type": "global"}, 
+            {'name': "Salient Bundles", "accessor":"num_bundles", "type": "global"}, 
+            {'name': "Salient Bundle Thickness", "accessor":"bundle_thickness", "type": "global"}, 
+            {'name': "Num. Clusters", "accessor":"num_clusters", "type": "global"}, 
+            {'name': "Num. Clusters Change", "accessor":"num_clusters_change", "type": "global"},  
+            {'name': "Salient Bundle Ambiguiety", "accessor":"bundle_ambiguity_mean", "type": "global"}, 
+            {'name': "Visual C. Perim.", "accessor":"mean_cluster_perimeter", "type": "global"}, 
+            {'name': "Visual C. Perim. Change", "accessor":"mean_cluster_perimeter_change", "type": "global"}, 
+            ];
         var FILES = [ 'g0', 'g1', 'migration', 'airlines'];
         const METRIC_SELECT = {};
         const ALGO_SELECT = {};
 
-        const converter = {"S-EPB": 'sepb', "WR": 'wr', "FD": 'fd', "EPB": 'epb', "CUBu": 'cubu'}; 
+        const converter = {"S-EPB": 'sepb', "WR": 'wr', "FD": 'fd', "EPB": 'epb', "CUBu": 'cubu_5'}; 
 
         var interface = []
 
@@ -257,12 +267,12 @@
                     
                     document.getElementById('file-select').appendChild(opt);
 
-                    if(f === "geo_mafia") {
+                    if(f === "airlines") {
                         opt.selected = true;
                     }   
                 });
         
-                initInterface("geo_mafia")
+                initInterface("airlines")
             })
 
         });
