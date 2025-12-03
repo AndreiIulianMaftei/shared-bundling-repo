@@ -304,9 +304,9 @@ class AbstractBundling:
                 cmap = matplotlib.cm.get_cmap('tab20')
                 
                 if data[color_vertices] == 100:
-                    C.append("red")
+                    C.append("lightgrey")
                 else:
-                    C.append(cmap(data[color_vertices]))
+                    C.append(cmap(data[color_vertices] % 20))
             else:
                 C.append(CIRCLE_COLOR_LIGHT)
 

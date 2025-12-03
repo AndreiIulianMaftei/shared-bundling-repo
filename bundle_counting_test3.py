@@ -399,21 +399,72 @@ def count_bundles_coarse(img_bgr: np.ndarray,
     print("Bundle count (coarse):", bundle_count)
     print("Average bundle thickness (original pixels):", avg_thick)
 
-    return bundle_count, vis_full, thicknesses
+    return bundle_count, vis_full, thicknesses, edges
 
 
 # ---------- your hook for side-by-side display ----------
 
 def process_image(img_bgr: np.ndarray) -> np.ndarray:
-    bundle_count, vis, thicknesses = count_bundles_coarse(
+    bundle_count, vis, thicknesses, edges = count_bundles_coarse(
         img_bgr,
         scale=0.5,        # tweak: smaller -> coarser, fewer bundles
         dilate_iters=3,
-        min_edge_length=5
+        min_edge_length=10
     )
+    
+    map_bundles_to_graph
     print("Bundles:", bundle_count)
-    return vis
+    return bundle_count, vis, thicknesses, edges
 
+def map_bundles_to_graph(G, shape, edges, scale = 0.25,):
+    h, w = shape[0] * scale, shape[1] * scale
+
+    ammap = np.zeros((int(w), int(h)), dtype=np.uint8)
+    
+    ambiguity = {}
+    
+    for i, edge in enumerate(edges):
+        for y,x in edge:
+            ammap[int(x), h - int(y)] = i + 1
+
+        ambiguity[i + 1] = set()
+        
+    for u,v, data in G.edges(data=True):
+        X = data['X']
+        Y = data['Y']
+
+        for x,y in zip(X, Y):
+            xi = int(x * scale)
+            yi = int(y * scale)
+            
+            amset = ammap[xi, yi]
+            if amset > 0:
+                ambiguity[amset].add((u,v))
+                
+    ambiguities = []
+    for amset in ambiguity.items():
+        endpoints = set()
+        for u,v in amset:
+            endpoints.add(u)
+            endpoints.add(v)
+            
+        av = 0
+        for u in endpoints:
+            deg1 = set(G.neighbors(u))
+            set.add(u)
+            
+            inter = deg1.intersection(endpoints)
+            setminus = endpoints.difference(deg1)
+            
+            inter = len(inter)
+            setminus = len(setminus)
+            total = len(endpoints)
+            
+            av += inter / total + setminus / (2 * total)
+            
+        ambiguities.append(av / len(endpoints))
+        
+    return ambiguities
 
 def show_side_by_side(original, processed, title="Original | Processed"):
     h1, w1 = original.shape[:2]
